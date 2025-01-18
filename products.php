@@ -55,6 +55,7 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <!-- Add Product Button -->
     <a href="add_product.php" class="btn btn-primary mb-3">Add New Product</a>
+    <a href="inventory.php" class="btn btn-success mb-3">Update Stock</a>
 
     <!-- Products Table -->
     <table class="table table-bordered">
