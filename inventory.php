@@ -46,6 +46,8 @@ try {
     <?php include 'navbar.php'; ?>
     <div class="container mt-5">
         <h2>Manage Inventory</h2>
+        <!-- Add Product Button -->
+    <a href="products.php" class="btn btn-primary mb-3">Back to Products</a>
 
         <?php if (isset($errorMessage)): ?>
             <div class="alert alert-danger" role="alert">
