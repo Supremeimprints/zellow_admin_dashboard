@@ -39,19 +39,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_category'])) {
     exit();
 }
 
-// Delete category
+// Replace the existing delete category section with this:
 if (isset($_GET['delete_id'])) {
     $delete_id = (int)$_GET['delete_id'];
 
-    $delete_query = "DELETE FROM categories WHERE category_id = :category_id";
-    $delete_stmt = $db->prepare($delete_query);
+    // Prevent deletion of "Uncategorized" category
+    if ($delete_id === 1) {
+        $_SESSION['error'] = "The default category cannot be deleted.";
+        header('Location: categories.php');
+        exit();
+    }
+
+    // Begin transaction
+    $db->beginTransaction();
 
     try {
+        // First update all products in this category to "Uncategorized"
+        $update_query = "UPDATE products 
+                        SET category_id = 1 
+                        WHERE category_id = :category_id";
+        $update_stmt = $db->prepare($update_query);
+        $update_stmt->execute([':category_id' => $delete_id]);
+
+        // Then delete the category
+        $delete_query = "DELETE FROM categories WHERE category_id = :category_id";
+        $delete_stmt = $db->prepare($delete_query);
         $delete_stmt->execute([':category_id' => $delete_id]);
-        $_SESSION['success'] = "Category deleted successfully.";
+
+        $db->commit();
+        $_SESSION['success'] = "Category deleted successfully. All associated products moved to Uncategorized.";
     } catch (Exception $e) {
+        $db->rollBack();
         $_SESSION['error'] = "Error: " . $e->getMessage();
     }
+    
     header('Location: categories.php');
     exit();
 }
