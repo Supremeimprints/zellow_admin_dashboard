@@ -10,14 +10,14 @@ $database = new Database();
 $db = $database->getConnection();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name = $_POST['name'];
+    $name = $_POST['product_name'];
     $description = $_POST['description'];
     $price = $_POST['price'];
     $category = $_POST['category'];
     $image_url = $_POST['image_url']; // Capture image URL
     $is_active = isset($_POST['is_active']) ? 1 : 0;
 
-    $query = "INSERT INTO products (name, description, price, category, image_url, is_active, created_at, updated_at) 
+    $query = "INSERT INTO products (product_name, description, price, category, image_url, is_active, created_at, updated_at) 
               VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())";
     $stmt = $db->prepare($query);
     $stmt->execute([$name, $description, $price, $category, $image_url, $is_active]);
@@ -45,8 +45,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <input type="url" class="form-control" id="image_url" name="image_url">
             </div>
             <div class="mb-3">
-                <label for="name" class="form-label">Product Name</label>
-                <input type="text" class="form-control" id="name" name="name" required>
+                <label for="product_name" class="form-label">Product Name</label>
+                <input type="text" class="form-control" id="product_name" name="product_name" required>
             </div>
             <div class="mb-3">
                 <label for="description" class="form-label">Description</label>
