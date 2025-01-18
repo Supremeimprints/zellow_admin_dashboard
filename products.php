@@ -7,7 +7,7 @@ if (!isset($_SESSION['id'])) {
     exit();
 }
 
-/// Initialize Database connection
+// Initialize Database connection
 require_once 'config/database.php';
 $database = new Database();
 $db = $database->getConnection();
@@ -25,21 +25,16 @@ if (!$admin) {
     exit();
 }
 
-// Fetch all products
-$query = "SELECT * FROM products";
+// Fetch all products with stock
+$query = "SELECT p.product_id, p.product_name, p.price, p.category_id, p.is_active, p.image_url, p.description, 
+                 c.category_name, i.stock_quantity
+          FROM products p
+          LEFT JOIN categories c ON p.category_id = c.category_id
+          LEFT JOIN inventory i ON p.product_id = i.product_id";
 $stmt = $db->prepare($query);
 $stmt->execute();
 $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Handle delete request
-if (isset($_GET['delete_id'])) {
-    $delete_id = $_GET['delete_id'];
-    $delete_query = "DELETE FROM products WHERE id = ?";
-    $delete_stmt = $db->prepare($delete_query);
-    $delete_stmt->execute([$delete_id]);
-    header("Location: products.php"); // Redirect after deleting
-    exit();
-}
 ?>
 
 <!DOCTYPE html>
@@ -52,7 +47,7 @@ if (isset($_GET['delete_id'])) {
 </head>
 <body>
 
-<!-- Navigation Bar (included separately for simplicity) -->
+<!-- Navigation Bar -->
 <?php include 'navbar.php'; ?>
 
 <div class="container mt-4">
@@ -62,44 +57,42 @@ if (isset($_GET['delete_id'])) {
     <a href="add_product.php" class="btn btn-primary mb-3">Add New Product</a>
 
     <!-- Products Table -->
-    <table class="table">
+    <table class="table table-bordered">
         <thead>
             <tr>
                 <th>ID</th>
-                <th>image</th>
+                <th>Image</th>
                 <th>Name</th>
-                <th>Description</th>
                 <th>Price</th>
                 <th>Category</th>
+                <th>Stock</th>
                 <th>Active</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
-    <?php foreach ($products as $product): ?>
-        <tr>
-            <td><?= htmlspecialchars($product['product_id']); ?></td>
-            <td>
-                <?php if (!empty($product['image_url'])): ?>
-                    <img src="<?= htmlspecialchars($product['image_url']); ?>" alt="Product Image" style="width: 50px; height: 50px; object-fit: cover;">
-                <?php else: ?>
-                    No image
-                <?php endif; ?>
-            </td>
-            <td><?= htmlspecialchars($product['product_name']); ?></td>
-            <td><?= htmlspecialchars($product['description']); ?></td>
-            <td><?= htmlspecialchars($product['price']); ?></td>
-            <td><?= htmlspecialchars($product['category']); ?></td>
-            
-            <td><?= $product['is_active'] ? 'Yes' : 'No'; ?></td>
-            <td>
-                <a href="edit_product.php?id=<?= $product['product_id']; ?>" class="btn btn-warning btn-sm">Edit</a>
-                <a href="delete_product.php?id=<?= $product['product_id']; ?>" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?');">Delete</a>
-            </td>
-        </tr>
-    <?php endforeach; ?>
-</tbody>
-
+            <?php foreach ($products as $product): ?>
+                <tr>
+                    <td><?= htmlspecialchars($product['product_id']); ?></td>
+                    <td>
+                        <?php if (!empty($product['image_url'])): ?>
+                            <img src="<?= htmlspecialchars($product['image_url']); ?>" alt="Product Image" style="width: 50px; height: 50px; object-fit: cover;">
+                        <?php else: ?>
+                            No image
+                        <?php endif; ?>
+                    </td>
+                    <td><?= htmlspecialchars($product['product_name']); ?></td>
+                    <td><?= htmlspecialchars($product['price']); ?></td>
+                    <td><?= htmlspecialchars($product['category_name'] ?? 'Uncategorized'); ?></td>
+                    <td><?= htmlspecialchars($product['stock_quantity'] ?? '0'); ?></td>
+                    <td><?= $product['is_active'] ? 'Yes' : 'No'; ?></td>
+                    <td>
+                        <a href="edit_product.php?id=<?= $product['product_id']; ?>" class="btn btn-warning btn-sm">Edit</a>
+                        <a href="delete_product.php?id=<?= $product['product_id']; ?>" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this product?');">Delete</a>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+        </tbody>
     </table>
 </div>
 
