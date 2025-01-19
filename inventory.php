@@ -71,7 +71,7 @@ try {
                 <tbody>
                     <?php if (empty($inventory)): ?>
                         <tr>
-                            <td colspan="6" class="text-center">No inventory found</td>
+                            <td colspan="5" class="text-center">No inventory found</td>
                         </tr>
                     <?php else: ?>
                         <?php foreach ($inventory as $item): ?>
@@ -83,7 +83,7 @@ try {
                                 <td><?php echo htmlspecialchars($item['updated_by']); ?></td>
                                 <td>
                                     <a href="update_inventory.php?id=<?php echo $item['id']; ?>" class="btn btn-warning btn-sm">Edit</a>
-                                    <a href="delete_inventory.php?id=<?php echo $item['id']; ?>" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this item?');">Delete</a>
+                                    
                                 </td>
                             </tr>
                         <?php endforeach; ?>
