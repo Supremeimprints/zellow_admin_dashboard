@@ -18,20 +18,30 @@ require_once 'config/database.php';
 $database = new Database();
 $db = $database->getConnection();
 
-// Fetch inventory data
-$query = "SELECT i.id, p.product_name, i.stock_quantity, i.min_stock_level, i.last_restocked, u.username AS updated_by
-          FROM inventory i
-          LEFT JOIN products p ON i.product_id = p.product_id
-          LEFT JOIN users u ON i.updated_by = u.id";
+// Handle search input
+$search = '';
+if (isset($_GET['search'])) {
+    $search = trim($_GET['search']);
+}
+
+// Fetch inventory data with optional filtering
+$query = "
+    SELECT i.id, p.product_name, i.stock_quantity, i.min_stock_level, i.last_restocked, u.username AS updated_by
+    FROM inventory i
+    LEFT JOIN products p ON i.product_id = p.product_id
+    LEFT JOIN users u ON i.updated_by = u.id
+    WHERE p.product_name LIKE :search OR u.username LIKE :search
+";
 
 try {
     $stmt = $db->prepare($query);
-    $stmt->execute();
+    $stmt->execute([':search' => '%' . $search . '%']);
     $inventory = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
     $errorMessage = "Error fetching inventory: " . $e->getMessage();
     $inventory = [];
 }
+
 ?>
 
 <!DOCTYPE html>
@@ -46,14 +56,23 @@ try {
     <?php include 'navbar.php'; ?>
     <div class="container mt-5">
         <h2>Manage Inventory</h2>
-        <!-- Add Product Button -->
-    <a href="products.php" class="btn btn-primary mb-3">Back to Products</a>
+        
+        <!-- Back to Products Button -->
+        <a href="products.php" class="btn btn-primary mb-3">Back to Products</a>
 
         <?php if (isset($errorMessage)): ?>
             <div class="alert alert-danger" role="alert">
                 <?php echo htmlspecialchars($errorMessage); ?>
             </div>
         <?php endif; ?>
+
+        <!-- Search Form -->
+        <form method="GET" action="inventory.php" class="mb-3">
+            <div class="input-group">
+                <input type="text" name="search" class="form-control" placeholder="Search by product name or updated by" value="<?= htmlspecialchars($search); ?>">
+                <button type="submit" class="btn btn-primary">Search</button>
+            </div>
+        </form>
 
         <!-- Inventory Table -->
         <div class="table-responsive">
@@ -71,7 +90,7 @@ try {
                 <tbody>
                     <?php if (empty($inventory)): ?>
                         <tr>
-                            <td colspan="5" class="text-center">No inventory found</td>
+                            <td colspan="6" class="text-center">No inventory found</td>
                         </tr>
                     <?php else: ?>
                         <?php foreach ($inventory as $item): ?>
@@ -83,7 +102,6 @@ try {
                                 <td><?php echo htmlspecialchars($item['updated_by']); ?></td>
                                 <td>
                                     <a href="update_inventory.php?id=<?php echo $item['id']; ?>" class="btn btn-warning btn-sm">Edit</a>
-                                    
                                 </td>
                             </tr>
                         <?php endforeach; ?>
