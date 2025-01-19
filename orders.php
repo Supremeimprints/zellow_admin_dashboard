@@ -21,12 +21,23 @@ $errorMessage = '';
 $successMessage = '';
 
 // Build query for orders with optional filters and additional fields
-$query = "SELECT o.order_id, u.username, o.total_amount, o.quantity, o.total_price, 
-          o.status, o.shipping_address, o.payment_status, o.payment_method, 
-          o.tracking_number, o.order_date, o.shipping_method 
-          FROM orders o
-          JOIN users u ON o.id = u.id 
-          WHERE 1";
+$query = "SELECT o.order_id, 
+       o.username AS order_username, 
+       o.email, 
+       u.username AS user_username, 
+       o.total_amount, 
+       o.quantity, 
+       o.total_price, 
+       o.status, 
+       o.shipping_address, 
+       o.payment_status, 
+       o.payment_method, 
+       o.tracking_number, 
+       o.order_date, 
+       o.shipping_method 
+FROM orders o
+JOIN users u ON o.id = u.id
+WHERE 1";
 
 if ($statusFilter) {
     $query .= " AND o.status = :status";
@@ -127,7 +138,7 @@ try {
                         <?php foreach ($orders as $order): ?>
                             <tr>
                                 <td><?php echo htmlspecialchars($order['order_id']); ?></td>
-                                <td><?php echo htmlspecialchars($order['username']); ?></td>
+                                <td><?php echo htmlspecialchars($order['user_username']); ?></td>
                                 <td><?php echo htmlspecialchars($order['quantity']); ?></td>
                                 <td>Ksh.<?php echo htmlspecialchars(number_format($order['total_amount'], 2)); ?></td>
                                 <td>Ksh.<?php echo htmlspecialchars(number_format($order['total_price'], 2)); ?></td>

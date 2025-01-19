@@ -25,7 +25,7 @@ if (isset($_GET['toggle_status']) && isset($_GET['source_table'])) {
     $customer_id = $_GET['toggle_status'];
 
     // Validate source_table
-    $valid_tables = ['customers', 'users'];
+    $valid_tables = ['customers', 'users', 'orders'];
     if (in_array($_GET['source_table'], $valid_tables)) {
         $source_table = $_GET['source_table'];
     } else {
@@ -45,7 +45,7 @@ if (isset($_GET['delete']) && isset($_GET['source_table'])) {
     $customer_id = $_GET['delete'];
 
     // Validate source_table
-    $valid_tables = ['customers', 'users'];
+    $valid_tables = ['customers', 'users', 'orders'];
     if (in_array($_GET['source_table'], $valid_tables)) {
         $source_table = $_GET['source_table'];
     } else {
