@@ -1,30 +1,39 @@
 <?php
+// Start the session
 session_start();
 
-// Ensure the admin is logged in
+// Check if the user is logged in
 if (!isset($_SESSION['id'])) {
+    // Redirect to login page if not logged in
     header('Location: login.php');
     exit();
 }
 
-require_once 'navbar.php';
-?>
+//Restrict access to specific roles
+$allowed_roles = ['admin','finance_manager', 'supply_manager', 'dispatch_manager', 'service_manager', 'inventory_manager'];
+if (!in_array($_SESSION['role'], $allowed_roles)) {
+    echo "You do not have permission to view this page.";
+    exit();
+}
 
+// Display the placeholder content
+?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Dashboard</title>
+    <title>Dashboard Placeholder</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
+
 <body>
-<div class="container mt-4">
-    <h1>Finance</h1>
-    <div class="alert alert-info" role="alert">
-        <h4 class="alert-heading">Dashboard Under Construction</h4>
+    <div class="container mt-5 text-center">
+        <h1>Dashboard Under Construction</h1>
         <p>We're working hard to get this dashboard ready. Please check back later!</p>
+        <a href="logout.php" class="btn btn-danger">Log Out</a>
     </div>
-</div>
 </body>
+
 </html>
