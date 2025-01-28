@@ -25,7 +25,7 @@ if (!isset($admin)) {
 }
 ?>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
     <div class="container">
         <a class="navbar-brand" href="index.php">Zellow Admin</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -46,7 +46,7 @@ if (!isset($admin)) {
                     <a class="nav-link" href="orders.php">Orders</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="Logisticsdashboard.php">Dispatch</a>
+                    <a class="nav-link" href="dispatch.php">Dispatch</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="inventory.php">Inventory</a>

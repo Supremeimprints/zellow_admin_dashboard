@@ -2,67 +2,57 @@
 session_start();
 require_once 'config/database.php';
 
+$error = ''; // Initialize error as empty
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email']);
     $password = trim($_POST['password']);
-    $error = null;
 
-    // Initialize database connection
     $database = new Database();
     $db = $database->getConnection();
 
-    $query = (strpos($email, '@admin.com') !== false) ? "SELECT * FROM users WHERE email = :email AND is_active = 1" : "SELECT * FROM customers WHERE email = :email AND is_active = 1";
-    
-
-    // Fetch user
-    $query = "SELECT id, password, role FROM users WHERE email = ?";
+    // Correct query to include email
+    $query = "SELECT id, email, password, role FROM users WHERE email = ?";
     $stmt = $db->prepare($query);
     $stmt->execute([$email]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-
-
-if ($user && password_verify($password, $user['password'])) {
-    // Start session if not already started
-    if (session_status() === PHP_SESSION_NONE) {
-        session_start();
-    }
-    
-    // Set session variables consistently
-    $_SESSION['email'] = $user['email'];
-    $_SESSION['id'] = $user['id'];
-    $_SESSION['logged_in'] = true;
-    $_SESSION['role'] = $user['role']; 
-        switch ($user['role']) {
+    if ($user && password_verify($password, $user['password'])) {
+        // Set session variables
+        $_SESSION['email'] = $user['email'];
+        $_SESSION['id'] = $user['id'];
+        $_SESSION['logged_in'] = true;
+        $_SESSION['role'] = $user['role'];
         
-                case 'admin':
-                    header("Location: index.php");
-                    break;
-                case 'finance_manager':
-                    header("Location: Financedashboard.php");
-                    break;
-                case 'supply_manager':
-                    header("Location: placeholder.php");
-                    break;
-                case 'dispatch_manager':
-                    header("Location: Logistics.php");
-                    break;
-                case 'service_manager':
-                    header("Location: placeholder.php");
-                    break;
-                case 'inventory_manager':
-                    header("Location: placeholder.php");
-                    break;
-                default:
-                    header("Location: placeholder.php"); // Redirect to placeholder for unhandled roles
-                    break;
-            }
-            exit(); // Stop script execution after redirection
+        // Redirect based on role
+        switch ($user['role']) {
+            case 'admin':
+                header("Location: index.php");
+                break;
+            case 'finance_manager':
+                header("Location: Financedashboard.php");
+                break;
+            case 'supply_manager':
+                header("Location: placeholder.php");
+                break;
+            case 'dispatch_manager':
+                header("Location: dispatch.php");
+                break;
+            case 'service_manager':
+                header("Location: placeholder.php");
+                break;
+            case 'inventory_manager':
+                header("Location: placeholder.php");
+                break;
+            default:
+                header("Location: placeholder.php");
+                break;
         }
+        exit();
     } else {
         $error = "Invalid email or password.";
-    } 
-
+    }
+}
 ?>            
 <!DOCTYPE html>
 <html lang="en">
@@ -90,4 +80,5 @@ if ($user && password_verify($password, $user['password'])) {
         </form>
     </div>
 </body>
+<?php include 'footer.php'; ?>
 </html>

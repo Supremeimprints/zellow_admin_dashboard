@@ -112,4 +112,5 @@ if (isset($_GET['delete']) && isset($_GET['source_table'])) {
         </table>
     </div>
 </body>
+<?php include 'footer.php'; ?>
 </html>

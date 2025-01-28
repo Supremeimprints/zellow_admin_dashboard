@@ -24,4 +24,5 @@ require_once 'navbar.php';
     <p>This is a placeholder for Notifications page.</p>
 </div>
 </body>
+<?php include 'footer.php'; ?>
 </html>

@@ -152,6 +152,8 @@ $uniqueItems = $inventoryStats['unique_items'];
 
 <body>
     <?php include 'navbar.php'; ?>
+    
+
 
     <div class="dashboard-header">
         <div class="container">
@@ -481,6 +483,7 @@ $uniqueItems = $inventoryStats['unique_items'];
                             return $string ? implode(', ', $string) . ' ago' : 'just now';
                         }
                         ?>
+                        
 </body>
-
+<?php include 'footer.php'; ?>
 </html>

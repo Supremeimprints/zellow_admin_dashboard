@@ -124,6 +124,42 @@ try {
 <body>
     <?php include 'navbar.php'; ?>
     <div class="container mt-5">
+        <!-- Summary Stats Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-white bg-primary">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Orders</h5>
+                        <p class="card-text"><?= count($orders) ?></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-warning">
+                    <div class="card-body">
+                        <h5 class="card-title">Pending Orders</h5>
+                        <p class="card-text"><?= count(array_filter($orders, fn($order) => $order['status'] === 'Pending')) ?></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-success">
+                    <div class="card-body">
+                        <h5 class="card-title">Shipped Orders</h5>
+                        <p class="card-text"><?= count(array_filter($orders, fn($order) => $order['status'] === 'Shipped')) ?></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-danger">
+                    <div class="card-body">
+                        <h5 class="card-title">Cancelled Orders</h5>
+                        <p class="card-text"><?= count(array_filter($orders, fn($order) => $order['status'] === 'Cancelled')) ?></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <div class="container mt-5">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2>View Orders</h2>
             <a href="create_order.php" class="btn btn-primary">Create New Order</a>
@@ -289,5 +325,5 @@ try {
     ?>
     </div>
 </body>
-
+<?php include 'footer.php'; ?>
 </html>

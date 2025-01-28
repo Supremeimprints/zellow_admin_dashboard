@@ -23,5 +23,9 @@ require_once 'navbar.php';
     <h1>System Settings</h1>
     <p>This is a placeholder for system settings.</p>
 </div>
+
 </body>
+<div class="footer">
+<?php include 'footer.php'; ?>
+</div>
 </html>
