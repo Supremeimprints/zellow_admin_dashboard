@@ -7,7 +7,7 @@ if (!isset($_SESSION['id'])) {
 }
 
 //Restrict access to specific roles
-$allowed_roles = ['admin','dispatch_manager'];
+$allowed_roles = ['admin', 'dispatch_manager'];
 if (!in_array($_SESSION['role'], $allowed_roles)) {
     echo "You do not have permission to view this page.";
     exit();
@@ -46,7 +46,8 @@ $query = "SELECT o.order_id,
        o.shipping_method 
 FROM orders o
 JOIN users u ON o.id = u.id
-WHERE 1 AND o.status = 'Pending'"; // Assuming "Pending" status is relevant for dispatch orders
+WHERE 1 AND (o.status = 'Pending' OR o.status = 'Processing')
+AND (o.payment_status = 'Paid' OR o.payment_status = 'Pending')"; // Assuming "Pending" status is relevant for dispatch orders
 
 // Add filters to query
 if ($statusFilter) {
@@ -134,7 +135,7 @@ foreach ($statuses as $status) {
     } catch (Exception $e) {
         $orderCounts[$status] = 0;
     }
-}                
+}
 ?>
 
 <!DOCTYPE html>
@@ -146,9 +147,18 @@ foreach ($statuses as $status) {
     <title>Dispatch Orders</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        .card { min-height: 120px; }
-        .collapse-toggle { cursor: pointer; }
-        .order-details { background-color: #f8f9fa; padding: 15px; }
+        .card {
+            min-height: 120px;
+        }
+
+        .collapse-toggle {
+            cursor: pointer;
+        }
+
+        .order-details {
+            background-color: #f8f9fa;
+            padding: 15px;
+        }
     </style>
 </head>
 
@@ -158,8 +168,8 @@ foreach ($statuses as $status) {
         <!-- Summary Stats Cards -->
         <h2>Dispatch Summary</h2>
         <div class="row row-cols-1 row-cols-md-6 g-4 mb-4">
-            <?php foreach ($statuses as $status): 
-                $color = match($status) {
+            <?php foreach ($statuses as $status):
+                $color = match ($status) {
                     'Pending' => 'warning',
                     'Processing' => 'info',
                     'Shipped' => 'success',
@@ -167,15 +177,15 @@ foreach ($statuses as $status) {
                     'Cancelled' => 'danger',
                     default => 'primary'
                 };
-            ?>
-            <div class="col">
-                <div class="card text-white bg-<?= $color ?>">
-                    <div class="card-body">
-                        <h6 class="card-title"><?= $status ?></h6>
-                        <h3 class="card-text"><?= $orderCounts[$status] ?></h3>
+                ?>
+                <div class="col">
+                    <div class="card text-white bg-<?= $color ?>">
+                        <div class="card-body">
+                            <h6 class="card-title"><?= $status ?></h6>
+                            <h3 class="card-text"><?= $orderCounts[$status] ?></h3>
+                        </div>
                     </div>
                 </div>
-            </div>
             <?php endforeach; ?>
         </div>
 
@@ -184,17 +194,18 @@ foreach ($statuses as $status) {
             <div class="row g-3">
                 <!-- Search Input -->
                 <div class="col-md-3">
-                    <input type="text" name="search" class="form-control" 
-                           placeholder="Search (username, address, email, tracking)" 
-                           value="<?= htmlspecialchars($search) ?>">
+                    <input type="text" name="search" class="form-control"
+                        placeholder="Search (username, address, email, tracking)"
+                        value="<?= htmlspecialchars($search) ?>">
                 </div>
 
                 <!-- Status Filters -->
                 <div class="col-md-2">
                     <select name="status" class="form-select">
-                        <option value="">All Statuses</option>
+                        <option value="">Shipping Status</option>
                         <option value="Pending" <?= $statusFilter === 'Pending' ? 'selected' : '' ?>>Pending</option>
-                        <option value="Processing" <?= $statusFilter === 'Processing' ? 'selected' : '' ?>>Processing</option>
+                        <option value="Processing" <?= $statusFilter === 'Processing' ? 'selected' : '' ?>>Processing
+                        </option>
                         <option value="Shipped" <?= $statusFilter === 'Shipped' ? 'selected' : '' ?>>Shipped</option>
                         <option value="Delivered" <?= $statusFilter === 'Delivered' ? 'selected' : '' ?>>Delivered</option>
                         <option value="Cancelled" <?= $statusFilter === 'Cancelled' ? 'selected' : '' ?>>Cancelled</option>
@@ -206,9 +217,11 @@ foreach ($statuses as $status) {
                     <select name="payment_status" class="form-select">
                         <option value="">Payment Status</option>
                         <option value="Paid" <?= $paymentStatusFilter === 'Paid' ? 'selected' : '' ?>>Paid</option>
-                        <option value="Pending" <?= $paymentStatusFilter === 'Pending' ? 'selected' : '' ?>>Pending</option>
+                        <option value="Pending" <?= $paymentStatusFilter === 'Pending' ? 'selected' : '' ?>>Pending
+                        </option>
                         <option value="Failed" <?= $paymentStatusFilter === 'Failed' ? 'selected' : '' ?>>Failed</option>
-                        <option value="Refunded" <?= $paymentStatusFilter === 'Refunded' ? 'selected' : '' ?>>Refunded</option>
+                        <option value="Refunded" <?= $paymentStatusFilter === 'Refunded' ? 'selected' : '' ?>>Refunded
+                        </option>
                     </select>
                 </div>
 
@@ -216,7 +229,8 @@ foreach ($statuses as $status) {
                 <div class="col-md-2">
                     <select name="payment_method" class="form-select">
                         <option value="">Payment Method</option>
-                        <option value="Credit Card" <?= $paymentMethodFilter === 'Credit Card' ? 'selected' : '' ?>>Credit Card</option>
+                        <option value="Credit Card" <?= $paymentMethodFilter === 'Credit Card' ? 'selected' : '' ?>>Credit
+                            Card</option>
                         <option value="PayPal" <?= $paymentMethodFilter === 'PayPal' ? 'selected' : '' ?>>PayPal</option>
                         <option value="M-Pesa" <?= $paymentMethodFilter === 'M-Pesa' ? 'selected' : '' ?>>M-Pesa</option>
                     </select>
@@ -226,20 +240,20 @@ foreach ($statuses as $status) {
                 <div class="col-md-2">
                     <select name="shipping_method" class="form-select">
                         <option value="">Shipping Method</option>
-                        <option value="Standard" <?= $shippingMethodFilter === 'Standard' ? 'selected' : '' ?>>Standard</option>
-                        <option value="Express" <?= $shippingMethodFilter === 'Express' ? 'selected' : '' ?>>Express</option>
+                        <option value="Standard" <?= $shippingMethodFilter === 'Standard' ? 'selected' : '' ?>>Standard
+                        </option>
+                        <option value="Express" <?= $shippingMethodFilter === 'Express' ? 'selected' : '' ?>>Express
+                        </option>
                     </select>
                 </div>
 
                 <!-- Date Range -->
                 <div class="col-md-4">
                     <div class="input-group">
-                        <input type="date" name="start_date" class="form-control" 
-                               value="<?= htmlspecialchars($startDate) ?>" 
-                               placeholder="Start Date">
-                        <input type="date" name="end_date" class="form-control" 
-                               value="<?= htmlspecialchars($endDate) ?>" 
-                               placeholder="End Date">
+                        <input type="date" name="start_date" class="form-control"
+                            value="<?= htmlspecialchars($startDate) ?>" placeholder="Start Date">
+                        <input type="date" name="end_date" class="form-control"
+                            value="<?= htmlspecialchars($endDate) ?>" placeholder="End Date">
                     </div>
                 </div>
 
@@ -298,8 +312,12 @@ foreach ($statuses as $status) {
                                 <td><?php echo htmlspecialchars($order['shipping_address']); ?></td>
                                 <td><?php echo htmlspecialchars(date('Y-m-d H:i', strtotime($order['order_date']))); ?></td>
                                 <td>
-                                    <a href="dispatch_order.php?id=<?php echo $order['order_id']; ?>"
-                                        class="btn btn-sm btn-success">Dispatch</a>
+                                    <?php if ($order['payment_status'] === 'Paid' || $order['payment_status'] === 'Pending'): ?>
+                                        <a href="dispatch_order.php?order_id=<?php echo $order['order_id']; ?>"
+                                            class="btn btn-sm btn-success">Dispatch</a>
+                                    <?php else: ?>
+                                        <button class="btn btn-sm btn-secondary" disabled>Cannot Dispatch</button>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -309,93 +327,96 @@ foreach ($statuses as $status) {
         </div>
 
         <!-- Drivers Table -->
-<h3 class="mt-5">Drivers</h3>
-<div>
-    <a href="create_driver.php" class="btn btn-primary">
-        <i class="bi bi-person-plus"></i> Create New Driver
-    </a>
-</div>
-<div class="table-responsive">
-    <table class="table table-striped table-hover">
-        <thead>
-            <tr>
-                <th>Driver ID</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Status</th>
-                <th>Vehicle Type</th>
-                <th>Vehicle Model</th>
-                <th>Registration</th>
-                <th>Vehicle Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php if (empty($drivers)): ?>
-                <tr>
-                    <td colspan="9" class="text-center">No drivers available</td>
-                </tr>
-            <?php else: ?>
-                <?php foreach ($drivers as $driver): ?>
+        <h3 class="mt-5">Drivers</h3>
+        <div>
+            <a href="create_driver.php" class="btn btn-primary">
+                <i class="bi bi-person-plus"></i> Create New Driver
+            </a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
                     <tr>
-                        <td><?php echo htmlspecialchars($driver['driver_id']); ?></td>
-                        <td><?php echo htmlspecialchars($driver['name']); ?></td>
-                        <td><?php echo htmlspecialchars($driver['email']); ?></td>
-                        <td><?php echo htmlspecialchars($driver['phone_number']); ?></td>
-                        <td>
-                            <span class="badge bg-<?php echo $driver['status'] === 'Active' ? 'success' : 'danger'; ?>">
-                                <?php echo htmlspecialchars($driver['status']); ?>
-                            </span>
-                        </td>
-                        <td><?php echo htmlspecialchars($driver['vehicle_type'] ?? 'N/A'); ?></td>
-                        <td><?php echo htmlspecialchars($driver['vehicle_model'] ?? 'N/A'); ?></td>
-                        <td><?php echo htmlspecialchars($driver['registration_number'] ?? 'N/A'); ?></td>
-                        <td>
-                            <span class="badge bg-<?php echo getVehicleStatusColor($driver['vehicle_status'] ?? 'N/A'); ?>">
-                                <?php echo htmlspecialchars($driver['vehicle_status'] ?? 'N/A'); ?>
-                            </span>
-                        </td>
+                        <th>Driver ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Status</th>
+                        <th>Vehicle Type</th>
+                        <th>Vehicle Model</th>
+                        <th>Registration</th>
+                        <th>Vehicle Status</th>
                     </tr>
-                <?php endforeach; ?>
-            <?php endif; ?>
-        </tbody>
-    </table>
-</div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+                </thead>
+                <tbody>
+                    <?php if (empty($drivers)): ?>
+                        <tr>
+                            <td colspan="9" class="text-center">No drivers available</td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($drivers as $driver): ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($driver['driver_id']); ?></td>
+                                <td><?php echo htmlspecialchars($driver['name']); ?></td>
+                                <td><?php echo htmlspecialchars($driver['email']); ?></td>
+                                <td><?php echo htmlspecialchars($driver['phone_number']); ?></td>
+                                <td>
+                                    <span class="badge bg-<?php echo $driver['status'] === 'Active' ? 'success' : 'danger'; ?>">
+                                        <?php echo htmlspecialchars($driver['status']); ?>
+                                    </span>
+                                </td>
+                                <td><?php echo htmlspecialchars($driver['vehicle_type'] ?? 'N/A'); ?></td>
+                                <td><?php echo htmlspecialchars($driver['vehicle_model'] ?? 'N/A'); ?></td>
+                                <td><?php echo htmlspecialchars($driver['registration_number'] ?? 'N/A'); ?></td>
+                                <td>
+                                    <span
+                                        class="badge bg-<?php echo getVehicleStatusColor($driver['vehicle_status'] ?? 'N/A'); ?>">
+                                        <?php echo htmlspecialchars($driver['vehicle_status'] ?? 'N/A'); ?>
+                                    </span>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-    <?php
-    function getStatusColor($status)
-    {
-        return match ($status) {
-            'Pending' => 'warning',
-            'Processing' => 'info',
-            'Shipped' => 'primary',
-            'Delivered' => 'success',
-            'Cancelled' => 'danger',
-            default => 'secondary'
-        };
-    }
+        <?php
+        function getStatusColor($status)
+        {
+            return match ($status) {
+                'Pending' => 'warning',
+                'Processing' => 'info',
+                'Shipped' => 'primary',
+                'Delivered' => 'success',
+                'Cancelled' => 'danger',
+                default => 'secondary'
+            };
+        }
 
-    function getPaymentStatusColor($status)
-    {
-        return match ($status) {
-            'Pending' => 'warning',
-            'Paid' => 'success',
-            'Failed' => 'danger',
-            'Refunded' => 'info',
-            default => 'secondary'
-        };
-    }
+        function getPaymentStatusColor($status)
+        {
+            return match ($status) {
+                'Pending' => 'warning',
+                'Paid' => 'success',
+                'Failed' => 'danger',
+                'Refunded' => 'info',
+                default => 'secondary'
+            };
+        }
 
-    function getVehicleStatusColor($status) {
-        return match ($status) {
-            'Available' => 'success',
-            'In Use' => 'warning',
-            'Under Maintenance' => 'danger',
-            default => 'secondary'
-        };
-    }
-    ?>
+        function getVehicleStatusColor($status)
+        {
+            return match ($status) {
+                'Available' => 'success',
+                'In Use' => 'warning',
+                'Under Maintenance' => 'danger',
+                default => 'secondary'
+            };
+        }
+        ?>
 </body>
 <?php include 'footer.php'; ?>
+
 </html>

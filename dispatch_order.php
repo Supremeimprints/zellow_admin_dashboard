@@ -127,6 +127,8 @@ foreach ($statuses as $status) {
         $orderCounts[$status] = 0;
     }
 }
+
+
 ?>
 
 <!DOCTYPE html>
@@ -240,7 +242,7 @@ foreach ($statuses as $status) {
                 <tbody>
                     <?php foreach ($orders as $order): ?>
                     <tr>
-                        <td><?= htmlspecialchars($order['order_id']) ?></td>
+                        <td>#<?= htmlspecialchars($order['order_id']) ?></td>
                         <td>
                             <div><?= htmlspecialchars($order['order_username']) ?></div>
                             <small class="text-muted"><?= htmlspecialchars($order['email']) ?></small>

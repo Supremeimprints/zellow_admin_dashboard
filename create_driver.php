@@ -15,10 +15,10 @@ $successMessage = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $driverName = $_POST['name'] ?? '';
     $driverEmail = $_POST['email'] ?? '';
-    $driverPhone = $_POST['phone_number'] ?? '';
+    $driverPhone = $_POST['phone'] ?? '';
     $vehicleType = $_POST['vehicle_type'] ?? '';
     $vehicleModel = $_POST['vehicle_model'] ?? '';
-    $vehicleRegistration = $_POST['registration_number'] ?? '';
+    $vehicleRegistration = $_POST['vehicle_registration'] ?? '';
     $vehicleStatus = $_POST['vehicle_status'] ?? 'Available'; // Default to Available status
     $status = $_POST['status'] ?? 'Active'; // Default to Active driver status
 
@@ -36,11 +36,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errorMessage = "The email address is already in use.";
             } else {
                 // Insert new driver into the database
-                $query = "INSERT INTO drivers (name, email, phone_number, status) VALUES (:name, :email, :phone_number, :status)";
+                $query = "INSERT INTO drivers (name, email, phone_number, status) VALUES (:name, :email, :phone, :status)";
                 $stmt = $db->prepare($query);
                 $stmt->bindParam(':name', $driverName);
                 $stmt->bindParam(':email', $driverEmail);
-                $stmt->bindParam(':phone_number', $driverPhone);
+                $stmt->bindParam(':phone', $driverPhone);
                 $stmt->bindParam(':status', $status);
 
                 if ($stmt->execute()) {
@@ -106,8 +106,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <input type="email" name="email" id="email" class="form-control" required>
             </div>
             <div class="mb-3">
-                <label for="phone_number" class="form-label">Phone Number</label>
-                <input type="text" name="phone_number" id="phone_number" class="form-control" required>
+                <label for="phone" class="form-label">Phone Number</label>
+                <input type="text" name="phone" id="phone" class="form-control" required>
             </div>
             <div class="mb-3">
                 <label for="status" class="form-label">Driver Status</label>
@@ -133,8 +133,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <input type="text" name="vehicle_model" id="vehicle_model" class="form-control" required>
             </div>
             <div class="mb-3">
-                <label for="registration_number" class="form-label">Vehicle Registration Number</label>
-                <input type="text" name="registration_number" id="registration_number" class="form-control" required>
+                <label for="vehicle_registration" class="form-label">Vehicle Registration Number</label>
+                <input type="text" name="vehicle_registration" id="vehicle_registration" class="form-control" required>
             </div>
             <div class="mb-3">
                 <label for="vehicle_status" class="form-label">Vehicle Status</label>
@@ -148,10 +148,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <button type="submit" class="btn btn-primary">Create Driver and Assign Vehicle</button>
             <a href="dispatch.php" class="btn btn-secondary">Cancel</a>
         </form>
-        
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-<?php include 'footer.php'; ?>
 </html>

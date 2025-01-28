@@ -109,6 +109,18 @@ try {
     $errorMessage = "Error fetching orders: " . $e->getMessage();
     $orders = [];
 }
+// Get order counts
+$orderCounts = [];
+$statuses = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+foreach ($statuses as $status) {
+    try {
+        $countStmt = $db->prepare("SELECT COUNT(*) AS count FROM orders WHERE status = ?");
+        $countStmt->execute([$status]);
+        $orderCounts[$status] = $countStmt->fetchColumn();
+    } catch (Exception $e) {
+        $orderCounts[$status] = 0;
+    }
+}  
 ?>
 
 <!DOCTYPE html>
@@ -125,39 +137,27 @@ try {
     <?php include 'navbar.php'; ?>
     <div class="container mt-5">
         <!-- Summary Stats Cards -->
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card text-white bg-primary">
+        <h2>Order Summary</h2>
+        <div class="row row-cols-1 row-cols-md-6 g-4 mb-4">
+            <?php foreach ($statuses as $status): 
+                $color = match($status) {
+                    'Pending' => 'warning',
+                    'Processing' => 'info',
+                    'Shipped' => 'success',
+                    'Delivered' => 'dark',
+                    'Cancelled' => 'danger',
+                    default => 'primary'
+                };
+            ?>
+            <div class="col">
+                <div class="card text-white bg-<?= $color ?>">
                     <div class="card-body">
-                        <h5 class="card-title">Total Orders</h5>
-                        <p class="card-text"><?= count($orders) ?></p>
+                        <h6 class="card-title"><?= $status ?></h6>
+                        <h3 class="card-text"><?= $orderCounts[$status] ?></h3>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card text-white bg-warning">
-                    <div class="card-body">
-                        <h5 class="card-title">Pending Orders</h5>
-                        <p class="card-text"><?= count(array_filter($orders, fn($order) => $order['status'] === 'Pending')) ?></p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-white bg-success">
-                    <div class="card-body">
-                        <h5 class="card-title">Shipped Orders</h5>
-                        <p class="card-text"><?= count(array_filter($orders, fn($order) => $order['status'] === 'Shipped')) ?></p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-white bg-danger">
-                    <div class="card-body">
-                        <h5 class="card-title">Cancelled Orders</h5>
-                        <p class="card-text"><?= count(array_filter($orders, fn($order) => $order['status'] === 'Cancelled')) ?></p>
-                    </div>
-                </div>
-            </div>
+            <?php endforeach; ?>
         </div>
     <div class="container mt-5">
         <div class="d-flex justify-content-between align-items-center mb-4">
@@ -178,7 +178,7 @@ try {
         <!-- Status Filters -->
         <div class="col-md-2">
             <select name="status" class="form-select">
-                <option value="">All Statuses</option>
+                <option value="">Shipping Status</option>
                 <option value="Pending" <?= $statusFilter === 'Pending' ? 'selected' : '' ?>>Pending</option>
                 <option value="Processing" <?= $statusFilter === 'Processing' ? 'selected' : '' ?>>Processing</option>
                 <option value="Shipped" <?= $statusFilter === 'Shipped' ? 'selected' : '' ?>>Shipped</option>
