@@ -211,21 +211,21 @@ $uniqueItems = $inventoryStats['unique_items'];
             </div>
 
             <div class="col-6 col-md-3">
-                <div class="card clickable-card shadow-sm" onclick="window.location='inventory.php'">
-                    <div class="card-body p-2">
-                        <div class="d-flex align-items-center">
-                            <div
-                                class="bg-warning text-white rounded-circle stats-icon me-2 d-flex align-items-center justify-content-center">
-                                <i class="fas fa-boxes fa-lg"></i>
-                            </div>
-                            <div>
-                                <div class="text-muted small">Total Stock</div>
-                                <div class="stats-number"><?= $totalStock ?></div>
-                            </div>
-                        </div>
-                    </div>
+    <div class="card clickable-card shadow-sm" onclick="window.location='inventory.php'">
+        <div class="card-body p-2">
+            <div class="d-flex align-items-center">
+                <div class="bg-warning text-white rounded-circle stats-icon me-2 d-flex align-items-center justify-content-center">
+                    <i class="fas fa-boxes fa-lg"></i>
+                </div>
+                <div>
+                    <div class="text-muted small">Total Stock</div>
+                    <div class="stats-number"><?= number_format($totalStock) ?></div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
 
             <div class="col-6 col-md-3">
                 <div class="card clickable-card shadow-sm" onclick="window.location='reports.php'">

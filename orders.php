@@ -234,8 +234,6 @@ foreach ($statuses as $status) {
     </div>
 </form>
 
-        <!-- Rest of the code remains the same -->
-        <!-- ... (table and other elements) ... -->
         <!-- Orders Table -->
         <div class="table-responsive">
             <table class="table table-striped table-hover">

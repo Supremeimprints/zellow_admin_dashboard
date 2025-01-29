@@ -75,7 +75,8 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <a href="inventory.php" class="btn btn-success mb-3">Update Stock</a>
 
     <!-- Products Table -->
-    <table class="table table-bordered">
+    <div class="table-responsive">
+            <table class="table table-striped">
         <thead>
             <tr>
                 <th>ID</th>
