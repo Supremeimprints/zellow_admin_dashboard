@@ -410,6 +410,6 @@ foreach ($statuses as $status) {
         }
         ?>
 </body>
-<?php include 'includes/nav/navbar.php'; ?>
+<?php include 'includes/nav/footer.php'; ?>
 
 </html>
