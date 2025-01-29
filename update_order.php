@@ -100,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </script>
 </head>
 <body>
-    <?php include 'navbar.php'; ?>
+<?php include 'includes/nav/navbar.php'; ?>
     <div class="container mt-5">
         <h2>Update Order #<?= htmlspecialchars($orderId) ?></h2>
         
@@ -188,4 +188,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
     </div>
 </body>
+<?php include 'includes/nav/footer.php'; ?>
 </html>

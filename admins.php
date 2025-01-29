@@ -131,7 +131,7 @@ $admins = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-<?php include 'navbar.php'; ?>
+<?php include 'includes/nav/navbar.php'; ?>
 <div class="container mt-5">
     <h2>Admin Management</h2>
 
@@ -170,5 +170,5 @@ $admins = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-<?php include 'footer.php'; ?>
+<?php include 'includes/nav/footer.php'; ?>
 </html>

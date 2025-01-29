@@ -7,7 +7,7 @@ if (!isset($_SESSION['id'])) {
     exit();
 }
 
-require_once 'navbar.php';
+require_once 'includes/nav/navbar.php';
 ?>
 
 <!DOCTYPE html>
@@ -24,5 +24,5 @@ require_once 'navbar.php';
     <p>This is a placeholder for Notifications page.</p>
 </div>
 </body>
-<?php include 'footer.php'; ?>
+<?php include 'includes/nav/footer.php'; ?>
 </html>

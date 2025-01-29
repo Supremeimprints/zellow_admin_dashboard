@@ -156,7 +156,8 @@ $orderStmt->execute([
     </style>
 </head>
 <body>
-    <?php include 'navbar.php'; ?>
+<?php include 'includes/nav/navbar.php'; ?>
+
     <div class="container mt-5">
         <h2 class="mb-4">Create New Order</h2>
         
@@ -284,5 +285,5 @@ $orderStmt->execute([
         })()
     </script>
 </body>
-<?php include 'footer.php'; ?>
+<?php include 'includes/nav/footer.php'; ?>
 </html>

@@ -135,7 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body>
 
-<?php include 'navbar.php'; ?>
+<?php include 'includes/nav/navbar.php'; ?>
 
 <div class="container mt-4">
     <h1>Edit Product</h1>
@@ -257,5 +257,5 @@ document.querySelectorAll('input[type="file"]').forEach(input => {
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-<?php include 'footer.php'; ?>
+<?php include 'includes/nav/footer.php'; ?>
 </html>

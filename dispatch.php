@@ -153,7 +153,7 @@ foreach ($statuses as $status) {
 </head>
 
 <body>
-    <?php include 'navbar.php'; ?>
+<?php include 'includes/nav/navbar.php'; ?>
     <div class="container mt-5">
         <!-- Summary Stats Cards -->
         <h2>Dispatch Summary</h2>
@@ -410,6 +410,6 @@ foreach ($statuses as $status) {
         }
         ?>
 </body>
-<?php include 'footer.php'; ?>
+<?php include 'includes/nav/navbar.php'; ?>
 
 </html>

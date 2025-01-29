@@ -151,7 +151,7 @@ $uniqueItems = $inventoryStats['unique_items'];
 </head>
 
 <body>
-    <?php include 'navbar.php'; ?>
+<?php include 'includes/nav/navbar.php'; ?>
     
 
 
@@ -485,5 +485,5 @@ $uniqueItems = $inventoryStats['unique_items'];
                         ?>
                         
 </body>
-<?php include 'footer.php'; ?>
+<?php include 'includes/nav/footer.php'; ?>
 </html>

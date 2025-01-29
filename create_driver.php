@@ -121,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 
 <body>
-    <?php include 'navbar.php'; ?>
+<?php include 'includes/nav/navbar.php'; ?>
 
     <div class="container mt-4">
         <div class="row justify-content-center">
@@ -240,6 +240,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         });
     </script>
 </body>
-<?php include 'footer.php'; ?>
+<?php include 'includes/nav/footer.php'; ?>
 
 </html>
