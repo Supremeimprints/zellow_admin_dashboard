@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $shippingAddress = $_POST['shipping_address'];
         $paymentMethod = $_POST['payment_method'];
         $quantity = $_POST['quantity'];
-        $totalPrice = $_POST['total_price'];
+        $totalPrice = $_POST['price'];
 
         // Update order query (CORRECTED)
         $query = "UPDATE orders SET 
@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                   shipping_address = ?,
                   payment_method = ?,
                   quantity = ?,
-                  total_price = ?
+                  price = ?
                   WHERE order_id = ?";
 
         $stmt = $db->prepare($query);
@@ -168,9 +168,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label">Total Price</label>
-                    <input type="number" step="0.01" name="total_price" class="form-control" 
-                           value="<?= htmlspecialchars($order['total_price']) ?>" required>
+                    <label class="form-label">Total Amount</label>
+                    <input type="number" step="0.01" name="price" class="form-control" 
+                           value="<?= htmlspecialchars($order['total_amount']) ?>" required>
                 </div>
 
                 <div class="col-md-4">

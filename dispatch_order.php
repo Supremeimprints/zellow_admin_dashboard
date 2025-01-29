@@ -147,7 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     <div class="col-md-6">
                         <p><strong>Order Date:</strong> <?= date('M j, Y H:i', strtotime($order['order_date'])) ?></p>
-                        <p><strong>Total Amount:</strong> Ksh.<?= number_format($order['total_price'], 2) ?></p>
+                        <p><strong>Price Per Unit:</strong> Ksh.<?= number_format($order['price'], 2) ?></p>
                         <p><strong>Shipping Method:</strong> <?= htmlspecialchars($order['shipping_method']) ?></p>
                     </div>
                 </div>

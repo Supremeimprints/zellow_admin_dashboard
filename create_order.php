@@ -49,10 +49,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
         if (!$quantity) throw new Exception("Quantity must be at least 1");
 
-        $totalAmount = filter_input(INPUT_POST, 'total_amount', FILTER_VALIDATE_FLOAT, [
+        $total_amount = filter_input(INPUT_POST, 'total_amount', FILTER_VALIDATE_FLOAT, [
             'options' => ['min_range' => 0]
         ]);
-        if (!$totalAmount) throw new Exception("Invalid price per item");
+        if (!$total_amount) throw new Exception("Invalid price per item");
 
         $shippingMethod = $_POST['shipping_method'] ?? 'Standard';
         $allowedShippingMethods = ['Standard', 'Express', 'Next Day'];
@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $paymentMethod = $_POST['payment_method'] ?? 'Mpesa';
-        $allowedPaymentMethods = ['Mpesa', 'Airtel Money', 'Bank'];
+        $allowedPaymentMethods = ['Mpesa', 'Airtel Money', 'Credit Card', 'Cash On Delivery'];
         if (!in_array($paymentMethod, $allowedPaymentMethods)) {
             throw new Exception("Invalid payment method");
         }
@@ -72,55 +72,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Generate tracking number
         $trackingNumber = generateTrackingNumber();
 
-        // Calculate total price
-        $totalPrice = $totalAmount * $quantity;
+        // Calculate total price based on quantity and total_amount (price per unit)
+        $total_price = $total_amount * $quantity;
 
         // Check/create customer
-        $customerQuery = "SELECT id FROM users WHERE email = :email";
-        $customerStmt = $db->prepare($customerQuery);
-        $customerStmt->execute([':email' => $email]);
-        $customer = $customerStmt->fetch(PDO::FETCH_ASSOC);
+$customerQuery = "SELECT id, username FROM users WHERE email = :email";  // Also fetch username
+$customerStmt = $db->prepare($customerQuery);
+$customerStmt->execute([':email' => $email]);
+$customer = $customerStmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$customer) {
-            $createCustomerQuery = "INSERT INTO users (username, email, password, role) 
-                                    VALUES (:username, :email, :password, 'customer')";
-            $createCustomerStmt = $db->prepare($createCustomerQuery);
-            $createCustomerStmt->execute([
-                ':username' => $username,
-                ':email' => $email,
-                ':password' => password_hash('TempPassword123!', PASSWORD_DEFAULT)
-            ]);
-            $customerId = $db->lastInsertId();
-        } else {
-            $customerId = $customer['id'];
-        }
+if (!$customer) {
+    // First check if username already exists
+    $checkUsernameStmt = $db->prepare("SELECT username FROM users WHERE username = :username");
+    $checkUsernameStmt->execute([':username' => $username]);
+    if ($checkUsernameStmt->fetch()) {
+        throw new Exception("Username already exists. Please choose a different username.");
+    }
 
-        // Insert order with tracking number
-        $orderQuery = "INSERT INTO orders (
-            id, product_id, quantity, total_amount, 
-            total_price, status, payment_status, payment_method,
-            shipping_address, shipping_method, order_date, tracking_number
-        ) VALUES (
-            :id, :product_id, :quantity, :total_amount,
-            :total_price, 'Pending', 'Pending', :payment_method,
-            :shipping_address, :shipping_method, CURRENT_TIMESTAMP, :tracking_number
-        )";
+    // Create new user
+    $createCustomerQuery = "INSERT INTO users (username, email, password, role) 
+                            VALUES (:username, :email, :password, 'customer')";
+    $createCustomerStmt = $db->prepare($createCustomerQuery);
+    $createCustomerStmt->execute([
+        ':username' => $username,
+        ':email' => $email,
+        ':password' => password_hash('TempPassword123!', PASSWORD_DEFAULT)
+    ]);
+    $customerId = $db->lastInsertId();
+    $customerUsername = $username; // Use the new username
+} else {
+    $customerId = $customer['id'];
+    $customerUsername = $customer['username']; // Use existing username
+}
 
-        $orderStmt = $db->prepare($orderQuery);
-        $orderStmt->execute([
-            ':id' => $customerId,
-            ':product_id' => $productId,
-            ':quantity' => $quantity,
-            ':total_amount' => $totalAmount,
-            ':total_price' => $totalPrice,
-            ':payment_method' => $paymentMethod,
-            ':shipping_address' => $shippingAddress,
-            ':shipping_method' => $shippingMethod,
-            ':tracking_number' => $trackingNumber
-        ]);
+// Insert order with tracking number
+$orderQuery = "INSERT INTO orders (
+    id, username, product_id, quantity, total_amount,
+    status, payment_status, payment_method,
+    shipping_address, shipping_method, order_date, tracking_number
+) VALUES (
+    :id, :username, :product_id, :quantity, :total_amount,
+    'Pending', 'Pending', :payment_method,
+    :shipping_address, :shipping_method, CURRENT_TIMESTAMP, :tracking_number
+)";
+
+$orderStmt = $db->prepare($orderQuery);
+$orderStmt->execute([
+    ':id' => $customerId,
+    ':username' => $customerUsername, // Use the fetched or new username
+    ':product_id' => $productId,
+    ':quantity' => $quantity,
+    ':total_amount' => $total_price,
+    ':payment_method' => $paymentMethod,
+    ':shipping_address' => $shippingAddress,
+    ':shipping_method' => $shippingMethod,
+    ':tracking_number' => $trackingNumber
+]);
 
         $db->commit();
-        header('Location: orders.php?success=' . urlencode('Order created successfully. Tracking Number: ' . $trackingNumber));
+        header('Location: orders.php?success=' . urlencode("Order created successfully. Tracking Number: $trackingNumber"));
         exit();
     } catch (Exception $e) {
         $db->rollBack();
@@ -211,7 +221,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <select name="payment_method" id="payment_method" class="form-select" required>
                             <option value="Mpesa">Mpesa</option>
                             <option value="Airtel Money">Airtel Money</option>
-                            <option value="Bank">Bank</option>
+                            <option value="Credit Card">Credit Card</option>
+                            <option value="Cash On Delivery">Cash On Delivery</option>
                         </select>
                     </div>
                     <div class="col-md-4">
@@ -241,9 +252,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script>
         // Real-time price calculation
         function calculateTotal() {
-            const price = parseFloat(document.getElementById('total_amount').value) || 0;
+            const pricePerUnit = parseFloat(document.getElementById('total_amount').value) || 0;
             const quantity = parseInt(document.getElementById('quantity').value) || 0;
-            document.getElementById('total_price').value = (price * quantity).toFixed(2);
+            document.getElementById('total_price').value = (pricePerUnit * quantity).toFixed(2);
         }
 
         // Product selection handler
@@ -253,7 +264,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             calculateTotal();
         });
 
-        // Quantity change handler
+        // Update handlers
         document.getElementById('quantity').addEventListener('input', calculateTotal);
         document.getElementById('total_amount').addEventListener('input', calculateTotal);
 
