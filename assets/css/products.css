@@ -1,0 +1,19 @@
+
+    /* Custom thumbnail styling */
+    .table-thumbnail {
+        width: 80px; 
+        height: 80px;
+        object-fit: cover; /* Ensures images retain aspect ratio */
+        border-radius: 4px; /* Optional: Rounded corners */
+        border: 1px solid #ddd; /* Optional: Subtle border */
+    }
+
+    /* Hover effect for better UX */
+    .table-thumbnail:hover {
+        transform: scale(1.1);
+        transition: transform 0.2s;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    /* Ensure table cells don't expand */
+    td { vertical-align: middle !important; }
