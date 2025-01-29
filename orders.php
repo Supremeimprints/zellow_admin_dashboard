@@ -34,7 +34,7 @@ $query = "SELECT o.order_id,
        u.username AS user_username, 
        o.total_amount, 
        o.quantity, 
-       o.total_price, 
+       o.price, 
        o.status, 
        o.shipping_address, 
        o.payment_status, 
@@ -271,7 +271,7 @@ foreach ($statuses as $status) {
                                 <td><?php echo htmlspecialchars($order['user_username']); ?></td>
                                 <td><?php echo htmlspecialchars($order['quantity']); ?></td>
                                 <td>Ksh.<?php echo htmlspecialchars(number_format($order['total_amount'], 2)); ?></td>
-                                <td>Ksh.<?php echo htmlspecialchars(number_format($order['total_price'], 2)); ?></td>
+                                <td>Ksh.<?php echo htmlspecialchars(number_format($order['price'], 2)); ?></td>
                                 <td>
                                     <span class="badge bg-<?php echo getStatusColor($order['status']); ?>">
                                         <?php echo htmlspecialchars($order['status']); ?>
