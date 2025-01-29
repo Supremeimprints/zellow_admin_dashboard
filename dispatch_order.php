@@ -6,8 +6,9 @@ if (!isset($_SESSION['id'])) {
     exit();
 }
 
+// Ensure only admin can access this page
 if ($_SESSION['role'] !== 'admin') {
-    echo "Access denied. You do not have permission to view this page.";
+    echo "Access denied. You do not have permission to dispatch orders.";
     exit();
 }
 
@@ -15,326 +16,174 @@ require_once 'config/database.php';
 $database = new Database();
 $db = $database->getConnection();
 
-// Function to get driver name
-function getDriverName($driverId, $db) {
-    $stmt = $db->prepare("SELECT name FROM drivers WHERE driver_id = :driver_id");
-    $stmt->bindParam(':driver_id', $driverId);
+$error = '';
+$success = '';
+
+// Check if order_id is provided
+if (!isset($_GET['order_id'])) {
+    header('Location: dispatch.php');
+    exit();
+}
+
+$order_id = $_GET['order_id'];
+
+// Fetch order details including payment status
+try {
+    $stmt = $db->prepare("SELECT * FROM orders WHERE order_id = :order_id");
+    $stmt->bindParam(':order_id', $order_id, PDO::PARAM_INT);
     $stmt->execute();
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-    return $result ? $result['name'] : 'Unknown';
-}
+    $order = $stmt->fetch(PDO::FETCH_ASSOC);
 
-// Initialize parameters
-$search = $_GET['search'] ?? '';
-$statusFilter = $_GET['status'] ?? '';
-$driverFilter = $_GET['driver'] ?? '';
-$startDate = $_GET['start_date'] ?? '';
-$endDate = $_GET['end_date'] ?? '';
-$errorMessage = '';
-$successMessage = '';
+    if (!$order) {
+        header('Location: dispatch.php');
+        exit();
+    }
 
-// Build main query
-$query = "SELECT o.order_id, o.username AS order_username, o.email, 
-                 u.username AS user_username, o.total_amount, o.quantity, 
-                 o.status, o.payment_status, o.shipping_method, 
-                 o.shipping_address, o.tracking_number, o.order_date, 
-                 o.driver_id
-          FROM orders o
-          JOIN users u ON o.id = u.id
-          WHERE 1";
+    // Check if order is eligible for dispatch (Paid or Pending payment status)
+    if (!in_array($order['payment_status'], ['Paid', 'Pending'])) {
+        $_SESSION['error'] = "Order cannot be dispatched - Invalid payment status";
+        header('Location: dispatch.php');
+        exit();
+    }
 
-// Add filters
-$params = [];
-if ($statusFilter) {
-    $query .= " AND o.status = :status";
-    $params[':status'] = $statusFilter;
-}
-if ($driverFilter) {
-    $query .= " AND o.driver_id = :driver_id";
-    $params[':driver_id'] = $driverFilter;
-}
-if ($startDate) {
-    $query .= " AND o.order_date >= :start_date";
-    $params[':start_date'] = "$startDate 00:00:00";
-}
-if ($endDate) {
-    $query .= " AND o.order_date <= :end_date";
-    $params[':end_date'] = "$endDate 23:59:59";
-}
-if ($search) {
-    $query .= " AND (u.username LIKE :search 
-              OR o.shipping_address LIKE :search 
-              OR o.email LIKE :search 
-              OR o.tracking_number LIKE :search)";
-    $params[':search'] = "%$search%";
-}
-
-$query .= " ORDER BY o.order_date DESC";
-
-try {
-    $stmt = $db->prepare($query);
-    $stmt->execute($params);
-    $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
-    $errorMessage = "Error fetching orders: " . $e->getMessage();
-    $orders = [];
+    $_SESSION['error'] = "Error fetching order details: " . $e->getMessage();
+    header('Location: dispatch.php');
+    exit();
 }
 
-// Get drivers for filters and dropdowns
-$drivers = [];
+// Fetch available drivers (those with 'Available' vehicle status)
 try {
-    $driverStmt = $db->query("SELECT * FROM drivers");
-    $drivers = $driverStmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt = $db->prepare("
+        SELECT d.*, v.vehicle_type, v.vehicle_status 
+        FROM drivers d
+        LEFT JOIN vehicles v ON d.driver_id = v.driver_id
+        WHERE d.status = 'Active' 
+        AND (v.vehicle_status = 'Available' OR v.vehicle_status IS NULL)
+    ");
+    $stmt->execute();
+    $available_drivers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
-    $errorMessage = "Error fetching drivers: " . $e->getMessage();
+    $error = "Error fetching available drivers: " . $e->getMessage();
 }
 
-// Handle order updates
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_order'])) {
-    $orderId = $_POST['order_id'];
-    $newStatus = $_POST['new_status'];
-    $newDriver = $_POST['driver_id'] ?? null;
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $driver_id = $_POST['driver_id'] ?? '';
+    $tracking_number = '#' . date('Ymd') . rand(1000, 9999);
 
-    try {
-        $updateStmt = $db->prepare("UPDATE orders 
-                                   SET status = :status, driver_id = :driver_id 
-                                   WHERE order_id = :order_id");
-        $updateStmt->execute([
-            ':status' => $newStatus,
-            ':driver_id' => $newDriver,
-            ':order_id' => $orderId
-        ]);
-        
-        if ($updateStmt->rowCount() > 0) {
-            $successMessage = "Order #$orderId updated successfully!";
-        } else {
-            $errorMessage = "No changes made to order #$orderId";
+    if (empty($driver_id)) {
+        $error = "Please select a driver";
+    } else {
+        try {
+            $db->beginTransaction();
+
+            // Update order status and assign driver
+            $stmt = $db->prepare("
+                UPDATE orders 
+                SET status = 'Shipped',
+                    driver_id = :driver_id,
+                    tracking_number = :tracking_number
+                WHERE order_id = :order_id
+            ");
+            $stmt->execute([
+                ':driver_id' => $driver_id,
+                ':tracking_number' => $tracking_number,
+                ':order_id' => $order_id
+            ]);
+
+            // Update vehicle status to 'In Use'
+            $stmt = $db->prepare("
+                UPDATE vehicles 
+                SET vehicle_status = 'In Use' 
+                WHERE driver_id = :driver_id
+            ");
+            $stmt->execute([':driver_id' => $driver_id]);
+
+            $db->commit();
+            $_SESSION['success'] = "Order #$order_id has been dispatched successfully!";
+            header('Location: dispatch.php');
+            exit();
+
+        } catch (Exception $e) {
+            $db->rollBack();
+            $error = "Error dispatching order: " . $e->getMessage();
         }
-    } catch (Exception $e) {
-        $errorMessage = "Error updating order: " . $e->getMessage();
     }
 }
-
-// Get order counts
-$orderCounts = [];
-$statuses = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
-foreach ($statuses as $status) {
-    try {
-        $countStmt = $db->prepare("SELECT COUNT(*) AS count FROM orders WHERE status = ?");
-        $countStmt->execute([$status]);
-        $orderCounts[$status] = $countStmt->fetchColumn();
-    } catch (Exception $e) {
-        $orderCounts[$status] = 0;
-    }
-}
-
-
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dispatch Management</title>
+    <title>Dispatch Order #<?= htmlspecialchars($order_id) ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .card { min-height: 120px; }
-        .collapse-toggle { cursor: pointer; }
-        .order-details { background-color: #f8f9fa; padding: 15px; }
-    </style>
 </head>
+
 <body>
     <?php include 'navbar.php'; ?>
     <div class="container mt-4">
-        <!-- Alerts -->
-        <?php if ($errorMessage): ?>
-            <div class="alert alert-danger"><?= htmlspecialchars($errorMessage) ?></div>
-        <?php endif; ?>
-        <?php if ($successMessage): ?>
-            <div class="alert alert-success"><?= htmlspecialchars($successMessage) ?></div>
+        <h2>Dispatch Order #<?= htmlspecialchars($order_id) ?></h2>
+
+        <?php if ($error): ?>
+            <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
 
-        <!-- Header Section -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="mb-0">Order Management</h2>
-        </div>
-
-        <!-- Statistics Cards -->
-        <div class="row row-cols-1 row-cols-md-6 g-4 mb-4">
-            <?php foreach ($statuses as $status): 
-                $color = match($status) {
-                    'Pending' => 'warning',
-                    'Processing' => 'info',
-                    'Shipped' => 'success',
-                    'Delivered' => 'dark',
-                    'Cancelled' => 'danger',
-                    default => 'primary'
-                };
-            ?>
-            <div class="col">
-                <div class="card text-white bg-<?= $color ?>">
-                    <div class="card-body">
-                        <h6 class="card-title"><?= $status ?></h6>
-                        <h3 class="card-text"><?= $orderCounts[$status] ?></h3>
+        <!-- Order Details Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Order Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Customer:</strong>
+                            <?= !empty($order['username']) ? htmlspecialchars($order['username']) : 'Unknown' ?></p>
+                        <p><strong>Shipping Address:</strong> <?= htmlspecialchars($order['shipping_address']) ?></p>
+                        <p><strong>Payment Status:</strong> <?= htmlspecialchars($order['payment_status']) ?></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Order Date:</strong> <?= date('M j, Y H:i', strtotime($order['order_date'])) ?></p>
+                        <p><strong>Total Amount:</strong> Ksh.<?= number_format($order['total_price'], 2) ?></p>
+                        <p><strong>Shipping Method:</strong> <?= htmlspecialchars($order['shipping_method']) ?></p>
                     </div>
                 </div>
             </div>
-            <?php endforeach; ?>
         </div>
 
-        <!-- Filter Form -->
-        <form method="GET" class="mb-4 bg-light p-3 rounded-3">
-            <div class="row g-3">
-                <div class="col-md-3">
-                    <input type="text" name="search" class="form-control" 
-                           placeholder="Search orders..." value="<?= htmlspecialchars($search) ?>">
-                </div>
-                <div class="col-md-2">
-                    <select name="status" class="form-select">
-                        <option value="">All Statuses</option>
-                        <?php foreach ($statuses as $status): ?>
-                            <option value="<?= $status ?>" <?= $statusFilter === $status ? 'selected' : '' ?>>
-                                <?= $status ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <select name="driver" class="form-select">
-                        <option value="">All Drivers</option>
-                        <?php foreach ($drivers as $driver): ?>
-                            <option value="<?= $driver['driver_id'] ?>" 
-                                <?= $driverFilter == $driver['driver_id'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($driver['name']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <input type="date" name="start_date" class="form-control" 
-                           value="<?= htmlspecialchars($startDate) ?>">
-                </div>
-                <div class="col-md-2">
-                    <input type="date" name="end_date" class="form-control" 
-                           value="<?= htmlspecialchars($endDate) ?>">
-                </div>
-                <div class="col-md-1">
-                    <button type="submit" class="btn btn-primary w-100">Filter</button>
-                </div>
+        <!-- Driver Assignment Form -->
+        <form method="POST" class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Assign Driver</h5>
+            </div>
+            <div class="card-body">
+                <?php if (empty($available_drivers)): ?>
+                    <div class="alert alert-warning">No available drivers found.</div>
+                <?php else: ?>
+                    <div class="mb-3">
+                        <label for="driver_id" class="form-label">Select Driver</label>
+                        <select name="driver_id" id="driver_id" class="form-select" required>
+                            <option value="">Choose a driver...</option>
+                            <?php foreach ($available_drivers as $driver): ?>
+                                <option value="<?= $driver['driver_id'] ?>">
+                                    <?= htmlspecialchars($driver['name']) ?>
+                                    (<?= htmlspecialchars($driver['vehicle_type'] ?? 'No vehicle assigned') ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Dispatch Order</button>
+                <?php endif; ?>
+                <a href="dispatch.php" class="btn btn-secondary ms-2">Cancel</a>
             </div>
         </form>
-
-        <!-- Orders Table -->
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th>Order ID</th>
-                        <th>Customer</th>
-                        <th>Status</th>
-                        <th>Driver</th>
-                        <th>Payment</th>
-                        <th>Shipping</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($orders as $order): ?>
-                    <tr>
-                        <td>#<?= htmlspecialchars($order['order_id']) ?></td>
-                        <td>
-                            <div><?= htmlspecialchars($order['order_username']) ?></div>
-                            <small class="text-muted"><?= htmlspecialchars($order['email']) ?></small>
-                        </td>
-                        <td>
-                            <span class="badge bg-<?= match($order['status']) {
-                                'Pending' => 'warning',
-                                'Processing' => 'info',
-                                'Shipped' => 'success',
-                                'Delivered' => 'dark',
-                                'Cancelled' => 'danger'
-                            } ?>">
-                                <?= htmlspecialchars($order['status']) ?>
-                            </span>
-                        </td>
-                        <td>
-                            <?php if ($order['driver_id']): ?>
-                                <?= htmlspecialchars(getDriverName($order['driver_id'], $db)) ?>
-                            <?php else: ?>
-                                <span class="text-muted">Not assigned</span>
-                            <?php endif; ?>
-                        </td>
-                        <td><?= htmlspecialchars($order['payment_status']) ?></td>
-                        <td><?= htmlspecialchars($order['shipping_method']) ?></td>
-                        <td>
-                            <form method="POST" class="row g-2">
-                                <input type="hidden" name="order_id" value="<?= $order['order_id'] ?>">
-                                
-
-                                <div class="col-12">
-                                    <select name="new_status" class="form-select form-select-sm">
-                                        <?php foreach ($statuses as $status): ?>
-                                            <option value="<?= $status ?>" 
-                                                <?= $order['status'] === $status ? 'selected' : '' ?>>
-                                                <?= $status ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-                                
-
-                                <div class="col-12">
-                                    <select name="driver_id" class="form-select form-select-sm">
-                                        <option value="">Select Driver</option>
-                                        <?php foreach ($drivers as $driver): ?>
-                                            <option value="<?= $driver['driver_id'] ?>" 
-                                                <?= $order['driver_id'] == $driver['driver_id'] ? 'selected' : '' ?>>
-                                                <?= htmlspecialchars($driver['name']) ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-                                
-
-                                <div class="col-12">
-                                    <button type="submit" name="update_order" 
-                                            class="btn btn-sm w-100 btn-<?= $order['status'] === 'Shipped' ? 'primary' : 'success' ?>">
-                                        <?= $order['status'] === 'Shipped' ? 'Dispatch' : 'Update' ?>
-                                    </button>
-                                </div>
-                            </form>
-                        </td>
-                    </tr>
-                    <tr class="order-details">
-                        <td colspan="7">
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <strong>Shipping Address:</strong>
-                                    <p><?= nl2br(htmlspecialchars($order['shipping_address'])) ?></p>
-                                </div>
-                                <div class="col-md-3">
-                                    <strong>Tracking Number:</strong>
-                                    <p><?= $order['tracking_number'] ? htmlspecialchars($order['tracking_number']) : 'N/A' ?></p>
-                                </div>
-                                <div class="col-md-3">
-                                    <strong>Order Date:</strong>
-                                    <p><?= date('M j, Y H:i', strtotime($order['order_date'])) ?></p>
-                                </div>
-                                <div class="col-md-2">
-                                    <strong>Total:</strong>
-                                    <p>Ksh. <?= number_format($order['total_amount'], 2) ?></p>
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 <?php include 'footer.php'; ?>
+
 </html>

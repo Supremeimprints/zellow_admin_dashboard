@@ -112,17 +112,17 @@ try {
     $errorMessage = "Error fetching orders: " . $e->getMessage();
     $orders = [];
 }
-// Get driver data
-$driverQuery = "SELECT * FROM drivers";
+// Get driver data with vehicle information
+$driverQuery = "SELECT d.*, 
+                v.vehicle_type, 
+                v.vehicle_model, 
+                v.registration_number, 
+                v.vehicle_status 
+                FROM drivers d 
+                LEFT JOIN vehicles v ON d.driver_id = v.driver_id";
 $driverStmt = $db->prepare($driverQuery);
 $driverStmt->execute();
 $drivers = $driverStmt->fetchAll(PDO::FETCH_ASSOC);
-
-
-// Get driver data with vehicle information
-$driverQuery = "SELECT d.*, v.vehicle_type, v.model as vehicle_model, v.registration_number, v.status as vehicle_status 
-                FROM drivers d 
-                LEFT JOIN vehicles v ON d.driver_id = v.driver_id";
 
 // Get order counts
 $orderCounts = [];
@@ -356,22 +356,21 @@ foreach ($statuses as $status) {
                     <?php else: ?>
                         <?php foreach ($drivers as $driver): ?>
                             <tr>
-                                <td><?php echo htmlspecialchars($driver['driver_id']); ?></td>
-                                <td><?php echo htmlspecialchars($driver['name']); ?></td>
-                                <td><?php echo htmlspecialchars($driver['email']); ?></td>
-                                <td><?php echo htmlspecialchars($driver['phone_number']); ?></td>
+                                <td><?= $driver['driver_id'] ?></td>
+                                <td><?= $driver['name'] ?></td>
+                                <td><?= $driver['email'] ?></td>
+                                <td><?= $driver['phone_number'] ?></td>
                                 <td>
-                                    <span class="badge bg-<?php echo $driver['status'] === 'Active' ? 'success' : 'danger'; ?>">
-                                        <?php echo htmlspecialchars($driver['status']); ?>
+                                    <span class="badge bg-<?= $driver['status'] === 'Active' ? 'success' : 'danger' ?>">
+                                        <?= $driver['status'] ?>
                                     </span>
                                 </td>
-                                <td><?php echo htmlspecialchars($driver['vehicle_type'] ?? 'N/A'); ?></td>
-                                <td><?php echo htmlspecialchars($driver['vehicle_model'] ?? 'N/A'); ?></td>
-                                <td><?php echo htmlspecialchars($driver['registration_number'] ?? 'N/A'); ?></td>
+                                <td><?= $driver['vehicle_type'] ?? 'N/A' ?></td>
+                                <td><?= $driver['vehicle_model'] ?? 'N/A' ?></td>
+                                <td><?= $driver['registration_number'] ?? 'N/A' ?></td>
                                 <td>
-                                    <span
-                                        class="badge bg-<?php echo getVehicleStatusColor($driver['vehicle_status'] ?? 'N/A'); ?>">
-                                        <?php echo htmlspecialchars($driver['vehicle_status'] ?? 'N/A'); ?>
+                                    <span class="badge bg-<?= getVehicleStatusColor($driver['vehicle_status'] ?? '') ?>">
+                                        <?= $driver['vehicle_status'] ?? 'N/A' ?>
                                     </span>
                                 </td>
                             </tr>
