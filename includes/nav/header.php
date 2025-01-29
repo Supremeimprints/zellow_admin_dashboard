@@ -1,29 +1,43 @@
 <?php
-require_once 'config/constants.php'; // Load settings
+// Start session if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-$theme = THEME; // Get saved theme from database
+// Set default page title if not defined
+$pageTitle = $pageTitle ?? 'Zellow Enterprises Admin';
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo SITE_NAME; ?></title>
+    <title><?= htmlspecialchars($pageTitle) ?></title>
+    
+    <!-- Core CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <?php if ($theme === 'dark') : ?>
-        <style>
-            body { background-color: #121212; color: white; }
-            .container, .navbar, .card { background-color: #1e1e1e; color: white; }
-            .form-control, .form-select { background-color: #333; color: white; border: 1px solid #555; }
-            .btn { background-color: #007bff; color: white; }
-        </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/assets/css/styles.css">
+    
+    <!-- Page-specific CSS -->
+    <?php if(isset($pageStyles)): ?>
+        <?php foreach($pageStyles as $style): ?>
+            <link rel="stylesheet" href="<?= $style ?>">
+        <?php endforeach; ?>
     <?php endif; ?>
 </head>
-<body>
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+<body class="admin-layout">
+    <!-- Navbar -->
+    <?php include 'includes/nav/navbar.php'; ?> 
+    
+    <!-- Mobile Menu Toggle -->
+    <button class="btn btn-dark d-md-none mobile-menu-toggle" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
+
     <div class="container-fluid">
-        <a class="navbar-brand" href="dashboard.php"><?php echo SITE_NAME; ?></a>
-    </div>
-</nav>
+        <div class="row">
+            <!-- Sidebar -->
+            <?php include 'includes/nav/sidebar.php'; ?>

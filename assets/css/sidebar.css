@@ -1,0 +1,114 @@
+/* ======================
+   Professional Sidebar 
+   ====================== */
+   .sidebar {
+    background: linear-gradient(195deg, #1a2332, #151b26) !important;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 2px 0 15px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-header {
+    padding: 1.5rem 1.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-header h4 {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: #e0e0e0;
+}
+
+.sidebar-nav {
+    padding: 0.5rem 0;
+}
+
+.sidebar .nav-link {
+    padding: 0.75rem 1.5rem;
+    margin: 0.25rem 1rem;
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.85) !important;
+    transition: all 0.25s ease;
+    display: flex;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.sidebar .nav-link i {
+    width: 24px;
+    font-size: 0.9em;
+    transition: transform 0.2s ease;
+}
+
+.sidebar .nav-link:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff !important;
+    transform: translateX(4px);
+}
+
+.sidebar .nav-link:hover i {
+    transform: scale(1.1);
+}
+
+.sidebar .nav-link.active {
+    background: linear-gradient(90deg, rgba(46, 109, 255, 0.15), transparent);
+    color: #2e6dff !important;
+    font-weight: 500;
+}
+
+.sidebar .nav-link.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 3px;
+    background: #2e6dff;
+}
+
+.sidebar-heading {
+    color: rgba(255, 255, 255, 0.4) !important;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 1.5rem !important;
+}
+
+.custom-line {
+    display: block;
+    position: relative;
+    padding-bottom: 0.5rem;
+}
+
+.custom-line::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 40px;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Mobile Enhancements */
+@media (max-width: 767.98px) {
+    .sidebar {
+        width: 280px !important;
+        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.2);
+    }
+    
+    .sidebar.mobile-open {
+        transform: translateX(0);
+    }
+    
+    .main-content {
+        margin-left: 0 !important;
+    }
+}
+
+/* Main Content Adjustment */
+.main-content {
+    margin-left: 250px;
+    transition: margin 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}

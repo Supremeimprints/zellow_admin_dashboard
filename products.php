@@ -62,7 +62,6 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <!-- Navigation Bar -->
     <?php include 'includes/nav/navbar.php'; ?>
-
     <div class="container mt-4">
         <h1>Manage Products</h1>
 
