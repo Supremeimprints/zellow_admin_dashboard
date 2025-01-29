@@ -23,28 +23,23 @@ $paymentMethodFilter = $_GET['payment_method'] ?? '';
 $shippingMethodFilter = $_GET['shipping_method'] ?? '';
 $startDate = $_GET['start_date'] ?? '';
 $endDate = $_GET['end_date'] ?? '';
-
 $errorMessage = '';
 $successMessage = '';
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$limit = 10;
+$offset = ($page - 1) * $limit;
 
 // Build query with enhanced filters
-$query = "SELECT o.order_id, 
-       o.username AS order_username, 
-       o.email, 
-       u.username AS user_username, 
-       o.total_amount, 
-       o.quantity, 
-       o.price, 
-       o.status, 
-       o.shipping_address, 
-       o.payment_status, 
-       o.payment_method, 
-       o.tracking_number, 
-       o.order_date, 
-       o.shipping_method 
-FROM orders o
-JOIN users u ON o.id = u.id
-WHERE 1";
+$query = "SELECT o.order_id, u.username, o.quantity, p.product_name, p.price, (o.quantity * p.price) AS product, total_amount, 
+          o.status, o.payment_status, o.payment_method, o.shipping_method, o.tracking_number, o.shipping_address, 
+          o.order_date 
+          FROM orders o 
+          JOIN users u ON o.id = u.id 
+          JOIN products p ON o.product_id = p.product_id 
+          WHERE 1";
+
+
+
 
 // Add filters to query
 if ($statusFilter) {
@@ -202,12 +197,12 @@ foreach ($statuses as $status) {
         <div class="col-md-2">
             <select name="payment_method" class="form-select">
                 <option value="">Payment Method</option>
+                <option value="Mpesa" <?= $paymentMethodFilter === 'Mpesa' ? 'selected' : '' ?>>Mpesa</option>
+                <option value="Airtel Money" <?= $paymentMethodFilter === 'Airtel Money' ? 'selected' : '' ?>>Airtel Money</option>
                 <option value="Credit Card" <?= $paymentMethodFilter === 'Credit Card' ? 'selected' : '' ?>>Credit Card</option>
-                <option value="PayPal" <?= $paymentMethodFilter === 'PayPal' ? 'selected' : '' ?>>PayPal</option>
-                <option value="M-Pesa" <?= $paymentMethodFilter === 'M-Pesa' ? 'selected' : '' ?>>M-Pesa</option>
+                <option value="Cash On Delivery" <?= $paymentMethodFilter === 'Cash On Delivery' ? 'selected' : '' ?>>Cash On Delivery</option>
             </select>
         </div>
-
         <!-- Shipping Method -->
         <div class="col-md-2">
             <select name="shipping_method" class="form-select">
@@ -248,9 +243,10 @@ foreach ($statuses as $status) {
                     <tr>
                         <th>Order ID</th>
                         <th>Username</th>
+                        <th>Product</th>
                         <th>Quantity</th>
+                        <th>Price</th>
                         <th>Total Amount</th>
-                        <th>Total Price</th>
                         <th>Status</th>
                         <th>Payment Status</th>
                         <th>Tracking Number</th>
@@ -268,10 +264,11 @@ foreach ($statuses as $status) {
                         <?php foreach ($orders as $order): ?>
                             <tr>
                                 <td>#<?php echo htmlspecialchars($order['order_id']); ?></td>
-                                <td><?php echo htmlspecialchars($order['user_username']); ?></td>
+                                <td><?php echo htmlspecialchars($order['username']); ?></td>
+                                <td><?php echo htmlspecialchars($order['product_name']); ?></td>
                                 <td><?php echo htmlspecialchars($order['quantity']); ?></td>
-                                <td>Ksh.<?php echo htmlspecialchars(number_format($order['total_amount'], 2)); ?></td>
                                 <td>Ksh.<?php echo htmlspecialchars(number_format($order['price'], 2)); ?></td>
+                                <td>Ksh.<?php echo htmlspecialchars(number_format($order['total_amount'], 2)); ?></td>
                                 <td>
                                     <span class="badge bg-<?php echo getStatusColor($order['status']); ?>">
                                         <?php echo htmlspecialchars($order['status']); ?>

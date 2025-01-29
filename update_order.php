@@ -16,10 +16,11 @@ if (!$orderId) {
     exit();
 }
 
-// Fetch order details
-$query = "SELECT o.*, u.username, u.email 
-          FROM orders o 
-          JOIN users u ON o.id = u.id 
+// Fetch order details along with product price
+$query = "SELECT o.*, u.username, u.email, p.price AS product_price 
+          FROM orders o
+          JOIN users u ON o.id = u.id
+          JOIN products p ON o.product_id = p.product_id
           WHERE o.order_id = ?";
 $stmt = $db->prepare($query);
 $stmt->execute([$orderId]);
@@ -43,9 +44,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $shippingAddress = $_POST['shipping_address'];
         $paymentMethod = $_POST['payment_method'];
         $quantity = $_POST['quantity'];
-        $totalPrice = $_POST['price'];
 
-        // Update order query (CORRECTED)
+        // Auto-calculate the total amount
+        $totalAmount = $quantity * $order['product_price'];
+
+        // Update order query
         $query = "UPDATE orders SET 
                   status = ?, 
                   payment_status = ?, 
@@ -55,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                   shipping_address = ?,
                   payment_method = ?,
                   quantity = ?,
-                  price = ?
+                  total_amount = ?
                   WHERE order_id = ?";
 
         $stmt = $db->prepare($query);
@@ -68,8 +71,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $shippingAddress,
             $paymentMethod,
             $quantity,
-            $totalPrice,
-            $orderId  // WHERE clause parameter comes last
+            $totalAmount,
+            $orderId
         ]);
 
         header('Location: orders.php?success=Order updated successfully');
@@ -87,6 +90,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Update Order</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script>
+        function updateTotalAmount() {
+            let quantity = document.getElementById('quantity').value;
+            let pricePerUnit = <?= $order['product_price'] ?>;
+            let totalAmount = quantity * pricePerUnit;
+            document.getElementById('total_amount').value = totalAmount.toFixed(2);
+        }
+    </script>
 </head>
 <body>
     <?php include 'navbar.php'; ?>
@@ -135,14 +146,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <!-- Tracking Info -->
                 <div class="col-md-6">
                     <label class="form-label">Tracking Number</label>
-                    <input type="text" name="tracking_number" class="form-control" 
-                           value="<?= htmlspecialchars($order['tracking_number']) ?>">
+                    <input type="text" name="tracking_number" class="form-control" value="<?= htmlspecialchars($order['tracking_number']) ?>">
                 </div>
 
                 <div class="col-md-6">
                     <label class="form-label">Delivery Date</label>
-                    <input type="date" name="delivery_date" class="form-control" 
-                           value="<?= htmlspecialchars($order['delivery_date']) ?>">
+                    <input type="date" name="delivery_date" class="form-control" value="<?= htmlspecialchars($order['delivery_date']) ?>">
                 </div>
 
                 <!-- Shipping Details -->
@@ -163,31 +172,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <!-- Order Details -->
                 <div class="col-md-4">
                     <label class="form-label">Quantity</label>
-                    <input type="number" name="quantity" class="form-control" 
-                           value="<?= htmlspecialchars($order['quantity']) ?>" min="1" required>
+                    <input type="number" name="quantity" id="quantity" class="form-control" value="<?= htmlspecialchars($order['quantity']) ?>" min="1" required oninput="updateTotalAmount()">
                 </div>
 
                 <div class="col-md-4">
                     <label class="form-label">Total Amount</label>
-                    <input type="number" step="0.01" name="price" class="form-control" 
-                           value="<?= htmlspecialchars($order['total_amount']) ?>" required>
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label">Order Date</label>
-                    <input type="text" class="form-control" 
-                           value="<?= date('Y-m-d H:i', strtotime($order['order_date'])) ?>" readonly>
+                    <input type="text" id="total_amount" class="form-control" value="<?= htmlspecialchars($order['total_amount']) ?>" readonly>
                 </div>
             </div>
 
             <div class="mt-4">
                 <button type="submit" class="btn btn-primary">Update Order</button>
-                <a href="orders.php" class="btn btn-secondary">Cancel</a>
+                <button type="button" onclick="window.history.back()" class="btn btn-secondary ms-2">Cancel</button>
             </div>
         </form>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-<?php include 'footer.php'; ?>
 </html>
