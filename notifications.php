@@ -20,9 +20,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
 }
 
 // Handle marking message as read
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_as_read'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_read'])) {
     $msg_id = $_POST['message_id'];
-    $stmt = $db->prepare("UPDATE messages SET status = 'read' WHERE id = ?");
+    $stmt = $db->prepare("UPDATE messages SET status = 'is_read' WHERE id = ?");
     $stmt->execute([$msg_id]);
     header("Location: notifications.php");
     exit();
@@ -60,7 +60,7 @@ $messages = $stmt->fetchAll();
                     </small>
                     <form method="POST" class="mt-2">
                         <input type="hidden" name="message_id" value="<?= $msg['id'] ?>">
-                        <button type="submit" name="mark_as_read" class="btn btn-sm btn-success">Mark as Read</button>
+                        <button type="submit" name="mark_read" class="btn btn-sm btn-success">Mark as Read</button>
                         <button type="submit" name="delete" class="btn btn-sm btn-danger">Delete</button>
                     </form>
                 </div>
