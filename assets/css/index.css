@@ -1,0 +1,38 @@
+.dashboard-header {
+    background: linear-gradient(135deg, rgb(11, 121, 231), rgb(25, 21, 91));
+    color: white;
+    padding: 1rem 0;
+    margin-bottom: 1rem;
+}
+
+.clickable-card {
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.clickable-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.stats-icon {
+    width: 40px;
+    height: 40px;
+    padding: 0.5rem;
+}
+
+.status-indicator {
+    width: 10px;
+    height: 10px;
+    margin-right: 8px;
+}
+
+.quick-action-card {
+    height: 100%;
+    min-height: 100px;
+}
+
+.notification-badge {
+    font-size: 0.75rem;
+    padding: 0.25em 0.6em;
+}
