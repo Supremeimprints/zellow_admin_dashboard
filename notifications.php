@@ -10,6 +10,24 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
 
 $db = (new Database())->getConnection();
 
+// Handle message deletion
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
+    $msg_id = $_POST['message_id'];
+    $stmt = $db->prepare("DELETE FROM messages WHERE id = ?");
+    $stmt->execute([$msg_id]);
+    header("Location: notifications.php");
+    exit();
+}
+
+// Handle marking message as read
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_as_read'])) {
+    $msg_id = $_POST['message_id'];
+    $stmt = $db->prepare("UPDATE messages SET status = 'read' WHERE id = ?");
+    $stmt->execute([$msg_id]);
+    header("Location: notifications.php");
+    exit();
+}
+
 // Get messages for current user
 $query = "SELECT m.*, u.username as sender_name 
           FROM messages m
@@ -35,14 +53,20 @@ $messages = $stmt->fetchAll();
         <?php foreach ($messages as $msg): ?>
             <div class="card mb-3">
                 <div class="card-body">
-                    <h5 class="card-title">From: <?= $msg['sender_name'] ?></h5>
-                <p class="card-text"><?= nl2br($msg['message']) ?></p>
-                <small class="text-muted">
-                    <?= date('M j, Y g:i a', strtotime($msg['created_at'])) ?>
-                </small>
+                    <h5 class="card-title">From: <?= htmlspecialchars($msg['sender_name']) ?></h5>
+                    <p class="card-text"><?= nl2br(htmlspecialchars($msg['message'])) ?></p>
+                    <small class="text-muted">
+                        <?= date('M j, Y g:i a', strtotime($msg['created_at'])) ?>
+                    </small>
+                    <form method="POST" class="mt-2">
+                        <input type="hidden" name="message_id" value="<?= $msg['id'] ?>">
+                        <button type="submit" name="mark_as_read" class="btn btn-sm btn-success">Mark as Read</button>
+                        <button type="submit" name="delete" class="btn btn-sm btn-danger">Delete</button>
+                    </form>
+                </div>
             </div>
-        </div>
-    <?php endforeach; ?>
+        <?php endforeach; ?>
+    </div>
 </body>
 <?php include 'includes/nav/footer.php'; ?>
 </html>
