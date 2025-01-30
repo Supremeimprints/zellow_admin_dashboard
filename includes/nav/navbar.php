@@ -57,7 +57,7 @@ if (!isset($admin)) {
                     <a class="nav-link" href="reports.php">Reports</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="notifications.php">Notifications</a>
+                    <a class="nav-link" href="messages.php">Notifications</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="settings.php">Settings</a>

@@ -82,7 +82,7 @@
                 <span class="custom-line">Preferences</span>
             </h6>
             <li class="nav-item">
-                <a href="notifications.php" class="nav-link text-white">
+                <a href="messages.php" class="nav-link text-white">
                     <i class="fas fa-bell me-2"></i> Notifications
                 </a>
                 <li class="nav-item">
