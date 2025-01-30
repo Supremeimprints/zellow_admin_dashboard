@@ -1,6 +1,4 @@
 <?php
-require_once 'config/session.php';
-require_once 'includes/auth_check.php';
 require_once 'config/database.php';
 
 if (!isset($_GET['id'])) {
@@ -13,7 +11,7 @@ $db = (new Database())->getConnection();
 try {
     $stmt = $db->prepare("UPDATE notifications 
                         SET is_read = 1 
-                        WHERE id = ? AND user_id = ?");
+                        WHERE id = ? AND sender_id = ?");
     $stmt->execute([$_GET['id'], $_SESSION['id']]);
     
     header("Location: ".$_SERVER['HTTP_REFERER']);

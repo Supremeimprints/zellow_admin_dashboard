@@ -358,9 +358,9 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
                                             </div>
                                             <div class="text-end">
                                                 <div class="btn-group">
-                                                    <form method="POST" action="notifications.php" class="d-inline">
+                                                    <form method="POST" action="mark_read.php" class="d-inline">
                                                         <input type="hidden" name="message_id" value="<?= $notification['id'] ?>">
-                                                        <button type="submit" name="mark_as_read" class="btn btn-sm btn-outline-secondary">
+                                                        <button type="submit" name="mark_read" class="btn btn-sm btn-outline-secondary">
                                                             <i class="fas fa-check"></i>
                                                         </button>
                                                     </form>
@@ -405,7 +405,7 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div>
                                                 <div class="small fw-medium">
-                                                    #<?= htmlspecialchars($order['order_id']) ?>
+                                                 Order #<?= htmlspecialchars($order['order_id']) ?>
                                                 </div>
                                                 <small class="text-muted">
                                                     <?= date('M j, H:i', strtotime($order['order_date'])) ?>
