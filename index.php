@@ -70,10 +70,15 @@ try {
     $recentOrders = $recentStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
     // Fetch notifications
-    $notificationQuery = "SELECT id, message, created_at FROM notifications 
-                         ORDER BY created_at DESC LIMIT 5";
+    // Replace existing notifications query with:
+    $notificationQuery = "SELECT n.*, u.username 
+FROM notifications n
+JOIN users u ON n.user_id = u.id
+WHERE n.user_id = ?
+ORDER BY created_at DESC 
+LIMIT 5";
     $notificationStmt = $db->prepare($notificationQuery);
-    $notificationStmt->execute();
+    $notificationStmt->execute([$_SESSION['id']]);
     $notifications = $notificationStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
     // Fetch additional stats
@@ -98,6 +103,13 @@ $totalOrders = array_sum(array_column($orderStats, 'count'));
 $activeCustomers = $customerStats['count'];
 $totalStock = $inventoryStats['total_stock'];
 $uniqueItems = $inventoryStats['unique_items'];
+
+
+// After marking read, add CSRF check
+if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_URL_HOST) !== $_SERVER['HTTP_HOST']) {
+    header("Location: index.php");
+    exit();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -110,7 +122,7 @@ $uniqueItems = $inventoryStats['unique_items'];
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="assets/css/index.css">
     <style>
-        
+
     </style>
 </head>
 
@@ -124,10 +136,12 @@ $uniqueItems = $inventoryStats['unique_items'];
     </div>
 
     <main class="col-md-9 col-lg-10 ms-sm-auto px-md-4 main-content">
+        <?php include 'includes/nav/navbar.php'; ?>
         <div class="dashboard-header">
             <div class="container">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
+
                         <h2 class="mb-0">
                             <span id="timeBasedGreeting"></span>,
                             <span class="fw-light"><?= htmlspecialchars($displayName) ?></span>
@@ -329,18 +343,59 @@ $uniqueItems = $inventoryStats['unique_items'];
                         </div>
                         <div class="card-body p-2">
                             <?php if (!empty($notifications)): ?>
-                                <div class="list-group list-group-flush">
-                                    <?php foreach ($notifications as $notification): ?>
-                                        <a href="notification.php?id=<?= $notification['id'] ?>"
-                                            class="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-2">
-                                            <div class="text-truncate" style="max-width: 80%">
-                                                <?= htmlspecialchars($notification['message']) ?>
-                                            </div>
-                                            <small class="text-muted notification-badge">
-                                                <?= time_elapsed_string($notification['created_at']) ?>
-                                            </small>
-                                        </a>
-                                    <?php endforeach; ?>
+                                <?php foreach($notifications as $notification): ?>
+                                <div class="list-group-item position-relative <?= $notification['is_read'] ? '' : 'bg-light' ?>">
+    <!-- Priority Indicator -->
+    <div class="notification-priority priority-<?= strtolower($notification['priority']) ?>"></div>
+    
+    <div class="d-flex justify-content-between align-items-start ps-3">
+        <div class="w-75">
+            <!-- Type Badge -->
+            <span class="badge notification-type bg-<?= match($notification['type']) {
+                'Task' => 'warning',
+                'Alert' => 'danger',
+                default => 'secondary'
+            } ?>">
+                <?= $notification['type'] ?>
+            </span>
+            
+            <!-- Sender Info -->
+            <div class="fw-medium mb-1">
+                <?= htmlspecialchars($notification['username']) ?>
+                <?php if(!$notification['is_read']): ?>
+                    <span class="badge bg-primary ms-2">New</span>
+                <?php endif; ?>
+            </div>
+            
+            <!-- Message -->
+            <div class="text-muted small">
+                <?= htmlspecialchars($notification['message']) ?>
+            </div>
+            
+            <!-- Time -->
+            <small class="text-muted d-block mt-2">
+                <i class="fas fa-clock me-1"></i>
+                <?= time_elapsed_string($notification['created_at']) ?>
+            </small>
+        </div>
+        <div class="text-end">
+            <!-- Action Buttons -->
+            <div class="btn-group">
+                <a href="mark_read.php?id=<?= $notification['id'] ?>" 
+                   class="btn btn-sm btn-outline-secondary" 
+                   title="Mark Read">
+                    <i class="fas fa-check"></i>
+                </a>
+                <button class="btn btn-sm btn-outline-danger delete-notification" 
+                        data-id="<?= $notification['id'] ?>"
+                        title="Delete">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+                                <?php endforeach; ?>
                                 </div>
                             <?php else: ?>
                                 <div class="alert alert-info mb-0 p-2 small">

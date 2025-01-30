@@ -36,3 +36,19 @@
     font-size: 0.75rem;
     padding: 0.25em 0.6em;
 }
+
+/* Add to your CSS file */
+.list-group-item.bg-light {
+    border-left: 3px solid #0d6efd;
+    transition: all 0.3s ease;
+}
+
+.notification-badge {
+    font-size: 0.75rem;
+    vertical-align: text-top;
+}
+
+.btn-notification-action {
+    padding: 0.25rem 0.5rem;
+    line-height: 1;
+}
