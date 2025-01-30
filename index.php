@@ -19,6 +19,8 @@ $notifications = [];
 $totalRevenue = 0;
 $lowStockItems = 0;
 
+date_default_timezone_set('Africa/Nairobi'); // Set timezone
+
 try {
     $database = new Database();
     $db = $database->getConnection();
@@ -36,8 +38,6 @@ try {
         }
         $displayName = !empty($admin['email']) ? extractNameFromEmail($admin['email']) : 'Administrator';
     }
-    date_default_timezone_set('Africa/Nairobi'); // Set your timezone (adjust if necessary)
-
 
     // Fetch order statistics
     $orderQuery = "SELECT status, COUNT(id) as count FROM orders GROUP BY status";
@@ -52,44 +52,51 @@ try {
     $customerStats = $customerStmt->fetch(PDO::FETCH_ASSOC) ?: ['count' => 0];
 
     // Fetch inventory statistics
-    $inventoryQuery = "SELECT 
-                        COALESCE(SUM(stock_quantity), 0) as total_stock,
-                        COALESCE(COUNT(id), 0) as unique_items 
-                      FROM inventory";
+    $inventoryQuery = "SELECT COALESCE(SUM(stock_quantity), 0) as total_stock, COALESCE(COUNT(id), 0) as unique_items FROM inventory";
     $inventoryStmt = $db->prepare($inventoryQuery);
     $inventoryStmt->execute();
     $inventoryStats = $inventoryStmt->fetch(PDO::FETCH_ASSOC) ?: ['total_stock' => 0, 'unique_items' => 0];
 
     // Fetch recent orders
-    $recentQuery = "SELECT order_id, status, order_date 
-                   FROM orders 
-                   ORDER BY order_date DESC 
-                   LIMIT 5";
+    $recentQuery = "SELECT order_id, status, order_date FROM orders ORDER BY order_date DESC LIMIT 5";
     $recentStmt = $db->prepare($recentQuery);
     $recentStmt->execute();
     $recentOrders = $recentStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
-    // Fetch notifications
-    // Replace existing notifications query with:
-    $notificationQuery = "SELECT n.*, u.username 
-FROM notifications n
-JOIN users u ON n.user_id = u.id
-WHERE n.user_id = ?
-ORDER BY created_at DESC 
-LIMIT 5";
+    // Fetch unread notifications
+    $notificationQuery = "SELECT m.*, u.username as sender_name FROM messages m 
+                          JOIN users u ON m.sender_id = u.id 
+                          WHERE (m.recipient_id = ? OR m.recipient_id IS NULL) AND m.is_read = 0 
+                          ORDER BY m.created_at DESC LIMIT 5";
     $notificationStmt = $db->prepare($notificationQuery);
     $notificationStmt->execute([$_SESSION['id']]);
     $notifications = $notificationStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
-    // Fetch additional stats
-    $revenueQuery = "SELECT SUM(total_price) as total_revenue FROM orders 
-                    WHERE status = 'Delivered'";
+    $notificationQuery = "SELECT 
+                        m.id,
+                        m.sender_id,
+                        u.username,
+                        m.message,
+                        m.created_at,
+                        m.is_read
+                     FROM messages m
+                     JOIN users u ON m.sender_id = u.id
+                     WHERE m.recipient = 'admin' 
+                       AND m.is_read = 0
+                     ORDER BY m.created_at DESC 
+                     LIMIT 5";
+    $notificationStmt = $db->prepare($notificationQuery);
+    $notificationStmt->execute();
+    $notifications = $notificationStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+    // Fetch total revenue from delivered orders
+    $revenueQuery = "SELECT SUM(total_price) as total_revenue FROM orders WHERE status = 'Delivered'";
     $revenueStmt = $db->prepare($revenueQuery);
     $revenueStmt->execute();
     $totalRevenue = $revenueStmt->fetchColumn() ?: 0;
 
-    $lowStockQuery = "SELECT COUNT(id) as low_stock FROM inventory 
-                     WHERE stock_quantity < 10";
+    // Fetch count of low stock items
+    $lowStockQuery = "SELECT COUNT(id) as low_stock FROM inventory WHERE stock_quantity < 10";
     $lowStockStmt = $db->prepare($lowStockQuery);
     $lowStockStmt->execute();
     $lowStockItems = $lowStockStmt->fetchColumn() ?: 0;
@@ -98,14 +105,13 @@ LIMIT 5";
     error_log("Database Error: " . $e->getMessage());
 }
 
-// Calculate derived values
+// Derived statistics
 $totalOrders = array_sum(array_column($orderStats, 'count'));
 $activeCustomers = $customerStats['count'];
 $totalStock = $inventoryStats['total_stock'];
 $uniqueItems = $inventoryStats['unique_items'];
 
-
-// After marking read, add CSRF check
+// CSRF check before processing any actions
 if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_URL_HOST) !== $_SERVER['HTTP_HOST']) {
     header("Location: index.php");
     exit();
@@ -121,27 +127,28 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="assets/css/index.css">
-    <style>
-
-    </style>
 </head>
 
-<body class="d-flex flex-column min-vh-100">
+<body class="d-flex min-vh-100">
+    <!-- Mobile Menu Button -->
     <button class="btn btn-dark d-md-none position-fixed" style="left: 10px; top: 10px; z-index: 1001"
         onclick="toggleSidebar()">
         <i class="fas fa-bars"></i>
     </button>
-    <div class="col-md-3 col-lg-1 d-none d-md-block sidebar-column">
-        <?php include 'includes/nav/sidebar.php'; ?>
-    </div>
 
-    <main class="col-md-9 col-lg-10 ms-sm-auto px-md-4 main-content">
+    <!-- Sidebar -->
+    <aside class="sidebar d-none d-md-flex flex-column flex-shrink-0">
+        <?php include 'includes/nav/sidebar.php'; ?>
+    </aside>
+
+    <!-- Main Content -->
+    <m class="main-wrapper flex-grow-1">
         <?php include 'includes/nav/navbar.php'; ?>
+
         <div class="dashboard-header">
-            <div class="container">
+            <div class="container-fluid">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-
                         <h2 class="mb-0">
                             <span id="timeBasedGreeting"></span>,
                             <span class="fw-light"><?= htmlspecialchars($displayName) ?></span>
@@ -155,7 +162,6 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
                 </div>
             </div>
         </div>
-
         <div class="container">
             <div class="row g-3 mb-3">
                 <!-- Stats Cards -->
@@ -343,112 +349,118 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
                         </div>
                         <div class="card-body p-2">
                             <?php if (!empty($notifications)): ?>
-                                <?php foreach($notifications as $notification): ?>
-                                <div class="list-group-item position-relative <?= $notification['is_read'] ? '' : 'bg-light' ?>">
-    <!-- Priority Indicator -->
-    <div class="notification-priority priority-<?= strtolower($notification['priority']) ?>"></div>
-    
-    <div class="d-flex justify-content-between align-items-start ps-3">
-        <div class="w-75">
-            <!-- Type Badge -->
-            <span class="badge notification-type bg-<?= match($notification['type']) {
-                'Task' => 'warning',
-                'Alert' => 'danger',
-                default => 'secondary'
-            } ?>">
-                <?= $notification['type'] ?>
-            </span>
-            
-            <!-- Sender Info -->
-            <div class="fw-medium mb-1">
-                <?= htmlspecialchars($notification['username']) ?>
-                <?php if(!$notification['is_read']): ?>
-                    <span class="badge bg-primary ms-2">New</span>
-                <?php endif; ?>
-            </div>
-            
-            <!-- Message -->
-            <div class="text-muted small">
-                <?= htmlspecialchars($notification['message']) ?>
-            </div>
-            
-            <!-- Time -->
-            <small class="text-muted d-block mt-2">
-                <i class="fas fa-clock me-1"></i>
-                <?= time_elapsed_string($notification['created_at']) ?>
-            </small>
-        </div>
-        <div class="text-end">
-            <!-- Action Buttons -->
-            <div class="btn-group">
-                <a href="mark_read.php?id=<?= $notification['id'] ?>" 
-                   class="btn btn-sm btn-outline-secondary" 
-                   title="Mark Read">
-                    <i class="fas fa-check"></i>
-                </a>
-                <button class="btn btn-sm btn-outline-danger delete-notification" 
-                        data-id="<?= $notification['id'] ?>"
-                        title="Delete">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-                                <?php endforeach; ?>
-                                </div>
-                            <?php else: ?>
-                                <div class="alert alert-info mb-0 p-2 small">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    No new notifications
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                </div>
+                                <?php foreach ($notifications as $notification): ?>
+                                    <div
+                                        class="list-group-item position-relative <?= $notification['is_read'] ? '' : 'bg-light' ?>">
+                                        <!-- Priority Indicator -->
+                                        <div
+                                            class="notification-priority priority-<?= strtolower($notification['priority'] ?? 'Medium') ?>">
+                                        </div>
 
-                <!-- Recent Activities -->
-                <div class="col-md-4">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header bg-white p-2 d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0 fw-bold">Recent Activities</h6>
-                            <a href="orders.php" class="btn btn-sm btn-link p-0">View All →</a>
-                        </div>
-                        <div class="card-body p-2">
-                            <?php if (!empty($recentOrders)): ?>
-                                <?php foreach ($recentOrders as $order): ?>
-                                    <?php
-                                    $statusColor = match ($order['status']) {
-                                        'Pending' => 'warning',
-                                        'Shipped' => 'primary',
-                                        'Delivered' => 'success',
-                                        default => 'secondary'
-                                    }; ?>
-                                    <div class="recent-activity-item border-<?= $statusColor ?>">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <div class="small fw-medium">
-                                                    #<?= htmlspecialchars($order['order_id']) ?>
+                                        <div class="d-flex justify-content-between align-items-start ps-3">
+                                            <div class="w-75">
+                                                <!-- Type Badge -->
+                                                <span class="badge notification-type bg-<?= match ($notification['type'] ?? 'Message') {
+                                                    'Task' => 'warning',
+                                                    'Alert' => 'danger',
+                                                    default => 'secondary'
+                                                } ?>">
+                                                    <?= $notification['type'] ?? 'Message' ?>
+                                                </span>
+
+                                                <!-- Sender Info -->
+                                                <div class="fw-medium mb-1">
+                                                    <?= htmlspecialchars($notification['sender_name']) ?>
+                                                    <?php if (!$notification['is_read']): ?>
+                                                        <span class="badge bg-primary ms-2">New</span>
+                                                    <?php endif; ?>
                                                 </div>
-                                                <small class="text-muted">
-                                                    <?= date('M j, H:i', strtotime($order['order_date'])) ?>
+
+                                                <!-- Message -->
+                                                <div class="text-muted small">
+                                                    <?= htmlspecialchars($notification['message']) ?>
+                                                </div>
+
+                                                <!-- Time -->
+                                                <small class="text-muted d-block mt-2">
+                                                    <i class="fas fa-clock me-1"></i>
+                                                    <?= time_elapsed_string($notification['created_at']) ?>
                                                 </small>
                                             </div>
-                                            <span class="badge bg-<?= $statusColor ?> small">
-                                                <?= htmlspecialchars($order['status']) ?>
-                                            </span>
+                                            <div class="text-end">
+                                                <!-- Action Buttons -->
+                                                <div class="btn-group">
+                                                    <form method="POST" action="notifications.php" class="d-inline">
+                                                        <input type="hidden" name="message_id"
+                                                            value="<?= $notification['id'] ?>">
+                                                        <button type="submit" name="mark_as_read"
+                                                            class="btn btn-sm btn-outline-secondary">
+                                                            <i class="fas fa-check"></i>
+                                                        </button>
+                                                    </form>
+                                                    <form method="POST" action="notifications.php" class="d-inline">
+                                                        <input type="hidden" name="message_id"
+                                                            value="<?= $notification['id'] ?>">
+                                                        <button type="submit" name="delete"
+                                                            class="btn btn-sm btn-outline-danger">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <div class="text-center text-muted small py-2">No recent activity</div>
-                            <?php endif; ?>
-                        </div>
+                                    </div> <?php endforeach; ?>
+                            </div> <?php else: ?>
+                            <div class="alert alert-info mb-0 p-2 small"> <i class="fas fa-info-circle me-2"></i> No new
+                                notifications </div> <?php endif; ?>
                     </div>
+                </div></div></div>
+            </div>
+</div> </main>
+            <!-- Recent Activities -->
+            <div class="col-md-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-white p-2 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-bold">Recent Activities</h6>
+                        <a href="orders.php" class="btn btn-sm btn-link p-0">View All →</a>
+                    </div>
+
+                    <div class="card-body p-2">
+                        <?php if (!empty($recentOrders)): ?>
+                            <?php foreach ($recentOrders as $order): ?>
+                                <?php
+                                $statusColor = match ($order['status']) {
+                                    'Pending' => 'warning',
+                                    'Shipped' => 'primary',
+                                    'Delivered' => 'success',
+                                    default => 'secondary'
+                                }; ?>
+                                <div class="recent-activity-item border-<?= $statusColor ?>">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="small fw-medium">
+                                                #<?= htmlspecialchars($order['order_id']) ?>
+                                            </div>
+                                            <small class="text-muted">
+                                                <?= date('M j, H:i', strtotime($order['order_date'])) ?>
+                                            </small>
+                                        </div>
+                                        <span class="badge bg-<?= $statusColor ?> small">
+                                            <?= htmlspecialchars($order['status']) ?>
+                                        </span>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="text-center text-muted small py-2">No recent activity</div>
+                        <?php endif; ?></div>
+                    </div> </div> </div>
                 </div>
             </div>
         </div>
-
+        </div>
+        </div></div>
+</main>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         <script>
             function updateGreeting() {
@@ -470,6 +482,42 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
                     }
                 });
             });
+
+
+            function toggleSidebar() {
+                const sidebar = document.querySelector('.sidebar');
+                const mainWrapper = document.querySelector('.main-wrapper');
+                const body = document.querySelector('body');
+
+                if (window.innerWidth < 768) {
+                    // Mobile behavior
+                    sidebar.classList.toggle('show');
+                } else {
+                    // Desktop behavior
+                    body.classList.toggle('sidebar-collapsed');
+                }
+            }
+
+            // Close sidebar when clicking outside on mobile
+            document.addEventListener('click', function (event) {
+                const sidebar = document.querySelector('.sidebar');
+                const toggleBtn = document.querySelector('.btn-dark');
+
+                if (window.innerWidth < 768 &&
+                    !sidebar.contains(event.target) &&
+                    !toggleBtn.contains(event.target) &&
+                    sidebar.classList.contains('show')) {
+                    sidebar.classList.remove('show');
+                }
+            });
+
+            // Handle window resize
+            window.addEventListener('resize', function () {
+                const sidebar = document.querySelector('.sidebar');
+                if (window.innerWidth >= 768 && sidebar.classList.contains('show')) {
+                    sidebar.classList.remove('show');
+                }
+            });
         </script>
 
         <?php
@@ -479,29 +527,38 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
             $ago = new DateTime($datetime);
             $diff = $now->diff($ago);
 
+            // Calculate weeks from days (DateInterval doesn't have a weeks property)
             $weeks = floor($diff->d / 7);
-            $days = $diff->d - $weeks * 7;
+            $remaining_days = $diff->d % 7;
 
-            $string = [
-                'y' => 'year',
-                'm' => 'month',
-                'w' => $weeks > 0 ? $weeks . ' week' . ($weeks > 1 ? 's' : '') : null,
-                'd' => $days > 0 ? $days . ' day' . ($days > 1 ? 's' : '') : null,
-                'h' => 'hour',
-                'i' => 'minute',
-                's' => 'second',
-            ];
+            $string = array();
 
-            foreach ($string as $k => &$v) {
-                if ($diff->$k) {
-                    $v = $diff->$k . ' ' . $v . ($diff->$k > 1 ? 's' : '');
-                } else {
-                    unset($string[$k]);
-                }
+            if ($diff->y) {
+                $string[] = $diff->y . ' year' . ($diff->y > 1 ? 's' : '');
+            }
+            if ($diff->m) {
+                $string[] = $diff->m . ' month' . ($diff->m > 1 ? 's' : '');
+            }
+            if ($weeks) {
+                $string[] = $weeks . ' week' . ($weeks > 1 ? 's' : '');
+            }
+            if ($remaining_days) {
+                $string[] = $remaining_days . ' day' . ($remaining_days > 1 ? 's' : '');
+            }
+            if ($diff->h) {
+                $string[] = $diff->h . ' hour' . ($diff->h > 1 ? 's' : '');
+            }
+            if ($diff->i) {
+                $string[] = $diff->i . ' minute' . ($diff->i > 1 ? 's' : '');
+            }
+            if ($diff->s) {
+                $string[] = $diff->s . ' second' . ($diff->s > 1 ? 's' : '');
             }
 
-            if (!$full)
+            if (!$full) {
                 $string = array_slice($string, 0, 1);
+            }
+
             return $string ? implode(', ', $string) . ' ago' : 'just now';
         }
         ?>
