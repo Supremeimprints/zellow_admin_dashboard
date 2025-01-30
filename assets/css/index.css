@@ -1,54 +1,219 @@
+/* Base Styles */
+body {
+    overflow-x: hidden;
+    background-color: #f8f9fa;
+}
+
+/* Layout Components */
+.sidebar {
+    width: 240px;
+    background: #fff;
+    border-right: 1px solid rgba(0, 0, 0, 0.1);
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    transition: all 0.3s ease;
+}
+
+.main-wrapper {
+    margin-left: 240px;
+    width: calc(100% - 240px);
+    min-height: 100vh;
+    transition: all 0.3s ease;
+}
+
+/* Dashboard Header */
 .dashboard-header {
-    background: linear-gradient(135deg, rgb(11, 121, 231), rgb(25, 21, 91));
+    background: linear-gradient(135deg, #1a73e8, #0052cc);
     color: white;
-    padding: 1rem 0;
-    margin-bottom: 1rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.dashboard-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+    pointer-events: none;
+}
+
+/* Card Styles */
+.card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    border: none;
+    background: white;
+    transition: all 0.3s ease;
+}
+
+.card-body {
+    flex: 1 1 auto;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 1rem;
 }
 
 .clickable-card {
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
 }
 
 .clickable-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1) !important;
 }
 
-.stats-icon {
-    width: 40px;
-    height: 40px;
-    padding: 0.5rem;
-}
-
-.status-indicator {
-    width: 10px;
-    height: 10px;
-    margin-right: 8px;
-}
-
+/* Quick Action Cards */
 .quick-action-card {
     height: 100%;
-    min-height: 100px;
-}
-
-.notification-badge {
-    font-size: 0.75rem;
-    padding: 0.25em 0.6em;
-}
-
-/* Add to your CSS file */
-.list-group-item.bg-light {
-    border-left: 3px solid #0d6efd;
+    min-height: 110px;
+    border-radius: 12px;
     transition: all 0.3s ease;
 }
 
+.quick-action-card:hover {
+    transform: scale(1.02);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Stats and Status Indicators */
+.stats-icon {
+    width: 48px;
+    height: 48px;
+    padding: 0.75rem;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    margin-right: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+/* Notification Styles */
 .notification-badge {
     font-size: 0.75rem;
+    padding: 0.35em 0.65em;
+    border-radius: 6px;
+    font-weight: 500;
     vertical-align: text-top;
 }
 
 .btn-notification-action {
-    padding: 0.25rem 0.5rem;
+    padding: 0.35rem 0.65rem;
     line-height: 1;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.list-group-item {
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    transition: all 0.2s ease;
+}
+
+.list-group-item.bg-light {
+    border-left: 4px solid #1a73e8;
+    background-color: rgba(26, 115, 232, 0.05) !important;
+}
+
+/* Navigation */
+.navbar {
+    padding: 0.5rem 1.5rem;
+    background: white;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.container-fluid {
+    padding: 0 1.5rem;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Responsive Design */
+@media (max-width: 767.98px) {
+    .sidebar {
+        transform: translateX(-100%);
+    }
+
+    .sidebar.show {
+        transform: translateX(0);
+    }
+
+    .main-wrapper {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .dashboard-header {
+        padding: 1rem;
+    }
+
+    .card {
+        margin-bottom: 1rem;
+    }
+
+    .card-body {
+        max-height: 300px;
+    }
+    
+    .stats-icon {
+        width: 40px;
+        height: 40px;
+        padding: 0.5rem;
+    }
+}
+
+@media (min-width: 1200px) {
+    .sidebar {
+        width: 280px;
+    }
+
+    .main-wrapper {
+        margin-left: 280px;
+        width: calc(100% - 280px);
+    }
+}
+
+/* Sidebar Toggle States */
+.sidebar-collapsed .sidebar {
+    width: 60px;
+}
+
+.sidebar-collapsed .main-wrapper {
+    margin-left: 60px;
+    width: calc(100% - 60px);
 }
