@@ -174,12 +174,12 @@ body {
     }
 
     .main-wrapper {
-        margin-left: 0;
+        margin-left: 10%;
         width: 100%;
     }
 
     .dashboard-header {
-        padding: 1rem;
+        padding: 20px;
     }
 
     .card {

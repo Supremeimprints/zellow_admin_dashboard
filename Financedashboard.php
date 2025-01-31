@@ -29,11 +29,9 @@ if (!in_array($_SESSION['role'], $allowed_roles)) {
 </head>
 
 <body>
-    <div class="container mt-5 text-center">
-        <h1>Dashboard Under Construction</h1>
-        <p>We're working hard to get this dashboard ready. Please check back later!</p>
+    <?php include 'inventory.php'?>
         <a href="logout.php" class="btn btn-danger">Log Out</a>
     </div>
 </body>
-<?php include 'footer.php'; ?>
+<?php include 'includes/nav/footer.php'; ?>
 </html>
