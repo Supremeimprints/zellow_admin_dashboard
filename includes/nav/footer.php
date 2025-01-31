@@ -25,7 +25,7 @@ function sendRequest(url, data, callback) {
 }
 </script>
 </body>
-<footer class="footer" style="padding: 20px 0; text-align: center; color: #666; font-size: 14px; margin-top: auto;">
+<footer class="notfooter" style="padding: 20px 0; text-align: center; color: #666; font-size: 14px; margin-top: auto;">
     <div class="container">
         <p style="margin: 0;">
             © <?php echo $currentYear; ?> Zellow Enterprises. All Rights Reserved.<br>

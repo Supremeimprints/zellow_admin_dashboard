@@ -58,6 +58,7 @@ $feedbacks = $stmt->fetchAll();
 </head>
 <body>
 <?php include 'includes/nav/navbar.php'; ?>
+<?php include 'includes/theme.php'; ?>
     <div class="container mt-4">
         <h1 class="mb-4">Notifications & Feedback</h1>
         

@@ -130,6 +130,7 @@ foreach ($statuses as $status) {
 
 <body>
     <?php include 'includes/nav/navbar.php'; ?>
+    <?php include 'includes/theme.php' ?>
 
     <div class="container mt-5">
         <!-- Summary Stats Cards -->

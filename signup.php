@@ -1,7 +1,7 @@
 <?php
 session_start();
 require_once 'config/database.php';
-//include 'includes/nav/footer.php';
+
 $error = ''; // Initialize error as empty
 $success = ''; // Initialize success message
 //handles login part
@@ -128,12 +128,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="overlay">
                 <div class="overlay-panel overlay-left">
                     <h1>Welcome Back!</h1>
-                    <p>Sign in to manage operations seamlessly.</p>
+                    <p>To keep connected with us please login with your personal info</p>
                     <button class="ghost" id="signIn">Sign In</button>
                 </div>
                 <div class="overlay-panel overlay-right">
-                    <h1>🚀 Join Us!</h1>
-                    <p>Create an account and take charge.</p>
+                    <h1>Hello, Friend!</h1>
+                    <p>Enter your personal details and start your journey with us</p>
                     <button class="ghost" id="signUp">Sign Up</button>
                 </div>
             </div>
@@ -141,5 +141,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
     <script src="assets/js/sign_up.js"></script>
 </body>
-
 </html>
