@@ -53,144 +53,114 @@ $feedbacks = $stmt->fetchAll();
 <head>
     <title>Notifications & Feedback</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .notification-section {
-            border: 1px solid #dee2e6;
-            border-radius: 0.5rem;
-            background-color: #f8f9fa;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        
-        .feedback-section {
-            border: 1px solid #ffeeba;
-            border-radius: 0.5rem;
-            background-color: #fff3cd;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        
-        .message-card {
-            transition: transform 0.2s;
-            border-left: 4px solid;
-        }
-        
-        .message-card.unread {
-            background-color: #e3f2fd;
-            border-left-color: #2196F3;
-        }
-        
-        .priority-high { border-left-color: #dc3545 !important; }
-        .priority-medium { border-left-color: #ffc107 !important; }
-        .priority-low { border-left-color: #28a745 !important; }
-        
-        .rating-stars {
-            color: #ffc107;
-            font-size: 1.2rem;
-        }
-        
-        .status-badge {
-            font-size: 0.8rem;
-            padding: 0.35rem 0.65rem;
-        }
-    </style>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <link href="assets/css/notifications.css" rel="stylesheet">
 </head>
 <body>
 <?php include 'includes/nav/navbar.php'; ?>
     <div class="container mt-4">
         <h1 class="mb-4">Notifications & Feedback</h1>
         
-        <!-- Messages Section -->
-        <div class="notification-section">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h3>Internal Messages</h3>
-                <a href="send_message.php" class="btn btn-primary">New Message</a>
-            </div>
-            
-            <?php if (count($messages) > 0): ?>
-                <?php foreach ($messages as $msg): ?>
-                    <div class="card message-card mb-3 <?= $msg['is_read'] ? '' : 'unread' ?> 
-                        priority-<?= strtolower($msg['priority']) ?>">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h5 class="card-title">
-                                        <?= htmlspecialchars($msg['sender_name']) ?>
-                                        <?php if($msg['subject']): ?>
-                                            <small class="text-muted">- <?= htmlspecialchars($msg['subject']) ?></small>
-                                        <?php endif; ?>
-                                    </h5>
-                                    <p class="card-text"><?= nl2br(htmlspecialchars($msg['message'])) ?></p>
-                                    <div class="d-flex gap-2 align-items-center">
-                                        <?php if($msg['priority']): ?>
-                                            <span class="badge bg-<?= 
-                                                ($msg['priority'] == 'High') ? 'danger' : 
-                                                (($msg['priority'] == 'Medium') ? 'warning' : 'success') ?> 
-                                                status-badge">
-                                                <?= htmlspecialchars($msg['priority']) ?> Priority
-                                            </span>
-                                        <?php endif; ?>
-                                        <?php if($msg['status'] && $msg['type'] === 'Task'): ?>
-                                            <span class="badge bg-info status-badge">
-                                                <?= htmlspecialchars($msg['status']) ?>
-                                            </span>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                                <div class="text-end">
-                                    <small class="text-muted d-block">
-                                        <?= date('M j, Y g:i a', strtotime($msg['created_at'])) ?>
-                                    </small>
-                                    <form method="POST" class="mt-2">
-                                        <input type="hidden" name="message_id" value="<?= $msg['id'] ?>">
-                                        <button type="submit" name="mark_read" 
-                                            class="btn btn-sm btn-success">✓ Read</button>
-                                        <button type="submit" name="delete" 
-                                            class="btn btn-sm btn-danger">× Delete</button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            <?php else: ?>
-                <div class="alert alert-info">No messages found</div>
-            <?php endif; ?>
-        </div>
+        <div class="d-flex">
+            <!-- Messages Section (3/4 of the screen) -->
+            <div class="notification-section w-75 me-3">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h3>Internal Messages</h3>
+                    <a href="send_message.php" class="btn btn-primary">New Message</a>
+                </div>
 
-        <!-- Feedback Section -->
-        <div class="feedback-section">
-            <h3 class="mb-3">Customer Feedback</h3>
-            
-            <?php if (count($feedbacks) > 0): ?>
-                <?php foreach ($feedbacks as $feedback): ?>
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h5 class="card-title">
-                                        <?= htmlspecialchars($feedback['username']) ?>
-                                        <small class="text-muted">- Order #<?= $feedback['order_id'] ?></small>
-                                    </h5>
-                                    <div class="rating-stars mb-2">
-                                        <?php for($i = 0; $i < 5; $i++): ?>
-                                            <i class="fas fa-star<?= $i < $feedback['rating'] ? '' : '-empty' ?>"></i>
-                                        <?php endfor; ?>
+                <?php if (count($messages) > 0): ?>
+                    <?php foreach ($messages as $msg): ?>
+                        <div class="card message-card mb-3 <?= $msg['is_read'] ? '' : 'unread' ?> 
+                            priority-<?= strtolower($msg['priority']) ?>">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h5 class="card-title">
+                                            <?= htmlspecialchars($msg['sender_name']) ?>
+                                            <?php if($msg['subject']): ?>
+                                                <small class="text-muted">- <?= htmlspecialchars($msg['subject']) ?></small>
+                                            <?php endif; ?>
+                                        </h5>
+                                        <p class="card-text"><?= nl2br(htmlspecialchars($msg['message'])) ?></p>
+                                        <div class="d-flex gap-2 align-items-center">
+                                            <?php if($msg['priority']): ?>
+                                                <span class="badge bg-<?= 
+                                                    ($msg['priority'] == 'High') ? 'danger' : 
+                                                    (($msg['priority'] == 'Medium') ? 'warning' : 'success') ?> 
+                                                    status-badge">
+                                                    <?= htmlspecialchars($msg['priority']) ?> Priority
+                                                </span>
+                                            <?php endif; ?>
+                                            <?php if($msg['status'] && $msg['type'] === 'Task'): ?>
+                                                <span class="badge bg-info status-badge">
+                                                    <?= htmlspecialchars($msg['status']) ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
-                                    <?php if($feedback['comment']): ?>
-                                        <p class="card-text"><?= nl2br(htmlspecialchars($feedback['comment'])) ?></p>
-                                    <?php endif; ?>
+                                    <div class="text-end">
+                                        <small class="text-muted d-block">
+                                            <?= date('M j, Y g:i a', strtotime($msg['created_at'])) ?>
+                                        </small>
+                                        <form method="POST" class="mt-2">
+                                            <input type="hidden" name="message_id" value="<?= $msg['id'] ?>">
+                                            <button type="submit" name="mark_read" 
+                                                class="btn btn-sm btn-success">✓ Read</button>
+                                            <button type="submit" name="delete" 
+                                                class="btn btn-sm btn-danger">× Delete</button>
+                                        </form>
+                                    </div>
                                 </div>
-                                <small class="text-muted">
-                                    <?= date('M j, Y g:i a', strtotime($feedback['created_at'])) ?>
-                                </small>
                             </div>
                         </div>
-                    </div>
-                <?php endforeach; ?>
-            <?php else: ?>
-                <div class="alert alert-info">No feedback available</div>
-            <?php endif; ?>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="alert alert-info">No messages found</div>
+                <?php endif; ?>
+            </div>
+
+            <!-- Feedback Section (1/4 of the screen) -->
+            <div class="feedback-section w-25">
+                <h3 class="mb-3">Customer Feedback</h3>
+                
+                <?php if (count($feedbacks) > 0): ?>
+                    <?php foreach ($feedbacks as $feedback): ?>
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h5 class="card-title">
+                                            <?= htmlspecialchars($feedback['username']) ?>
+                                            <small class="text-muted">- Order #<?= $feedback['order_id'] ?></small>
+                                        </h5>
+                                        <div class="rating-stars mb-2">
+                                            <?php for($i = 0; $i < 5; $i++): ?>
+                                                <i class="fas fa-star<?= $i < $feedback['rating'] ? '' : '-empty' ?>"></i>
+                                            <?php endfor; ?>
+                                        </div>
+                                        <?php if($feedback['comment']): ?>
+                                            <p class="card-text"><?= nl2br(htmlspecialchars($feedback['comment'])) ?></p>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="text-end">
+                                        <small class="text-muted">
+                                            <?= date('M j, Y g:i a', strtotime($feedback['created_at'])) ?>
+                                        </small>
+                                        <form method="POST" class="mt-2">
+                                            <input type="hidden" name="feedback_id" value="<?= $feedback['id'] ?>">
+                                            <button type="submit" name="reply" 
+                                                class="btn btn-sm btn-primary">Reply</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="alert alert-info">No feedback available</div>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 </body>

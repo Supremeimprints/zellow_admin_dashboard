@@ -126,11 +126,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             placeholder="Write your message here..." required></textarea>
                     </div>
 
-                    <!-- Submit Button -->
+                    <!-- Buttons -->
                     <div class="col-12 text-end">
                         <button type="submit" class="btn btn-primary btn-lg">
                             <i class="fas fa-paper-plane me-2"></i>Send Message
                         </button>
+                        <a href="notifications.php" class="btn btn-secondary btn-lg ms-2">Cancel</a>
                     </div>
                 </div>
             </form>
