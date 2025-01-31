@@ -1,17 +1,1 @@
 /* Notifications specific styles */
-.notification-badge {
-    font-size: 0.75rem;
-    vertical-align: super;
-}
-
-.table-notifications tr {
-    transition: background-color 0.2s;
-}
-
-.table-notifications tr.table-active {
-    background-color: rgba(13, 110, 253, 0.05);
-}
-
-.mark-read {
-    cursor: pointer;
-}

@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header("Location: dispatch.php");
                 break;
                 case 'inventory_manager':
-                    header("Location: inventory_dashboard.php");
+                    header("Location: placeholder.php");
                     break;
             // Add other cases as needed
             default:
