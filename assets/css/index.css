@@ -31,9 +31,20 @@ body {
     padding: 1.5rem;
     margin-bottom: 1.5rem;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    position: relative;
     overflow: hidden;
 }
+.container-fluid {
+    width: -webkit-fill-available;
+    --bs-gutter-x: 1.5rem;
+    --bs-gutter-y: 0;
+    padding-right: calc(var(--bs-gutter-x)* .5);
+    padding-left: calc(var(--bs-gutter-x)* .5);
+    margin-right: 100px;
+    margin-left: 100px;
+}
+
+
+
 
 .dashboard-header::before {
     content: '';
