@@ -358,8 +358,8 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
                                             </div>
                                             <div class="text-end">
                                                 <div class="btn-group">
-                                                    <form method="POST" action="mark_read.php" class="d-inline">
-                                                        <input type="hidden" name="message_id" value="<?= $notification['id'] ?>">
+                                                    <form method="GET" action="mark_read.php" class="d-inline">
+                                                        <input type="hidden" name="id" value="<?= $notification['id'] ?>">
                                                         <button type="submit" name="mark_read" class="btn btn-sm btn-outline-secondary">
                                                             <i class="fas fa-check"></i>
                                                         </button>
