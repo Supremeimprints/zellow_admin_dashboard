@@ -8,6 +8,7 @@ if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
 }
 
 require_once 'config/database.php';
+include 'includes/nav/navbar.php'; 
 
 // Initialize variables with safe defaults
 $displayName = 'Administrator';
@@ -133,7 +134,7 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
 
     <!-- Main Content -->
     
-        <?php include 'includes/nav/navbar.php'; ?>
+       
 
         <div class="dashboard-header">
             <div class="container-fluid">
