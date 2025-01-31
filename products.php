@@ -116,8 +116,7 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <td>
                                     <a href="edit_product.php?id=<?= $product['product_id']; ?>"
                                         class="btn btn-warning btn-sm">Edit</a>
-                                    <a href="delete_product.php?id=<?= $product['product_id']; ?>" class="btn btn-danger btn-sm"
-                                        onclick="return confirm('Are you sure you want to delete this product?');">Delete</a>
+                                    <a href="delete_product.php?id=<?= $product['product_id']; ?>" class="btn btn-danger btn-sm">Delete</a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
