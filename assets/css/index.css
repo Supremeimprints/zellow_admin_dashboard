@@ -1,7 +1,11 @@
 /* Base Styles */
+
+@import url('https://fonts.googleapis.com/css?family=Montserrat:400,800');
 body {
     overflow-x: hidden;
     background-color: #f8f9fa;
+	font-family: 'Montserrat', sans-serif;
+
 }
 
 /* Layout Components */

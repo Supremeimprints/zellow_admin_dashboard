@@ -10,8 +10,8 @@ if (!isset($admin)) {
     $database = new Database();
     $db = $database->getConnection();
 
-    // Get admin info
-    $query = "SELECT email FROM users WHERE id = ? AND role = 'admin'";
+    // Get admin info (including profile photo and name)
+    $query = "SELECT username, profile_photo FROM users WHERE id = ? AND role = 'admin'";
     $stmt = $db->prepare($query);
     $stmt->execute([$_SESSION['id']]);
     $admin = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -23,6 +23,16 @@ if (!isset($admin)) {
         exit();
     }
 }
+
+// Check if a profile photo exists
+if (!empty($admin['profile_photo'])) {
+    $profile_photo = htmlspecialchars($admin['profile_photo']);
+    $profile_display = '<img src="' . $profile_photo . '" alt="Profile" class="rounded-circle" width="40" height="40">';
+} else {
+    // Generate a placeholder with the user's first initial
+    $first_initial = strtoupper(substr($admin['username'], 0, 1));
+    $profile_display = "<div class=\"rounded-circle d-flex align-items-center justify-content-center bg-secondary text-white\" \r\n                            style=\"width: 40px; height: 40px; font-size: 20px;\">$first_initial</div>";
+}
 ?>
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
@@ -33,7 +43,7 @@ if (!isset($admin)) {
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav me-auto">
-            <li class="nav-item">
+                <li class="nav-item">
                     <a class="nav-link" href="index.php">Overview</a>
                 </li>
                 <li class="nav-item">
@@ -48,11 +58,13 @@ if (!isset($admin)) {
                 <li class="nav-item">
                     <a class="nav-link" href="dispatch.php">Dispatch</a>
                 </li>
+                <!-- Added Missing Nav Links -->
                 <li class="nav-item">
                     <a class="nav-link" href="inventory.php">Inventory</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="customers.php">Customers</a>
+                </li>
                 <li class="nav-item">
                     <a class="nav-link" href="reports.php">Reports</a>
                 </li>
@@ -62,14 +74,16 @@ if (!isset($admin)) {
                 <li class="nav-item">
                     <a class="nav-link" href="settings.php">Settings</a>
                 </li>
-            
             </ul>
-            <div class="d-flex">
-                <span class="navbar-text me-3">
-                    <?php echo htmlspecialchars($admin['email']); ?>
-                </span>
-                <a href="logout.php" class="btn btn-outline-light">Logout</a>
-            </div>
+            <!-- Profile and Logout Section -->
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <div class="d-flex align-items-center">
+                        <?= $profile_display ?>
+                        <a href="logout.php" class="btn btn-outline-light ms-2">Logout</a>
+                    </div>
+                </li>
+            </ul>
         </div>
     </div>
 </nav>

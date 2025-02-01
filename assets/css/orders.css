@@ -98,3 +98,9 @@
         box-shadow: none;
     }
 }
+/* Card number font matching management headings */
+.container.mt-5 .card-body h3 {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue";
+    font-weight: 600; /* Matches Bootstrap's heading weight */
+    letter-spacing: -0.5px; /* Optional: improves number spacing */
+}

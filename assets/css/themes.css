@@ -1,23 +1,4 @@
-/* assets/css/themes.css */
-:root, [data-bs-theme="light"] {
-    --background: #ffffff;
-    --container-bg: #f6f5f7;
-    --button-bg: #1D9BF0;
-    --text-color: #15202B;
-    --input-bg: #EFF3F4;
-    --border-color: #8899AC;
-    --box-shadow: 0 14px 28px rgba(0,0,0,0.15), 0 10px 10px rgba(0,0,0,0.12);
-    --font-family: 'Montserrat', sans-serif;
-    --feedback-bg: #fcf8e3;
-    --feedback-border: #faebcc;
-    --unread-bg: #e3f2fd;
-    --primary-accent: #2196F3;
-    --priority-high: #dc3545;
-    --priority-medium: #ffc107;
-    --priority-low: #28a745;
-    --rating-star: #ffc107;
-    --text-muted: #6c757d;
-}
+
 
 [data-bs-theme="dark"] {
     --font-family: 'Montserrat', sans-serif;
