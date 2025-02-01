@@ -143,7 +143,7 @@ if (isset($_GET['delete_photo'])) {
         $error = "Error deleting photo: " . $e->getMessage();
     }
 }
-include 'includes/nav/navbar.php';
+
 include 'includes/theme.php';
 ?>
 <!DOCTYPE html>
@@ -158,6 +158,7 @@ include 'includes/theme.php';
 </head>
 
 <body>
+<?php include 'includes/nav/collapsed.php'; ?>
     <div class="settings-container">
         <div class="container mt-5">
             <h2>Admin Settings</h2>

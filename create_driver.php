@@ -121,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 
 <body>
-<?php include 'includes/nav/navbar.php'; ?>
+<?php include 'includes/nav/collapsed.php'; ?>
 
     <div class="container mt-4">
         <div class="row justify-content-center">

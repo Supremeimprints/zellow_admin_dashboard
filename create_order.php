@@ -156,7 +156,7 @@ $orderStmt->execute([
     </style>
 </head>
 <body>
-<?php include 'includes/nav/navbar.php'; ?>
+<?php include 'includes/nav/collapsed.php'; ?>
 
     <div class="container mt-5">
         <h2 class="mb-4">Create New Order</h2>

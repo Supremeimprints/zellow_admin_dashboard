@@ -162,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 
 <body>
-    <?php include 'includes/nav/navbar.php'; ?>
+    <?php include 'includes/nav/collapsed.php'; ?>
     <?php include 'includes/theme.php'; ?>
     <div class="container mt-4">
         <h2>Dispatch Order #<?= htmlspecialchars($order_id) ?></h2>

@@ -79,7 +79,7 @@ $reportData['customer_stats'] = $stmt->fetch(PDO::FETCH_ASSOC);
 </head>
 
 <body>
-    <?php include 'includes/nav/navbar.php'; ?>
+    <?php include 'includes/nav/collapsed.php'; ?>
     <?php include 'includes/theme.php' ?>
 
     <div class="container-fluid mt-4">

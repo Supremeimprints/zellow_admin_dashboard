@@ -54,7 +54,7 @@ try {
     <link href="assets/css/inventory.css" rel="stylesheet">
 </head>
 <body>
-<?php include 'includes/nav/navbar.php'; ?>
+<?php include 'includes/nav/collapsed.php'; ?>
 <?php include 'includes/theme.php'; ?>
     <div class="container mt-5">
         <h2>Manage Inventory</h2>

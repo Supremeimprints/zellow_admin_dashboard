@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 <body>
-<?php include 'includes/nav/navbar.php'; ?>
+<?php include 'includes/nav/collapsed.php'; ?>
 
 <div class="container py-4">
     <div class="message-form-card card">

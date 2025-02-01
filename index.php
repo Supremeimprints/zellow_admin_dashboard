@@ -8,7 +8,7 @@ if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
 }
 
 require_once 'config/database.php';
-include 'includes/nav/navbar.php';
+include 'includes/nav/collapsed.php';
 
 // Initialize variables with safe defaults
 $displayName = 'Administrator';
@@ -137,6 +137,7 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
 </head>
 <?php include 'includes/theme.php'; ?>
 
+
 <body class="admin-layout">
 
     <!-- Main Content -->
@@ -248,6 +249,7 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
                 </div>
             </div>
         </div>
+        
 
         <!-- Quick Actions -->
         <div class="row g-3 mb-3">

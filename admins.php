@@ -147,7 +147,7 @@ $drivers = $driverStmt->fetchAll(PDO::FETCH_ASSOC);
     <link rel="stylesheet" href="assets/css/orders.css">
 </head>
 <body>
-<?php include 'includes/nav/navbar.php'; ?>
+<?php include 'includes/nav/collapsed.php'; ?>
 <?php include 'includes/theme.php'; ?>
 <div class="container mt-5">
     <h2>Employee Management</h2>

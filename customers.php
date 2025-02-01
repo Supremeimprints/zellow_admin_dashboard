@@ -73,7 +73,7 @@ if (isset($_GET['delete']) && isset($_GET['source_table'])) {
 </head>
 
 <body>
-    <?php include 'includes/nav/navbar.php'; ?>
+    <?php include 'includes/nav/collapsed.php'; ?>
     <div class="container mt-4">
         <h1>Manage Customers</h1>
 

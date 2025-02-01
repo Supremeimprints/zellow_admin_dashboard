@@ -27,35 +27,39 @@ $service_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <link href="assets/css/notifications.css" rel="stylesheet">
 </head>
 <body>
-<?php include 'includes/nav/navbar.php'; ?>
+<?php include 'includes/nav/collapsed.php'; ?>
 <?php include 'includes/theme.php'; ?>
 <div class="container mt-5">
     <h2>Service Requests</h2>
     <a href="notifications.php" class="btn btn-secondary mb-3">Return to Notifications</a>
 
     <div class="notification-section">
-        <?php foreach ($service_requests as $request): ?>
-            <div class="card service-request-card mb-3">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="profile-photo">
-                            <img src="path/to/profile/photo.jpg" alt="Profile Photo">
+        <?php if (!empty($service_requests)): ?>
+            <?php foreach ($service_requests as $request): ?>
+                <div class="card service-request-card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="profile-photo">
+                                <img src="path/to/profile/photo.jpg" alt="Profile Photo">
+                            </div>
+                            <div>
+                                <h5 class="card-title"><?= htmlspecialchars($request['username']) ?></h5>
+                                <p class="card-text"><?= htmlspecialchars($request['service_name']) ?></p>
+                                <p class="card-text"><small class="text-muted"><?= htmlspecialchars($request['request_date']) ?></small></p>
+                            </div>
                         </div>
                         <div>
-                            <h5 class="card-title"><?= htmlspecialchars($request['username']) ?></h5>
-                            <p class="card-text"><?= htmlspecialchars($request['service_name']) ?></p>
-                            <p class="card-text"><small class="text-muted"><?= htmlspecialchars($request['request_date']) ?></small></p>
+                            <span class="badge bg-secondary"><?= htmlspecialchars($request['status']) ?></span>
+                            <a href="view_service_request.php?id=<?= $request['id'] ?>" class="btn btn-primary btn-sm">View</a>
+                            <a href="update_service_request.php?id=<?= $request['id'] ?>" class="btn btn-warning btn-sm">Update</a>
+                            <a href="delete_service_request.php?id=<?= $request['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this request?');">Delete</a>
                         </div>
                     </div>
-                    <div>
-                        <span class="badge bg-secondary"><?= htmlspecialchars($request['status']) ?></span>
-                        <a href="view_service_request.php?id=<?= $request['id'] ?>" class="btn btn-primary btn-sm">View</a>
-                        <a href="update_service_request.php?id=<?= $request['id'] ?>" class="btn btn-warning btn-sm">Update</a>
-                        <a href="delete_service_request.php?id=<?= $request['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this request?');">Delete</a>
-                    </div>
                 </div>
-            </div>
-        <?php endforeach; ?>
+            <?php endforeach; ?>
+        <?php else: ?>
+            <div class="alert alert-info">No service requests found</div>
+        <?php endif; ?>
     </div>
 </div>
 

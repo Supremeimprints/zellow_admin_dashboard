@@ -103,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
 </head>
 <body>
-    <?php include 'includes/nav/navbar.php'; ?>
+    <?php include 'includes/nav/collapsed.php'; ?>
     
     <div class="container mt-5">
         <div class="row justify-content-center">

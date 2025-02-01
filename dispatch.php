@@ -147,7 +147,7 @@ foreach ($statuses as $status) {
 </head>
 
 <body>
-    <?php include 'includes/nav/navbar.php'; ?>
+    <?php include 'includes/nav/collapsed.php'; ?>
     <?php include 'includes/theme.php'; ?>
     <div class="container mt-5">
         <!-- Keep existing summary stats and orders table -->

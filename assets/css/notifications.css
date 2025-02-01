@@ -92,9 +92,10 @@ body {
     background-color: rgba(13, 110, 253, 0.05);
 }
 
-.mark-read {
+form {
     cursor: pointer;
-    padding: auto;
+    padding: 5px;
+    
 }
 
 .message-card .profile-photo {

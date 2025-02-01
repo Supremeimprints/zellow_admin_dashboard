@@ -125,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="assets/css/dispatch.css" rel="stylesheet">
 </head>
 <body>
-<?php include 'includes/nav/navbar.php'; ?>
+<?php include 'includes/nav/collapsed.php'; ?>
     <div class="container mt-4">
         <h2>Edit Driver: <?= htmlspecialchars($driver['name'] ?? '') ?></h2>
         

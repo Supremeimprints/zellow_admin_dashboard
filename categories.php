@@ -90,7 +90,7 @@ if (isset($_GET['delete_id'])) {
 <body>
 
 <!-- Navigation Bar -->
-<?php include 'includes/nav/navbar.php'; ?>
+<?php include 'includes/nav/collapsed.php'; ?>
 
 
 <div class="container mt-4">

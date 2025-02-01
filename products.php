@@ -64,7 +64,7 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <body>
 
     <!-- Navigation Bar -->
-    <?php include 'includes/nav/navbar.php'; ?>
+    <?php include 'includes/nav/collapsed.php'; ?>
     <!-- Theme CSS -->
     <?php include 'includes/theme.php'; ?>
     <div class="container mt-4">

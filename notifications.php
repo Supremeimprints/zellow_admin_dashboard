@@ -74,7 +74,7 @@ $stockAlerts = $stmt->fetchAll();
     <link href="assets/css/notifications.css" rel="stylesheet">
 </head>
 <body>
-<?php include 'includes/nav/navbar.php'; ?>
+<?php include 'includes/nav/collapsed.php'; ?>
 <?php include 'includes/theme.php'; ?>
     <div class="container mt-4">
         <h2 class="container mt-5">Notifications & Feedback</h2>
