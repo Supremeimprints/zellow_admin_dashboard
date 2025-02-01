@@ -400,10 +400,10 @@ foreach ($statuses as $status) {
                                                 <form method="POST"
                                                     onsubmit="return confirm('Are you sure you want to delete this driver?');">
                                                     <input type="hidden" name="driver_id" value="<?= $driver['driver_id'] ?>">
-                                                    <button type="submit" class="bi bi-trash"
-                                                        name="delete_driver">Delete</button>
+                                                    <button type="submit" class="dropdown-item py-2 px-3">
+                                                        <i class="bi bi-trash me-2"></i>Delete
+                                                    </button>
                                                 </form>
-
                                             </li>
                                         </ul>
                                     </div>

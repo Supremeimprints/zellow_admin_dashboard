@@ -81,10 +81,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Update session data
             $_SESSION['email'] = $email;
-
+            $_SESSION['profile_photo'] = $profile_photo;
             $_SESSION['theme'] = $theme; // Keep session updated
-            $stmt = $db->prepare("UPDATE users SET theme = ? WHERE id = ?");
-            $stmt->execute([$theme, $user_id]);
 
             $success = "Profile updated successfully!";
             header("Refresh:0"); // Refresh to show changes

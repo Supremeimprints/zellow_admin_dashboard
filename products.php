@@ -13,7 +13,7 @@ $database = new Database();
 $db = $database->getConnection();
 
 // Get admin info
-$query = "SELECT email FROM users WHERE id = ? AND role = 'admin'";
+$query = "SELECT email, profile_photo FROM users WHERE id = ? AND role = 'admin'";
 $stmt = $db->prepare($query);
 $stmt->execute([$_SESSION['id']]);
 $admin = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -24,6 +24,9 @@ if (!$admin) {
     header('Location: login.php');
     exit();
 }
+
+// Update session profile photo
+$_SESSION['profile_photo'] = $admin['profile_photo'];
 
 // Handle search input
 $search = '';
