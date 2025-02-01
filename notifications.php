@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_read'])) {
 }
 
 // Get messages for current user
-$messageQuery = "SELECT m.*, u.username as sender_name 
+$messageQuery = "SELECT m.*, u.username as sender_name, u.profile_photo as sender_photo 
           FROM messages m
           JOIN users u ON m.sender_id = u.id
           WHERE (m.recipient_id IS NULL OR m.recipient_id = ?)
@@ -46,6 +46,17 @@ $feedbackQuery = "SELECT f.*, u.username
 $stmt = $db->prepare($feedbackQuery);
 $stmt->execute();
 $feedbacks = $stmt->fetchAll();
+
+// Get service request notifications
+$serviceRequestQuery = "SELECT sr.*, u.username, s.name AS service_name, sr.request_date AS created_at, u.profile_photo as sender_photo 
+                        FROM service_requests sr 
+                        JOIN users u ON sr.user_id = u.id 
+                        JOIN services s ON sr.service_id = s.id 
+                        WHERE sr.status = 'Pending' 
+                        ORDER BY sr.request_date DESC";
+$stmt = $db->prepare($serviceRequestQuery);
+$stmt->execute();
+$serviceRequests = $stmt->fetchAll();
 ?>
 
 <!DOCTYPE html>
@@ -78,6 +89,7 @@ $feedbacks = $stmt->fetchAll();
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
                                         <h5 class="card-title">
+                                            <img src="<?= htmlspecialchars($msg['sender_photo']) ?>" alt="Profile Photo" class="profile-photo">
                                             <?= htmlspecialchars($msg['sender_name']) ?>
                                             <?php if($msg['subject']): ?>
                                                 <small class="text-muted">- <?= htmlspecialchars($msg['subject']) ?></small>
@@ -162,6 +174,37 @@ $feedbacks = $stmt->fetchAll();
                     <div class="alert alert-info">No feedback available</div>
                 <?php endif; ?>
             </div>
+        </div>
+
+        <!-- Service Requests Section -->
+        <div class="mt-5">
+            <h3 class="mb-3">Service Requests</h3>
+            <a href="service_requests.php" class="btn btn-primary mb-3">View Requests</a>
+            <?php if (count($serviceRequests) > 0): ?>
+                <?php foreach ($serviceRequests as $request): ?>
+                    <div class="card service-request-card mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h5 class="card-title">
+                                        <img src="<?= htmlspecialchars($request['sender_photo']) ?>" alt="Profile Photo" class="profile-photo">
+                                        <?= htmlspecialchars($request['username']) ?>
+                                        <small class="text-muted">- <?= htmlspecialchars($request['service_name']) ?></small>
+                                    </h5>
+                                    <p class="card-text"><?= nl2br(htmlspecialchars($request['details'])) ?></p>
+                                </div>
+                                <div class="text-end">
+                                    <small class="text-muted">
+                                        <?= date('M j, Y g:i a', strtotime($request['created_at'])) ?>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <div class="alert alert-info">No service requests found</div>
+            <?php endif; ?>
         </div>
     </div>
 </body>

@@ -1,0 +1,31 @@
+body {
+    background-color: var(--bs-body-bg);
+}
+
+.container {
+    background-color: var(--bs-body-bg);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+h2 {
+    margin-bottom: 20px;
+}
+
+.table {
+    margin-top: 20px;
+}
+
+.btn {
+    margin-right: 10px;
+}
+
+form {
+    margin-top: 20px;
+}
+
+form .form-control,
+form .btn {
+    margin-bottom: 10px;
+}
