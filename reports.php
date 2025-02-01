@@ -76,7 +76,6 @@ $reportData['customer_stats'] = $stmt->fetch(PDO::FETCH_ASSOC);
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="assets/css/themes.css" rel="stylesheet">
 </head>
 
 <body>
@@ -85,7 +84,7 @@ $reportData['customer_stats'] = $stmt->fetch(PDO::FETCH_ASSOC);
 
     <div class="container-fluid mt-4">
     <div class="dashboard-content">
-        <h1 class="mb-4">Business Analytics Dashboard</h1>
+        <h2 class="container mt-5">Analytics Dashboard</h2>
 
         <!-- Row 1: Key Metrics -->
         <div class="row mb-4">

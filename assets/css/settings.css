@@ -11,8 +11,20 @@
     --border: #dee2e6;
     --radius: 8px;
     --shadow: 0 2px 8px rgba(0,0,0,0.1);
+    --background-color: #f8f9fc;
+  --font-family: 'Montserrat', sans-serif;
+  --display: flex;
+  --flex-direction: column;
+  --min-height: 100vh;
   }
-  
+  @import url('https://fonts.googleapis.com/css?family=Montserrat:400,800');
+  body {
+    background-color: var(--background-color);
+    font-family: var(--font-family);
+    display: var(--display);
+    flex-direction: var(--flex-direction);
+    min-height: var(--min-height);
+  }
   /* Only target containers within settings page */
   .settings-container .container {
     max-width: 800px;

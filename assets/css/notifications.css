@@ -1,4 +1,19 @@
 /* Overall layout */
+@import url('https://fonts.googleapis.com/css?family=Montserrat:400,800');
+body {
+  background-color: #f8f9fc;
+  font-family: 'Montserrat', sans-serif;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.container.mt-5 {
+    font-weight: 700;
+    padding: 20px 0;
+    animation: fadeIn 0.4s ease-out;
+    margin-top: 0 !important;
+  }
 .notification-section, .feedback-section {
     border-radius: 0.5rem;
     padding: 1.5rem;

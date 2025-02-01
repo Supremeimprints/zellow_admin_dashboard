@@ -1,11 +1,26 @@
 /* orders.css - Scoped card styles matching reports page */
-
+@import url('https://fonts.googleapis.com/css?family=Montserrat:400,800');
+body {
+  background-color: #f8f9fc;
+  font-family: 'Montserrat', sans-serif;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
 /* Container scoping */
 .container.mt-5 {
     padding: 20px 0;
     animation: fadeIn 0.4s ease-out;
+   
 }
+.container.mt-5 h2 {
+    font-weight: 700;
+    margin: 0;
+    color: #5a5c69;
+    margin-bottom: 25px;
+    font-size: 1.75rem;
 
+}
 /* Card Styles - Reports page adaptation */
 .container.mt-5 .card {
     border-radius: 10px;
@@ -103,4 +118,8 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue";
     font-weight: 600; /* Matches Bootstrap's heading weight */
     letter-spacing: -0.5px; /* Optional: improves number spacing */
+}
+
+[data-bs-theme="dark"] .container.mt-5 h2{
+    color: var(--text-main);
 }

@@ -60,13 +60,13 @@ $feedbacks = $stmt->fetchAll();
 <?php include 'includes/nav/navbar.php'; ?>
 <?php include 'includes/theme.php'; ?>
     <div class="container mt-4">
-        <h1 class="mb-4">Notifications & Feedback</h1>
+        <h2 class="container mt-5">Notifications & Feedback</h2>
         
         <div class="d-flex">
             <!-- Messages Section (3/4 of the screen) -->
             <div class="notification-section w-75 me-3">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h3>Internal Messages</h3>
+                    <h3 class="mb-3">Internal Messages</h3>
                     <a href="send_message.php" class="btn btn-primary">New Message</a>
                 </div>
 

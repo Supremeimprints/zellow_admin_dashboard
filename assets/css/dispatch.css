@@ -1,9 +1,17 @@
 /* orders.css - Scoped card styles matching reports page */
-
+@import url('https://fonts.googleapis.com/css?family=Montserrat:400,800');
+body {
+  background-color: #f8f9fc;
+  font-family: 'Montserrat', sans-serif;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
 /* Container scoping */
 .container.mt-5 {
     padding: 20px 0;
     animation: fadeIn 0.4s ease-out;
+    font-weight: bold;
 }
 
 /* Card Styles - Reports page adaptation */

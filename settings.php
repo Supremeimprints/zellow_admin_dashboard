@@ -146,9 +146,10 @@ if (isset($_GET['delete_photo'])) {
     }
 }
 include 'includes/nav/navbar.php';
+include 'includes/theme.php';
 ?>
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="<?= $user['theme'] ?>">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">

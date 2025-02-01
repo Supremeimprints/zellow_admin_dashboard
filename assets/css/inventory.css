@@ -1,4 +1,13 @@
 /* Customers page container styles */
+@import url('https://fonts.googleapis.com/css?family=Montserrat:400,800');
+body {
+  background-color: #f8f9fc;
+  font-family: 'Montserrat', sans-serif;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
 .container.mt-4 {
     padding: 20px 0;
 }

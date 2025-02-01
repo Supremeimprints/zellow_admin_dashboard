@@ -248,7 +248,7 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
                                     <a href="admins.php" class="card quick-action-card bg-danger text-white text-center py-2 clickable-card">
                                         <div class="card-body">
                                             <i class="fas fa-users fa-2x mb-2"></i>
-                                            <div class="small">Admins</div>
+                                            <div class="small">Employees</div>
                                         </div>
                                     </a>
                                 </div>

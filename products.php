@@ -55,9 +55,6 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Products - Zellow Enterprises</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <link href="assets/css/categories.css" rel="stylesheet">
     <link href="assets/css/products.css" rel="stylesheet">
 </head>
 
@@ -68,7 +65,7 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <!-- Theme CSS -->
     <?php include 'includes/theme.php'; ?>
     <div class="container mt-4">
-       <b><h1>Manage Products</h1></b> 
+       <h2 class="container mt-5">Manage Products</h2>
 
         <!-- Search Form -->
         <form method="GET" action="products.php" class="mb-3">

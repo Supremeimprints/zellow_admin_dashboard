@@ -317,7 +317,7 @@ foreach ($statuses as $status) {
 
 
         <!-- Enhanced Drivers Table -->
-        <h3 class="mt-5">Drivers Management</h3>
+        <h2 class="container mt-5">Manage Drivers</h2>
         <div>
             <a href="create_driver.php" class="btn btn-primary mb-2">
                 <i class="bi bi-person-plus"></i> Create New Driver
