@@ -6,7 +6,6 @@ if (!isset($_SESSION['id'])) {
     exit();
 }
 
-//Restrict access to specific roles
 $allowed_roles = ['admin', 'dispatch_manager'];
 if (!in_array($_SESSION['role'], $allowed_roles)) {
     echo "You do not have permission to view this page.";
@@ -17,6 +16,7 @@ require_once 'config/database.php';
 $database = new Database();
 $db = $database->getConnection();
 
+// ... [keep existing filter and order query code] ...
 // Initialize all filter parameters
 $search = $_GET['search'] ?? '';
 $statusFilter = $_GET['status'] ?? '';
@@ -102,18 +102,22 @@ try {
     $errorMessage = "Error fetching orders: " . $e->getMessage();
     $orders = [];
 }
-// Get driver data with vehicle information
+
+// Get driver data with vehicle information (updated query)
 $driverQuery = "SELECT d.*, 
+                v.vehicle_id,
                 v.vehicle_type, 
                 v.vehicle_model, 
                 v.registration_number, 
                 v.vehicle_status 
                 FROM drivers d 
-                LEFT JOIN vehicles v ON d.driver_id = v.driver_id";
+                LEFT JOIN vehicles v ON d.driver_id = v.driver_id
+                ORDER BY d.driver_id DESC";
 $driverStmt = $db->prepare($driverQuery);
 $driverStmt->execute();
 $drivers = $driverStmt->fetchAll(PDO::FETCH_ASSOC);
 
+// ... [keep existing order counts code] ...
 // Get order counts
 $orderCounts = [];
 $statuses = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
@@ -130,32 +134,21 @@ foreach ($statuses as $status) {
 
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
+    <!-- Keep existing head section -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dispatch Orders</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .card {
-            min-height: 90px;
-        }
-
-        .collapse-toggle {
-            cursor: pointer;
-        }
-
-        .order-details {
-            background-color: #f8f9fa;
-            padding: 15px;
-        }
-    </style>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/dispatch.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </head>
-
 <body>
 <?php include 'includes/nav/navbar.php'; ?>
+<?php include 'includes/theme.php'; ?>
     <div class="container mt-5">
-        <!-- Summary Stats Cards -->
+        <!-- Keep existing summary stats and orders table -->
         <h2>Dispatch Summary</h2>
         <div class="row row-cols-1 row-cols-md-6 g-4 mb-4">
             <?php foreach ($statuses as $status):
@@ -320,96 +313,142 @@ foreach ($statuses as $status) {
             </table>
         </div>
 
-        <!-- Drivers Table -->
-        <h3 class="mt-5">Drivers</h3>
-        <div>
-            <a href="create_driver.php" class="btn btn-primary">
-                <i class="bi bi-person-plus"></i> Create New Driver
-            </a>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead>
+
+        <!-- Enhanced Drivers Table -->
+        <h3 class="mt-5">Drivers Management</h3>
+<div>
+    <a href="create_driver.php" class="btn btn-primary mb-2">
+        <i class="bi bi-person-plus"></i> Create New Driver
+    </a>
+</div>
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th>Driver ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Driver Status</th>
+                <th>Vehicle Type</th>
+                <th>Vehicle Status</th>
+                <th>Vehicle Model</th>
+                <th>Registration</th>
+                <th class="text-end pe-4">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php if (empty($drivers)): ?>
+                <tr>
+                    <td colspan="10" class="text-center">No drivers available</td>
+                </tr>
+            <?php else: ?>
+                <?php foreach ($drivers as $driver): ?>
                     <tr>
-                        <th>Driver ID</th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Phone</th>
-                        <th>Status</th>
-                        <th>Vehicle Type</th>
-                        <th>Vehicle Model</th>
-                        <th>Registration</th>
-                        <th>Vehicle Status</th>
+                        <td><?= $driver['driver_id'] ?></td>
+                        <td><?= htmlspecialchars($driver['name']) ?></td>
+                        <td><?= htmlspecialchars($driver['email']) ?></td>
+                        <td><?= htmlspecialchars($driver['phone_number']) ?></td>
+                        <td>
+                            <span class="badge bg-<?= $driver['status'] === 'Active' ? 'success' : 'danger' ?>">
+                                <?= $driver['status'] ?>
+                            </span>
+                        </td>
+                        <td><?= htmlspecialchars($driver['vehicle_type'] ?? 'N/A') ?></td>
+                        <td>
+                            <?php if ($driver['vehicle_status'] ?? false): ?>
+                                <span class="badge bg-<?= getVehicleStatusColor($driver['vehicle_status']) ?>">
+                                    <?= $driver['vehicle_status'] ?>
+                                </span>
+                            <?php endif; ?>
+                        </td>
+                        <td><?= htmlspecialchars($driver['vehicle_model'] ?? 'N/A') ?></td>
+                        <td><?= htmlspecialchars($driver['registration_number'] ?? 'N/A') ?></td>
+                        <td>
+                            <div class="dropdown">
+                                <button class="btn btn-link btn-sm p-0 opacity-75" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-three-dots-vertical fs-5"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow-sm border">
+                                    <li>
+                                        <a class="dropdown-item py-2 px-3" href="edit_driver.php?driver_id=<?= $driver['driver_id'] ?>">
+                                            <i class="bi bi-pencil me-2"></i>Edit Driver
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item py-2 px-3" href="update_vehicle.php?driver_id=<?= $driver['driver_id'] ?>">
+                                            <i class="bi bi-truck me-2"></i>Update Vehicle
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <form method="POST" action="update_driver.php" class="dropdown-item p-0">
+                                            <input type="hidden" name="driver_id" value="<?= $driver['driver_id'] ?>">
+                                            <button type="submit" class="dropdown-item py-2 px-3">
+                                                <i class="bi bi-arrow-repeat me-2"></i>Toggle Status
+                                            </button>
+                                        </form>
+                                    </li>
+                                    <li><hr class="dropdown-divider my-1"></li>
+                                    <li>
+                                        <form method="POST" action="delete_driver.php" 
+                                              onsubmit="return confirm('Are you sure you want to permanently delete this driver?')" 
+                                              class="dropdown-item p-0">
+                                            <input type="hidden" name="driver_id" value="<?= $driver['driver_id'] ?>">
+                                            <button type="submit" class="dropdown-item py-2 px-3 text-danger">
+                                                <i class="bi bi-trash me-2"></i>Delete
+                                            </button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
-                    <?php if (empty($drivers)): ?>
-                        <tr>
-                            <td colspan="9" class="text-center">No drivers available</td>
-                        </tr>
-                    <?php else: ?>
-                        <?php foreach ($drivers as $driver): ?>
-                            <tr>
-                                <td><?= $driver['driver_id'] ?></td>
-                                <td><?= $driver['name'] ?></td>
-                                <td><?= $driver['email'] ?></td>
-                                <td><?= $driver['phone_number'] ?></td>
-                                <td>
-                                    <span class="badge bg-<?= $driver['status'] === 'Active' ? 'success' : 'danger' ?>">
-                                        <?= $driver['status'] ?>
-                                    </span>
-                                </td>
-                                <td><?= $driver['vehicle_type'] ?? 'N/A' ?></td>
-                                <td><?= $driver['vehicle_model'] ?? 'N/A' ?></td>
-                                <td><?= $driver['registration_number'] ?? 'N/A' ?></td>
-                                <td>
-                                    <span class="badge bg-<?= getVehicleStatusColor($driver['vehicle_status'] ?? '') ?>">
-                                        <?= $driver['vehicle_status'] ?? 'N/A' ?>
-                                    </span>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </tbody>
+    </table>
+</div>
+        
+        <!-- First, ensure Bootstrap JS is properly loaded -->
 
-        <?php
-        function getStatusColor($status)
-        {
-            return match ($status) {
-                'Pending' => 'warning',
-                'Processing' => 'info',
-                'Shipped' => 'primary',
-                'Delivered' => 'success',
-                'Cancelled' => 'danger',
-                default => 'secondary'
-            };
-        }
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-        function getPaymentStatusColor($status)
-        {
-            return match ($status) {
-                'Pending' => 'warning',
-                'Paid' => 'success',
-                'Failed' => 'danger',
-                'Refunded' => 'info',
-                default => 'secondary'
-            };
-        }
 
-        function getVehicleStatusColor($status)
-        {
-            return match ($status) {
-                'Available' => 'success',
-                'In Use' => 'warning',
-                'Under Maintenance' => 'danger',
-                default => 'secondary'
-            };
-        }
-        ?>
+
+
+<?php
+function getStatusColor($status)
+{
+    return match ($status) {
+        'Pending' => 'warning',
+        'Processing' => 'info',
+        'Shipped' => 'primary',
+        'Delivered' => 'success',
+        'Cancelled' => 'danger',
+        default => 'secondary'
+    };
+}
+
+function getPaymentStatusColor($status)
+{
+    return match ($status) {
+        'Pending' => 'warning',
+        'Paid' => 'success',
+        'Failed' => 'danger',
+        'Refunded' => 'info',
+        default => 'secondary'
+    };
+}
+
+function getVehicleStatusColor($status) {
+    return match ($status) {
+        'Available' => 'success',
+        'In Use' => 'warning',
+        'Under Maintenance' => 'danger',
+        default => 'secondary'
+    };
+}
+?>
 </body>
 <?php include 'includes/nav/footer.php'; ?>
-
 </html>

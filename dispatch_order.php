@@ -67,6 +67,16 @@ try {
     $error = "Error fetching available drivers: " . $e->getMessage();
 }
 
+// Update driver query to exclude drivers with vehicles under maintenance
+$stmt = $db->prepare("
+    SELECT d.*, v.vehicle_type, v.vehicle_status 
+    FROM drivers d
+    LEFT JOIN vehicles v ON d.driver_id = v.driver_id
+    WHERE d.status = 'Active' 
+    AND (v.vehicle_status = 'Available' OR v.vehicle_status IS NULL)
+    AND (v.vehicle_status != 'Under Maintenance' OR v.vehicle_status IS NULL)
+");
+
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $driver_id = $_POST['driver_id'] ?? '';
@@ -124,7 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 
 <body>
-<?php include 'includes/nav/navbar.php'; ?>
+    <?php include 'includes/nav/navbar.php'; ?>
     <div class="container mt-4">
         <h2>Dispatch Order #<?= htmlspecialchars($order_id) ?></h2>
 
@@ -157,7 +167,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <!-- Driver Assignment Form -->
         <form method="POST" class="card">
             <div class="card-header">
-                <h5 class="card-title mb-0">Assign Driver</h5>
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                <h5> <label for="driver_id" class="form-label">Assign Driver</label></h5>
+               <a href="dispatch_order.php?order_id=<?= $order_id ?>" class="btn btn-sm btn-secondary">
+                    Refresh Drivers
+                </a> </div>
             </div>
             <div class="card-body">
                 <?php if (empty($available_drivers)): ?>

@@ -85,11 +85,13 @@ if (isset($_GET['delete_id'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Categories - Zellow Enterprises</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/css/categories.css" rel="stylesheet">
 </head>
 <body>
 
 <!-- Navigation Bar -->
 <?php include 'includes/nav/navbar.php'; ?>
+
 
 <div class="container mt-4">
     <h1>Manage Categories</h1>
@@ -115,7 +117,7 @@ if (isset($_GET['delete_id'])) {
     </form>
 
     <!-- Categories Table -->
-    <table class="table table-bordered">
+    <table class="table table-striped table-hover">
         <thead>
             <tr>
                 <th>ID</th>

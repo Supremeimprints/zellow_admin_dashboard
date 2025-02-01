@@ -71,15 +71,20 @@ $reportData['customer_stats'] = $stmt->fetch(PDO::FETCH_ASSOC);
 <head>
     <meta charset="UTF-8">
     <title>Business Analytics Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="assets/css/reports.css"  rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/css/themes.css" rel="stylesheet">
 </head>
 
 <body>
     <?php include 'includes/nav/navbar.php'; ?>
+    <?php include 'includes/theme.php' ?>
 
     <div class="container-fluid mt-4">
+    <div class="dashboard-content">
         <h1 class="mb-4">Business Analytics Dashboard</h1>
 
         <!-- Row 1: Key Metrics -->
@@ -101,7 +106,7 @@ $reportData['customer_stats'] = $stmt->fetch(PDO::FETCH_ASSOC);
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card text-white bg-warning">
+                <div class="card text-white bg-danger">
                     <div class="card-body">
                         <h5>Low Stock Items</h5>
                         <h2><?= count($reportData['low_stock']) ?></h2>
@@ -117,7 +122,7 @@ $reportData['customer_stats'] = $stmt->fetch(PDO::FETCH_ASSOC);
                 </div>
             </div>
         </div>
-
+</div>
         <!-- Row 2: Main Charts -->
         <div class="row mb-4">
             <div class="col-md-6">

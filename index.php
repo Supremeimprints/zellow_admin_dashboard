@@ -129,7 +129,7 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="assets/css/index.css">
 </head>
-
+<?php include 'includes/theme.php'; ?>
 <body class="admin-layout">
 
     <!-- Main Content -->
