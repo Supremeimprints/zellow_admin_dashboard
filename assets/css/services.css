@@ -1,31 +1,187 @@
+/* Import Montserrat font */
+@import url('https://fonts.googleapis.com/css?family=Montserrat:400,800');
+
+/* General body styling */
 body {
-    background-color: var(--bs-body-bg);
+    background-color: #f8f9fc;
+    font-family: 'Montserrat', sans-serif;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
 }
 
+/* Container styles */
 .container {
-    background-color: var(--bs-body-bg);
+    padding: 20px 0;
+}
+.table form {
+    padding: 20px;
+    background: none;
+    box-shadow: none;
+}
+/* Table container styles */
+.table-responsive {
+    border: 1px solid #e4e7f1;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-top: 20px;
+}
+
+/* Table styles */
+.table {
+    margin-bottom: 0;
+}
+
+.table thead {
+    background-color: #f8f9fc;
+    border-bottom: 2px solid #e3e6f0;
+}
+
+.table th {
+    font-weight: 600;
+    color: #6e707e;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 15px;
+    border-bottom: 2px solid #e3e6f0;
+}
+
+.table td {
+    font-size: 0.92rem;
+    color: #5a5c69;
+    padding: 15px;
+    vertical-align: middle;
+}
+
+/* Status badge styles */
+.status-badge {
+    padding: 0.45em 0.75em;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 0.85rem;
+    display: inline-block;
+}
+
+.status-badge.active {
+    background-color: #1cc88a;
+    color: white;
+}
+
+.status-badge.inactive {
+    background-color: #e74a3b;
+    color: white;
+}
+
+/* Action buttons */
+.btn {
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.15s ease;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    margin-right: 5px; /* Add margin to space out buttons */
+}
+
+.btn-primary {
+    background-color: #4e73df;
+    border-color: #4e73df;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background-color: #375acb;
+    border-color: #375acb;
+}
+
+.btn-warning {
+    background-color: #f6c23e;
+    border-color: #f6c23e;
+    color: #fff;
+}
+
+.btn-warning:hover {
+    background-color: #e4b538;
+    border-color: #e4b538;
+}
+
+.btn-danger {
+    background-color: #e74a3b;
+    border-color: #e74a3b;
+}
+
+.btn-danger:hover {
+    background-color: #d52a1a;
+    border-color: #d52a1a;
+}
+
+/* Delete Icon Style */
+.delete-icon {
+    font-size: 18px;
+    color: red;
+    cursor: pointer;
+    transition: color 0.2s ease-in-out;
+}
+
+/* Hover Effect */
+.delete-icon:hover {
+    color: darkred;
+    transform: scale(1.1);
+}
+
+/* Hover effects */
+.table tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+.table tbody tr:hover {
+    background-color: #f8f9fc;
+}
+
+/* Page title */
+h2 {
+    color: #5a5c69;
+    font-weight: 700;
+    margin-bottom: 25px;
+    font-size: 1.75rem;
+}
+
+/* Form styles */
+form {
+    background: #ffffff;
     padding: 20px;
     border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
 }
 
-h2 {
-    margin-bottom: 20px;
+form label {
+    font-weight: 600;
+    color: #5a5c69;
 }
 
-.table {
-    margin-top: 20px;
+form .form-control {
+    border-radius: 6px;
+    border: 1px solid #d1d3e2;
 }
 
-.btn {
-    margin-right: 10px;
-}
-
-form {
-    margin-top: 20px;
-}
-
-form .form-control,
-form .btn {
-    margin-bottom: 10px;
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container {
+        padding: 15px;
+    }
+    
+    .table-responsive {
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+    }
+    
+    .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+    
+    h2 {
+        font-size: 1.5rem;
+    }
 }

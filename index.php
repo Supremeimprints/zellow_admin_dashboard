@@ -298,149 +298,149 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
             </div>
 
             <!-- Three Column Section -->
-            <div class="row g-3 mb-3">
-                <!-- Order Status -->
-                <div class="col-md-4">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header bg-white p-2">
-                            <h6 class="mb-0 fw-bold">Order Status</h6>
-                        </div>
-                        <div class="card-body p-2">
-                            <?php if (!empty($orderStats)): ?>
-                                <?php foreach ($orderStats as $stat): ?>
-                                    <?php
-                                    $statusColor = match ($stat['status']) {
-                                        'Pending' => 'warning',
-                                        'Shipped' => 'primary',
-                                        'Delivered' => 'success',
-                                        default => 'secondary'
-                                    }; ?>
-                                    <div class="mb-2">
-                                        <div class="d-flex justify-content-between small mb-1">
-                                            <div>
-                                                <span class="status-indicator bg-<?= $statusColor ?>"></span>
-                                                <?= htmlspecialchars($stat['status']) ?>
-                                            </div>
-                                            <div><?= htmlspecialchars($stat['count']) ?></div>
-                                        </div>
-                                        <div class="progress" style="height: 6px;">
-                                            <div class="progress-bar bg-<?= $statusColor ?>"
-                                                style="width: <?= ($stat['count'] / $totalOrders) * 100 ?>%">
-                                            </div>
-                                        </div>
-                                    </div>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <div class="text-center text-muted small py-2">No order data</div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Notifications -->
-                <div class="col-md-4">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header bg-white p-2 d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0 fw-bold">Notifications</h6>
-                            <a href="notifications.php" class="btn btn-sm btn-link p-0">View All →</a>
-                        </div>
-                        <div class="card-body p-2">
-                            <?php if (!empty($notifications)): ?>
-                                <?php foreach ($notifications as $notification): ?>
-                                    <div class="list-group-item position-relative <?= $notification['is_read'] ? '' : 'bg-light' ?>">
-                                        <div class="notification-priority priority-<?= strtolower($notification['priority'] ?? 'Medium') ?>"></div>
-                                        <div class="d-flex justify-content-between align-items-start ps-3">
-                                            <div class="w-75">
-                                                <span class="badge notification-type bg-<?= match ($notification['type'] ?? 'Message') {
-                                                    'Task' => 'warning',
-                                                    'Alert' => 'danger',
-                                                    default => 'secondary'
-                                                } ?>">
-                                                    <?= $notification['type'] ?? 'Message' ?>
-                                                </span>
-                                                <div class="fw-medium mb-1">
-                                                    <?= htmlspecialchars($notification['sender_name']) ?>
-                                                    <?php if (!$notification['is_read']): ?>
-                                                        <span class="badge bg-primary ms-2">New</span>
-                                                    <?php endif; ?>
-                                                </div>
-                                                <div class="text-muted small">
-                                                    <?= htmlspecialchars($notification['message']) ?>
-                                                </div>
-                                                <small class="text-muted d-block mt-2">
-                                                    <i class="fas fa-clock me-1"></i>
-                                                    <?= time_elapsed_string($notification['created_at']) ?>
-                                                </small>
-                                            </div>
-                                            <div class="text-end">
-                                                <div class="btn-group">
-                                                    <form method="GET" action="mark_read.php" class="d-inline">
-                                                        <input type="hidden" name="id" value="<?= $notification['id'] ?>">
-                                                        <button type="submit" name="mark_read" class="btn btn-sm btn-outline-secondary">
-                                                            <i class="fas fa-check"></i>
-                                                        </button>
-                                                    </form>
-                                                    <form method="POST" action="notifications.php" class="d-inline">
-                                                        <input type="hidden" name="message_id" value="<?= $notification['id'] ?>">
-                                                        <button type="submit" name="delete" class="btn btn-sm btn-outline-danger">
-                                                            <i class="fas fa-trash"></i>
-                                                        </button>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <div class="alert alert-info mb-0 p-2 small">
-                                    <i class="fas fa-info-circle me-2"></i> No new notifications
+<div class="row g-3 mb-3">
+    <!-- Order Status -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white p-2">
+                <h6 class="mb-0 fw-bold order-status-title">Order Status</h6>
+            </div>
+            <div class="card-body p-2">
+                <?php if (!empty($orderStats)): ?>
+                    <?php foreach ($orderStats as $stat): ?>
+                        <?php
+                        $statusColor = match ($stat['status']) {
+                            'Pending' => 'warning',
+                            'Shipped' => 'primary',
+                            'Delivered' => 'success',
+                            default => 'secondary'
+                        }; ?>
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between small mb-1">
+                                <div>
+                                    <span class="status-indicator bg-<?= $statusColor ?>"></span>
+                                    <?= htmlspecialchars($stat['status']) ?>
                                 </div>
-                            <?php endif; ?>
+                                <div><?= htmlspecialchars($stat['count']) ?></div>
+                            </div>
+                            <div class="progress" style="height: 6px;">
+                                <div class="progress-bar bg-<?= $statusColor ?>"
+                                    style="width: <?= ($stat['count'] / $totalOrders) * 100 ?>%">
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Recent Activities -->
-                <div class="col-md-4">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header bg-white p-2 d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0 fw-bold">Recent Activities</h6>
-                            <a href="orders.php" class="btn btn-sm btn-link p-0">View All →</a>
-                        </div>
-                        <div class="card-body p-2">
-                            <?php if (!empty($recentOrders)): ?>
-                                <?php foreach ($recentOrders as $order): ?>
-                                    <?php
-                                    $statusColor = match ($order['status']) {
-                                        'Pending' => 'warning',
-                                        'Shipped' => 'primary',
-                                        'Delivered' => 'success',
-                                        default => 'secondary'
-                                    }; ?>
-                                    <div class="recent-activity-item border-<?= $statusColor ?>">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <div class="small fw-medium">
-                                                 Order #<?= htmlspecialchars($order['order_id']) ?>
-                                                </div>
-                                                <small class="text-muted">
-                                                    <?= date('M j, H:i', strtotime($order['order_date'])) ?>
-                                                </small>
-                                            </div>
-                                            <span class="badge bg-<?= $statusColor ?> small">
-                                                <?= htmlspecialchars($order['status']) ?>
-                                            </span>
-                                        </div>
-                                    </div>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <div class="text-center text-muted small py-2">No recent activity</div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="text-center text-muted small py-2">No order data</div>
+                <?php endif; ?>
             </div>
         </div>
+    </div>
+
+    <!-- Notifications -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white p-2 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold notifications-title">Notifications</h6>
+                <a href="notifications.php" class="btn btn-sm btn-link p-0">View All →</a>
+            </div>
+            <div class="card-body p-2">
+                <?php if (!empty($notifications)): ?>
+                    <?php foreach ($notifications as $notification): ?>
+                        <div class="list-group-item position-relative <?= $notification['is_read'] ? '' : 'bg-light' ?>">
+                            <div class="notification-priority priority-<?= strtolower($notification['priority'] ?? 'Medium') ?>"></div>
+                            <div class="d-flex justify-content-between align-items-start ps-3">
+                                <div class="w-75">
+                                    <span class="badge notification-type bg-<?= match ($notification['type'] ?? 'Message') {
+                                        'Task' => 'warning',
+                                        'Alert' => 'danger',
+                                        default => 'secondary'
+                                    } ?>">
+                                        <?= $notification['type'] ?? 'Message' ?>
+                                    </span>
+                                    <div class="fw-medium mb-1">
+                                        <?= htmlspecialchars($notification['sender_name']) ?>
+                                        <?php if (!$notification['is_read']): ?>
+                                            <span class="badge bg-primary ms-2">New</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="text-muted small">
+                                        <?= htmlspecialchars($notification['message']) ?>
+                                    </div>
+                                    <small class="text-muted d-block mt-2">
+                                        <i class="fas fa-clock me-1"></i>
+                                        <?= time_elapsed_string($notification['created_at']) ?>
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <div class="btn-group">
+                                        <form method="GET" action="mark_read.php" class="d-inline">
+                                            <input type="hidden" name="id" value="<?= $notification['id'] ?>">
+                                            <button type="submit" name="mark_read" class="btn btn-sm btn-outline-secondary">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </form>
+                                        <form method="POST" action="notifications.php" class="d-inline">
+                                            <input type="hidden" name="message_id" value="<?= $notification['id'] ?>">
+                                            <button type="submit" name="delete" class="btn btn-sm btn-outline-danger">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="alert alert-info mb-0 p-2 small">
+                        <i class="fas fa-info-circle me-2"></i> No new notifications
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activities -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white p-2 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold recent-activities-title">Recent Activities</h6>
+                <a href="orders.php" class="btn btn-sm btn-link p-0">View All →</a>
+            </div>
+            <div class="card-body p-2">
+                <?php if (!empty($recentOrders)): ?>
+                    <?php foreach ($recentOrders as $order): ?>
+                        <?php
+                        $statusColor = match ($order['status']) {
+                            'Pending' => 'warning',
+                            'Shipped' => 'primary',
+                            'Delivered' => 'success',
+                            default => 'secondary'
+                        }; ?>
+                        <div class="recent-activity-item border-<?= $statusColor ?>">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="small fw-medium order-id">
+                                        Order #<?= htmlspecialchars($order['order_id']) ?>
+                                    </div>
+                                    <small class="text-muted order-date">
+                                        <?= date('M j, H:i', strtotime($order['order_date'])) ?>
+                                    </small>
+                                </div>
+                                <span class="badge bg-<?= $statusColor ?> small">
+                                    <?= htmlspecialchars($order['status']) ?>
+                                </span>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="text-center text-muted small py-2">No recent activity</div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>
+
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         <script>

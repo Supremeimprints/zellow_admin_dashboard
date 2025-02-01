@@ -65,7 +65,8 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <!-- Theme CSS -->
     <?php include 'includes/theme.php'; ?>
     <div class="container mt-4">
-       <h2 class="container mt-5">Manage Products</h2>
+       <div class="container mt-5">
+        <h2> Manage Products </h2>
 
         <!-- Search Form -->
         <form method="GET" action="products.php" class="mb-3">

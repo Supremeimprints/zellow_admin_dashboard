@@ -12,7 +12,7 @@ $error = '';
 $success = '';
 
 // Get admin users and roles
-$users = $db->query("SELECT id, username, role FROM users WHERE role IN ('admin', 'customer')")->fetchAll();
+$users = $db->query("SELECT id, username, role FROM users WHERE role IN ('admin', 'finance_manager', 'supply_manager', 'dispatch_manager', 'service_manager', 'inventory_manager')")->fetchAll();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {

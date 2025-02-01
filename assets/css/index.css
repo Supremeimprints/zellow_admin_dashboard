@@ -1,31 +1,14 @@
 /* Base Styles */
-
 @import url('https://fonts.googleapis.com/css?family=Montserrat:400,800');
 body {
     overflow-x: hidden;
     background-color: #f8f9fa;
-	font-family: 'Montserrat', sans-serif;
+    font-family: 'Montserrat', sans-serif;
+}
 
-}
-.fw-light{
-    font-weight: 300;
-}
 /* Layout Components */
-.sidebar {
-    width: 240px;
-    background: #fff;
-    border-right: 1px solid rgba(0, 0, 0, 0.1);
-    height: 100vh;
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 1000;
-    transition: all 0.3s ease;
-}
-
 .main-wrapper {
-    margin-left: 240px;
-    width: calc(100% - 240px);
+    width: 100%;
     min-height: 100vh;
     transition: all 0.3s ease;
 }
@@ -48,10 +31,6 @@ body {
     margin-right: 100px;
     margin-left: 100px;
 }
-
-
-
-
 .dashboard-header::before {
     content: '';
     position: absolute;
@@ -69,7 +48,6 @@ body {
     display: flex;
     flex-direction: column;
     border: none;
-    background: white;
     transition: all 0.3s ease;
 }
 
@@ -90,19 +68,6 @@ body {
 .clickable-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1) !important;
-}
-
-/* Quick Action Cards */
-.quick-action-card {
-    height: 100%;
-    min-height: 110px;
-    border-radius: 12px;
-    transition: all 0.3s ease;
-}
-
-.quick-action-card:hover {
-    transform: scale(1.02);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
 /* Stats and Status Indicators */
@@ -150,16 +115,80 @@ body {
     background-color: rgba(26, 115, 232, 0.05) !important;
 }
 
-/* Navigation */
-.navbar {
-    padding: 0.5rem 1.5rem;
-    background: white;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-    font-family: 'Montserrat', sans-serif;
+/* New Styles */
+.card-header h6 {
+    transition: color 0.3s ease;
 }
 
-.container-fluid {
-    padding: 0 1.5rem;
+.card-body .small {
+    font-size: 0.85rem;
+}
+
+.card-body .fw-medium {
+    font-weight: 600;
+}
+
+/* Date Section Styles */
+.card-body .small {
+    font-size: 0.8rem;
+}
+
+.card-body .fw-medium {
+    font-weight: 600;
+}
+
+/* Dark Mode Styles */
+body.dark-mode {
+    background-color: #121212;
+    color: #333;
+}
+
+body.dark-mode .card-header h6 {
+    color: #333;
+}
+
+body.dark-mode .card {
+    background-color: #333;
+    border: none;
+}
+
+body.dark-mode .card-body {
+    background-color: #424242;
+}
+
+body.dark-mode .card-body .small {
+    color: #333;
+}
+
+body.dark-mode .card-body .fw-medium {
+    font-weight: 700;
+}
+
+/* Light Mode Styles */
+body.light-mode {
+    background-color: #f8f9fa;
+    color: #000;
+}
+
+body.light-mode .card-header h6 {
+    color: #000;
+}
+
+body.light-mode .card {
+    background-color: #fff;
+    border: none;
+}
+
+body.light-mode .card-body {
+    background-color: #f8f9fa;
+}
+
+body.light-mode .card-body .small {
+    color: #6c757d;
+}
+
+body.light-mode .card-body .fw-medium {
+    font-weight: 600;
 }
 
 /* Scrollbar Styling */
@@ -183,31 +212,19 @@ body {
 
 /* Responsive Design */
 @media (max-width: 767.98px) {
-    .sidebar {
-        transform: translateX(-100%);
-    }
-
-    .sidebar.show {
-        transform: translateX(0);
-    }
-
     .main-wrapper {
         margin-left: 10%;
         width: 100%;
     }
-
     .dashboard-header {
         padding: 20px;
     }
-
     .card {
         margin-bottom: 1rem;
     }
-
     .card-body {
         max-height: 300px;
     }
-    
     .stats-icon {
         width: 40px;
         height: 40px;
@@ -216,22 +233,12 @@ body {
 }
 
 @media (min-width: 1200px) {
-    .sidebar {
-        width: 280px;
-    }
-
     .main-wrapper {
         margin-left: 280px;
         width: calc(100% - 280px);
     }
 }
 
-/* Sidebar Toggle States */
-.sidebar-collapsed .sidebar {
-    width: 60px;
-}
-
-.sidebar-collapsed .main-wrapper {
-    margin-left: 60px;
-    width: calc(100% - 60px);
+.recent-activity-item text-muted {
+    font-size: 0.8rem;
 }

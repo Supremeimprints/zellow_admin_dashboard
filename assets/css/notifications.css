@@ -1,7 +1,7 @@
 /* Overall layout */
 @import url('https://fonts.googleapis.com/css?family=Montserrat:400,800');
 body {
-  background-color: var(--bs-body-bg);
+  background-color: #f8f9fc;
   font-family: 'Montserrat', sans-serif;
   display: flex;
   flex-direction: column;
@@ -14,22 +14,10 @@ body {
     animation: fadeIn 0.4s ease-out;
     margin-top: 0 !important;
 }
-
-.container {
-    background-color: var(--bs-body-bg);
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-}
-
 .notification-section, .feedback-section {
     border-radius: 0.5rem;
     padding: 1.5rem;
     color: var(--text-color);
-    background-color: var(--bs-body-bg);
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 
 /* Message Section Styles */
@@ -48,39 +36,11 @@ body {
     border-left: 4px solid;
     background-color: var(--container-bg);
     color: var(--text-color);
-    border: none;
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 
 .message-card.unread {
-    background-color: var(--bs-light);
+    background-color: var(--unread-bg);
     border-left-color: var(--primary-accent);
-}
-
-.message-card .card-body {
-    display: flex;
-    align-items: center;
-}
-
-.message-card .profile-photo {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    margin-right: 15px;
-}
-
-.message-card .card-title {
-    display: flex;
-    align-items: center;
-}
-
-.message-card .card-title img {
-    margin-right: 10px;
-}
-
-.message-card .status-badge {
-    margin-left: 10px;
 }
 
 .priority-high { border-left-color: var(--priority-high) !important; }
@@ -90,10 +50,6 @@ body {
 .rating-stars {
     color: var(--rating-star);
     font-size: 1.2rem;
-}
-
-.feedback-card .rating-stars i {
-    color: var(--bs-warning);
 }
 
 .status-badge {
@@ -140,9 +96,21 @@ body {
     cursor: pointer;
 }
 
+.message-card .profile-photo {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 15px;
+}
+
+.status-badge {
+    font-size: 0.8rem;
+    padding: 0.35rem 0.65rem;
+}
 .service-request-card .card-body {
     display: flex;
     align-items: center;
+    justify-content: space-between;
 }
 
 .service-request-card .profile-photo {
