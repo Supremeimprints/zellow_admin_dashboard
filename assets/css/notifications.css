@@ -94,6 +94,7 @@ body {
 
 .mark-read {
     cursor: pointer;
+    padding: auto;
 }
 
 .message-card .profile-photo {

@@ -57,6 +57,12 @@ $serviceRequestQuery = "SELECT sr.*, u.username, s.name AS service_name, sr.requ
 $stmt = $db->prepare($serviceRequestQuery);
 $stmt->execute();
 $serviceRequests = $stmt->fetchAll();
+
+// Get stock alerts
+$stockAlertQuery = "SELECT * FROM notifications WHERE type = 'warning' ORDER BY created_at DESC";
+$stmt = $db->prepare($stockAlertQuery);
+$stmt->execute();
+$stockAlerts = $stmt->fetchAll();
 ?>
 
 <!DOCTYPE html>
@@ -116,13 +122,16 @@ $serviceRequests = $stmt->fetchAll();
                                         <small class="text-muted d-block">
                                             <?= date('M j, Y g:i a', strtotime($msg['created_at'])) ?>
                                         </small>
-                                        <form method="POST" class="mt-2">
-                                            <input type="hidden" name="message_id" value="<?= $msg['id'] ?>">
-                                            <button type="submit" name="mark_read" 
-                                                class="btn btn-sm btn-success">✓ Read</button>
-                                            <button type="submit" name="delete" 
-                                                class="btn btn-sm btn-danger">× Delete</button>
-                                        </form>
+                                        <div class="btn-group mt-2">
+                                            <form method="POST">
+                                                <input type="hidden" name="message_id" value="<?= $msg['id'] ?>">
+                                                <button type="submit" name="mark_read" class="btn btn-sm btn-success">✓ Read</button>
+                                            </form>
+                                            <form method="POST">
+                                                <input type="hidden" name="message_id" value="<?= $msg['id'] ?>">
+                                                <button type="submit" name="delete" class="btn btn-sm btn-danger">× Delete</button>
+                                            </form>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -204,6 +213,24 @@ $serviceRequests = $stmt->fetchAll();
                 <?php endforeach; ?>
             <?php else: ?>
                 <div class="alert alert-info">No service requests found</div>
+            <?php endif; ?>
+        </div>
+
+        <!-- Stock Alerts Section -->
+        <div class="mt-5">
+            <h3 class="mb-3">Stock Alerts</h3>
+            <?php if (count($stockAlerts) > 0): ?>
+                <?php foreach ($stockAlerts as $alert): ?>
+                    <div class="alert alert-warning">
+                        <?= htmlspecialchars($alert['message']) ?>
+                        <small class="text-muted d-block mt-2">
+                            <i class="fas fa-clock me-1"></i>
+                            <?= time_elapsed_string($alert['created_at']) ?>
+                        </small>
+                    </div>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <div class="alert alert-info">No stock alerts found</div>
             <?php endif; ?>
         </div>
     </div>

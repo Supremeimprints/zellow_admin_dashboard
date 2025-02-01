@@ -46,6 +46,27 @@ try {
         exit();
     }
 
+    // Check inventory levels
+    $inventoryStmt = $db->prepare("SELECT stock_quantity FROM inventory WHERE product_id = :product_id");
+    $inventoryStmt->bindParam(':product_id', $order['product_id']);
+    $inventoryStmt->execute();
+    $inventory = $inventoryStmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($inventory['stock_quantity'] < $order['quantity']) {
+        // Add notification to notifications.php
+        $notificationStmt = $db->prepare("INSERT INTO notifications (message, type) VALUES (:message, 'warning')");
+        $message = "Product " . $order['product_name'] . " is out of stock.";
+        $notificationStmt->bindParam(':message', $message);
+        $notificationStmt->execute();
+
+        // Redirect to dispatch.php with alert
+        echo "<script>
+            alert('Insufficient inventory for product: " . $order['product_name'] . ". Redirecting to inventory page.');
+            window.location.href = 'inventory.php';
+        </script>";
+        exit();
+    }
+
 } catch (Exception $e) {
     $_SESSION['error'] = "Error fetching order details: " . $e->getMessage();
     header('Location: dispatch.php');
@@ -109,6 +130,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 WHERE driver_id = :driver_id
             ");
             $stmt->execute([':driver_id' => $driver_id]);
+
+            // Update inventory
+            $updateInventoryStmt = $db->prepare("UPDATE inventory SET stock_quantity = stock_quantity - :quantity WHERE product_id = :product_id");
+            $updateInventoryStmt->bindParam(':quantity', $order['quantity']);
+            $updateInventoryStmt->bindParam(':product_id', $order['product_id']);
+            $updateInventoryStmt->execute();
 
             $db->commit();
             $_SESSION['success'] = "Order #$order_id has been dispatched successfully!";

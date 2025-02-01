@@ -36,10 +36,8 @@ $query = "SELECT o.order_id, u.username, o.quantity, p.product_name, p.price, (o
           FROM orders o 
           JOIN users u ON o.id = u.id 
           JOIN products p ON o.product_id = p.product_id 
+          JOIN inventory i ON p.product_id = i.product_id 
           WHERE 1";
-
-
-
 
 // Add filters to query
 if ($statusFilter) {
@@ -104,6 +102,34 @@ try {
     $errorMessage = "Error fetching orders: " . $e->getMessage();
     $orders = [];
 }
+
+// Update inventory when an order is paid or dispatched
+foreach ($orders as $order) {
+    if ($order['payment_status'] === 'Paid' || $order['status'] === 'Shipped') {
+        try {
+            $inventoryStmt = $db->prepare("SELECT stock_quantity FROM inventory WHERE product_id = :product_id");
+            $inventoryStmt->bindParam(':product_id', $order['product_id']);
+            $inventoryStmt->execute();
+            $inventory = $inventoryStmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$inventory) {
+                $errorMessage = "Error: Product ID " . $order['product_id'] . " not found in inventory.";
+            } else {
+                    if ($inventory['stock_quantity'] < $order['quantity']) {
+                        $errorMessage = "Insufficient inventory for product: " . $order['product_name'];
+                    } else {
+                        $updateInventoryStmt = $db->prepare("UPDATE inventory SET stock_quantity = stock_quantity - :quantity WHERE product_id = :product_id");
+                        $updateInventoryStmt->bindParam(':quantity', $order['quantity']);
+                        $updateInventoryStmt->bindParam(':product_id', $order['product_id']);
+                        $updateInventoryStmt->execute();
+                    }
+                }
+            } catch (Exception $e) {
+            $errorMessage = "Error updating inventory: " . $e->getMessage();
+        }
+    }
+}
+
 // Get order counts
 $orderCounts = [];
 $statuses = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];

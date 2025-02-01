@@ -8,7 +8,7 @@ if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
 }
 
 require_once 'config/database.php';
-include 'includes/nav/navbar.php'; 
+include 'includes/nav/navbar.php';
 
 // Initialize variables with safe defaults
 $displayName = 'Administrator';
@@ -102,8 +102,14 @@ try {
     $lowStockStmt->execute();
     $lowStockItems = $lowStockStmt->fetchColumn() ?: 0;
 
+    // Fetch count of low stock notifications
+    $stmt = $db->prepare("SELECT COUNT(*) AS count FROM notifications WHERE type = 'warning'");
+    $stmt->execute();
+    $lowStockNotifications = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+
 } catch (PDOException $e) {
     error_log("Database Error: " . $e->getMessage());
+    $lowStockNotifications = 0; // Initialize to 0 in case of error
 }
 
 // Derived statistics
@@ -130,316 +136,346 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
     <link rel="stylesheet" href="assets/css/index.css">
 </head>
 <?php include 'includes/theme.php'; ?>
+
 <body class="admin-layout">
 
     <!-- Main Content -->
-    
-       
 
-        <div class="dashboard-header">
-            <div class="container-fluid">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h2 class="mb-0">
-                            <span id="timeBasedGreeting"></span>,
-                            <span class="fw-light"><?= htmlspecialchars($displayName) ?></span>
-                        </h2>
-                        <p class="lead mb-0 small text-white-80">Dashboard Overview</p>
-                    </div>
-                    <div class="text-end">
-                        <div class="h5 mb-0"><?= date('M j, Y') ?></div>
-                        <small class="text-white-50"><?= date('H:i') ?> Local time</small>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <div class="container">
-            <!-- Stats Cards -->
-            <div class="row g-3 mb-3">
-                <div class="col-6 col-md-3">
-                    <div class="card clickable-card shadow-sm" onclick="window.location='orders.php'">
-                        <div class="card-body p-2">
-                            <div class="d-flex align-items-center">
-                                <div class="bg-primary text-white rounded-circle stats-icon me-2 d-flex align-items-center justify-content-center">
-                                    <i class="fas fa-shopping-cart fa-lg"></i>
-                                </div>
-                                <div>
-                                    <div class="text-muted small">Total Orders</div>
-                                    <div class="stats-number"><?= $totalOrders ?></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
-                <div class="col-6 col-md-3">
-                    <div class="card clickable-card shadow-sm" onclick="window.location='customers.php'">
-                        <div class="card-body p-2">
-                            <div class="d-flex align-items-center">
-                                <div class="bg-success text-white rounded-circle stats-icon me-2 d-flex align-items-center justify-content-center">
-                                    <i class="fas fa-users fa-lg"></i>
-                                </div>
-                                <div>
-                                    <div class="text-muted small">Active Customers</div>
-                                    <div class="stats-number"><?= $activeCustomers ?></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+    <div class="dashboard-header">
+        <div class="container-fluid">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-0">
+                        <span id="timeBasedGreeting"></span>,
+                        <span class="fw-light"><?= htmlspecialchars($displayName) ?></span>
+                    </h2>
+                    <p class="lead mb-0 small text-white-80">Dashboard Overview</p>
                 </div>
-
-                <div class="col-6 col-md-3">
-                    <div class="card clickable-card shadow-sm" onclick="window.location='inventory.php'">
-                        <div class="card-body p-2">
-                            <div class="d-flex align-items-center">
-                                <div class="bg-warning text-white rounded-circle stats-icon me-2 d-flex align-items-center justify-content-center">
-                                    <i class="fas fa-boxes fa-lg"></i>
-                                </div>
-                                <div>
-                                    <div class="text-muted small">Total Stock</div>
-                                    <div class="stats-number"><?= number_format($totalStock) ?></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <div class="text-end">
+                    <div class="h5 mb-0"><?= date('M j, Y') ?></div>
+                    <small class="text-white-50"><?= date('H:i') ?> Local time</small>
                 </div>
-
-                <div class="col-6 col-md-3">
-                    <div class="card clickable-card shadow-sm" onclick="window.location='reports.php'">
-                        <div class="card-body p-2">
-                            <div class="d-flex align-items-center">
-                                <div class="bg-info text-white rounded-circle stats-icon me-2 d-flex align-items-center justify-content-center">
-                                    <i class="fas fa-cube fa-lg"></i>
-                                </div>
-                                <div>
-                                    <div class="text-muted small">Unique Items</div>
-                                    <div class="stats-number"><?= $uniqueItems ?></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="card clickable-card shadow-sm" onclick="window.location='services.php'">
-                        <div class="card-body p-2">
-                            <div class="d-flex align-items-center">
-                                <div class="bg-secondary text-white rounded-circle stats-icon me-2 d-flex align-items-center justify-content-center">
-                                    <i class="fas fa-concierge-bell fa-lg"></i>
-                                </div>
-                                <div>
-                                    <div class="text-muted small">Manage Services</div>
-                                    <div class="stats-number">Services</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Quick Actions -->
-            <div class="row g-3 mb-3">
-                <div class="col-12">
-                    <div class="card shadow-sm">
-                        <div class="card-body p-2">
-                            <div class="row g-2">
-                                <div class="col-6 col-md-2">
-                                    <a href="create_order.php" class="card quick-action-card bg-primary text-white text-center py-2 clickable-card">
-                                        <div class="card-body">
-                                            <i class="fas fa-plus-circle fa-2x mb-2"></i>
-                                            <div class="small">New Order</div>
-                                        </div>
-                                    </a>
-                                </div>
-                                <div class="col-6 col-md-2">
-                                    <a href="inventory.php" class="card quick-action-card bg-success text-white text-center py-2 clickable-card">
-                                        <div class="card-body">
-                                            <i class="fas fa-box-open fa-2x mb-2"></i>
-                                            <div class="small">Inventory</div>
-                                        </div>
-                                    </a>
-                                </div>
-                                <div class="col-6 col-md-2">
-                                    <a href="admins.php" class="card quick-action-card bg-danger text-white text-center py-2 clickable-card">
-                                        <div class="card-body">
-                                            <i class="fas fa-users fa-2x mb-2"></i>
-                                            <div class="small">Employees</div>
-                                        </div>
-                                    </a>
-                                </div>
-                                <div class="col-6 col-md-2">
-                                    <a href="customers.php" class="card quick-action-card bg-info text-white text-center py-2 clickable-card">
-                                        <div class="card-body">
-                                            <i class="fas fa-users fa-2x mb-2"></i>
-                                            <div class="small">Customers</div>
-                                        </div>
-                                    </a>
-                                </div>
-                                <div class="col-6 col-md-2">
-                                    <a href="reports.php" class="card quick-action-card bg-warning text-dark text-center py-2 clickable-card">
-                                        <div class="card-body">
-                                            <i class="fas fa-chart-bar fa-2x mb-2"></i>
-                                            <div class="small">Reports</div>
-                                        </div>
-                                    </a>
-                                </div>
-                                <div class="col-6 col-md-2">
-                                    <a href="notifications.php" class="card quick-action-card bg-secondary text-white text-center py-2 clickable-card">
-                                        <div class="card-body">
-                                            <i class="fas fa-bell fa-2x mb-2"></i>
-                                            <div class="small">Notifications</div>
-                                        </div>
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Three Column Section -->
-<div class="row g-3 mb-3">
-    <!-- Order Status -->
-    <div class="col-md-4">
-        <div class="card shadow-sm h-100">
-            <div class="card-header bg-white p-2">
-                <h6 class="mb-0 fw-bold order-status-title">Order Status</h6>
-            </div>
-            <div class="card-body p-2">
-                <?php if (!empty($orderStats)): ?>
-                    <?php foreach ($orderStats as $stat): ?>
-                        <?php
-                        $statusColor = match ($stat['status']) {
-                            'Pending' => 'warning',
-                            'Shipped' => 'primary',
-                            'Delivered' => 'success',
-                            default => 'secondary'
-                        }; ?>
-                        <div class="mb-2">
-                            <div class="d-flex justify-content-between small mb-1">
-                                <div>
-                                    <span class="status-indicator bg-<?= $statusColor ?>"></span>
-                                    <?= htmlspecialchars($stat['status']) ?>
-                                </div>
-                                <div><?= htmlspecialchars($stat['count']) ?></div>
-                            </div>
-                            <div class="progress" style="height: 6px;">
-                                <div class="progress-bar bg-<?= $statusColor ?>"
-                                    style="width: <?= ($stat['count'] / $totalOrders) * 100 ?>%">
-                                </div>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <div class="text-center text-muted small py-2">No order data</div>
-                <?php endif; ?>
             </div>
         </div>
     </div>
 
-    <!-- Notifications -->
-    <div class="col-md-4">
-        <div class="card shadow-sm h-100">
-            <div class="card-header bg-white p-2 d-flex justify-content-between align-items-center">
-                <h6 class="mb-0 fw-bold notifications-title">Notifications</h6>
-                <a href="notifications.php" class="btn btn-sm btn-link p-0">View All →</a>
-            </div>
-            <div class="card-body p-2">
-                <?php if (!empty($notifications)): ?>
-                    <?php foreach ($notifications as $notification): ?>
-                        <div class="list-group-item position-relative <?= $notification['is_read'] ? '' : 'bg-light' ?>">
-                            <div class="notification-priority priority-<?= strtolower($notification['priority'] ?? 'Medium') ?>"></div>
-                            <div class="d-flex justify-content-between align-items-start ps-3">
-                                <div class="w-75">
-                                    <span class="badge notification-type bg-<?= match ($notification['type'] ?? 'Message') {
-                                        'Task' => 'warning',
-                                        'Alert' => 'danger',
-                                        default => 'secondary'
-                                    } ?>">
-                                        <?= $notification['type'] ?? 'Message' ?>
-                                    </span>
-                                    <div class="fw-medium mb-1">
-                                        <?= htmlspecialchars($notification['sender_name']) ?>
-                                        <?php if (!$notification['is_read']): ?>
-                                            <span class="badge bg-primary ms-2">New</span>
-                                        <?php endif; ?>
-                                    </div>
-                                    <div class="text-muted small">
-                                        <?= htmlspecialchars($notification['message']) ?>
-                                    </div>
-                                    <small class="text-muted d-block mt-2">
-                                        <i class="fas fa-clock me-1"></i>
-                                        <?= time_elapsed_string($notification['created_at']) ?>
-                                    </small>
-                                </div>
-                                <div class="text-end">
-                                    <div class="btn-group">
-                                        <form method="GET" action="mark_read.php" class="d-inline">
-                                            <input type="hidden" name="id" value="<?= $notification['id'] ?>">
-                                            <button type="submit" name="mark_read" class="btn btn-sm btn-outline-secondary">
-                                                <i class="fas fa-check"></i>
-                                            </button>
-                                        </form>
-                                        <form method="POST" action="notifications.php" class="d-inline">
-                                            <input type="hidden" name="message_id" value="<?= $notification['id'] ?>">
-                                            <button type="submit" name="delete" class="btn btn-sm btn-outline-danger">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </form>
-                                    </div>
-                                </div>
+    <div class="container">
+        <!-- Stats Cards -->
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-md-3">
+                <div class="card clickable-card shadow-sm" onclick="window.location='orders.php'">
+                    <div class="card-body p-2">
+                        <div class="d-flex align-items-center">
+                            <div
+                                class="bg-primary text-white rounded-circle stats-icon me-2 d-flex align-items-center justify-content-center">
+                                <i class="fas fa-shopping-cart fa-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-muted small">Total Orders</div>
+                                <div class="stats-number"><?= $totalOrders ?></div>
                             </div>
                         </div>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <div class="alert alert-info mb-0 p-2 small">
-                        <i class="fas fa-info-circle me-2"></i> No new notifications
                     </div>
-                <?php endif; ?>
+                </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Recent Activities -->
-    <div class="col-md-4">
-        <div class="card shadow-sm h-100">
-            <div class="card-header bg-white p-2 d-flex justify-content-between align-items-center">
-                <h6 class="mb-0 fw-bold recent-activities-title">Recent Activities</h6>
-                <a href="orders.php" class="btn btn-sm btn-link p-0">View All →</a>
-            </div>
-            <div class="card-body p-2">
-                <?php if (!empty($recentOrders)): ?>
-                    <?php foreach ($recentOrders as $order): ?>
-                        <?php
-                        $statusColor = match ($order['status']) {
-                            'Pending' => 'warning',
-                            'Shipped' => 'primary',
-                            'Delivered' => 'success',
-                            default => 'secondary'
-                        }; ?>
-                        <div class="recent-activity-item border-<?= $statusColor ?>">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <div class="small fw-medium order-id">
-                                        Order #<?= htmlspecialchars($order['order_id']) ?>
-                                    </div>
-                                    <small class="text-muted order-date">
-                                        <?= date('M j, H:i', strtotime($order['order_date'])) ?>
-                                    </small>
-                                </div>
-                                <span class="badge bg-<?= $statusColor ?> small">
-                                    <?= htmlspecialchars($order['status']) ?>
-                                </span>
+            <div class="col-6 col-md-3">
+                <div class="card clickable-card shadow-sm" onclick="window.location='customers.php'">
+                    <div class="card-body p-2">
+                        <div class="d-flex align-items-center">
+                            <div
+                                class="bg-success text-white rounded-circle stats-icon me-2 d-flex align-items-center justify-content-center">
+                                <i class="fas fa-users fa-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-muted small">Active Customers</div>
+                                <div class="stats-number"><?= $activeCustomers ?></div>
                             </div>
                         </div>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <div class="text-center text-muted small py-2">No recent activity</div>
-                <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+                <div class="card clickable-card shadow-sm" onclick="window.location='inventory.php'">
+                    <div class="card-body p-2">
+                        <div class="d-flex align-items-center">
+                            <div
+                                class="bg-warning text-white rounded-circle stats-icon me-2 d-flex align-items-center justify-content-center">
+                                <i class="fas fa-boxes fa-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-muted small">Total Stock</div>
+                                <div class="stats-number"><?= number_format($totalStock) ?></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+                <div class="card clickable-card shadow-sm" onclick="window.location='reports.php'">
+                    <div class="card-body p-2">
+                        <div class="d-flex align-items-center">
+                            <div
+                                class="bg-info text-white rounded-circle stats-icon me-2 d-flex align-items-center justify-content-center">
+                                <i class="fas fa-cube fa-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-muted small">Unique Items</div>
+                                <div class="stats-number"><?= $uniqueItems ?></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card clickable-card shadow-sm" onclick="window.location='services.php'">
+                    <div class="card-body p-2">
+                        <div class="d-flex align-items-center">
+                            <div
+                                class="bg-secondary text-white rounded-circle stats-icon me-2 d-flex align-items-center justify-content-center">
+                                <i class="fas fa-concierge-bell fa-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-muted small">Manage Services</div>
+                                <div class="stats-number">Services</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-</div>
+
+        <!-- Quick Actions -->
+        <div class="row g-3 mb-3">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-body p-2">
+                        <div class="row g-2">
+                            <div class="col-6 col-md-2">
+                                <a href="create_order.php"
+                                    class="card quick-action-card bg-primary text-white text-center py-2 clickable-card">
+                                    <div class="card-body">
+                                        <i class="fas fa-plus-circle fa-2x mb-2"></i>
+                                        <div class="small">New Order</div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <a href="inventory.php"
+                                    class="card quick-action-card bg-success text-white text-center py-2 clickable-card">
+                                    <div class="card-body">
+                                        <i class="fas fa-box-open fa-2x mb-2"></i>
+                                        <div class="small">Inventory</div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <a href="admins.php"
+                                    class="card quick-action-card bg-danger text-white text-center py-2 clickable-card">
+                                    <div class="card-body">
+                                        <i class="fas fa-users fa-2x mb-2"></i>
+                                        <div class="small">Employees</div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <a href="customers.php"
+                                    class="card quick-action-card bg-info text-white text-center py-2 clickable-card">
+                                    <div class="card-body">
+                                        <i class="fas fa-users fa-2x mb-2"></i>
+                                        <div class="small">Customers</div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <a href="reports.php"
+                                    class="card quick-action-card bg-warning text-dark text-center py-2 clickable-card">
+                                    <div class="card-body">
+                                        <i class="fas fa-chart-bar fa-2x mb-2"></i>
+                                        <div class="small">Reports</div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <a href="notifications.php"
+                                    class="card quick-action-card bg-secondary text-white text-center py-2 clickable-card">
+                                    <div class="card-body">
+                                        <i class="fas fa-bell fa-2x mb-2"></i>
+                                        <div class="small">Notifications</div>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Three Column Section -->
+        <div class="row g-3 mb-3">
+            <!-- Order Status -->
+            <div class="col-md-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-white p-2">
+                        <h6 class="mb-0 fw-bold order-status-title">Order Status</h6>
+                    </div>
+                    <div class="card-body p-2">
+                        <?php if (!empty($orderStats)): ?>
+                            <?php foreach ($orderStats as $stat): ?>
+                                <?php
+                                $statusColor = match ($stat['status']) {
+                                    'Pending' => 'warning',
+                                    'Shipped' => 'primary',
+                                    'Delivered' => 'success',
+                                    default => 'secondary'
+                                }; ?>
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between small mb-1">
+                                        <div>
+                                            <span class="status-indicator bg-<?= $statusColor ?>"></span>
+                                            <?= htmlspecialchars($stat['status']) ?>
+                                        </div>
+                                        <div><?= htmlspecialchars($stat['count']) ?></div>
+                                    </div>
+                                    <div class="progress" style="height: 6px;">
+                                        <div class="progress-bar bg-<?= $statusColor ?>"
+                                            style="width: <?= ($stat['count'] / $totalOrders) * 100 ?>%">
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="text-center text-muted small py-2">No order data</div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notifications -->
+            <div class="col-md-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-white p-2 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-bold notifications-title">Notifications</h6>
+                        <a href="notifications.php" class="btn btn-sm btn-link p-0">View All →</a>
+                    </div>
+                    <div class="card-body p-2">
+                        <?php if (!empty($notifications)): ?>
+                            <?php foreach ($notifications as $notification): ?>
+                                <div
+                                    class="list-group-item position-relative <?= $notification['is_read'] ? '' : 'bg-light' ?>">
+                                    <div
+                                        class="notification-priority priority-<?= strtolower($notification['priority'] ?? 'Medium') ?>">
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-start ps-3">
+                                        <div class="w-75">
+                                            <span class="badge notification-type bg-<?= match ($notification['type'] ?? 'Message') {
+                                                'Task' => 'warning',
+                                                'Alert' => 'danger',
+                                                default => 'secondary'
+                                            } ?>">
+                                                <?= $notification['type'] ?? 'Message' ?>
+                                            </span>
+                                            <div class="fw-medium mb-1">
+                                                <?= htmlspecialchars($notification['sender_name']) ?>
+                                                <?php if (!$notification['is_read']): ?>
+                                                    <span class="badge bg-primary ms-2">New</span>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="text-muted small">
+                                                <?= htmlspecialchars($notification['message']) ?>
+                                            </div>
+                                            <small class="text-muted d-block mt-2">
+                                                <i class="fas fa-clock me-1"></i>
+                                                <?= time_elapsed_string($notification['created_at']) ?>
+                                            </small>
+                                        </div>
+                                        <div class="text-end">
+                                            <div class="btn-group">
+                                                <form method="GET" action="mark_read.php" class="d-inline">
+                                                    <input type="hidden" name="id" value="<?= $notification['id'] ?>">
+                                                    <button type="submit" name="mark_read"
+                                                        class="btn btn-sm btn-outline-secondary">
+                                                        <i class="fas fa-check"></i>
+                                                    </button>
+                                                </form>
+                                                <form method="POST" action="notifications.php" class="d-inline">
+                                                    <input type="hidden" name="message_id" value="<?= $notification['id'] ?>">
+                                                    <button type="submit" name="delete" class="btn btn-sm btn-outline-danger">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="alert alert-info mb-3 p-3 small">
+                                <i class="fas fa-info-circle me-2"></i> No new notifications
+                            </div>
+
+                        <?php endif; ?>
+
+                        <a href="inventory.php" class="text-decoration-none">
+                            <div class="list-group-item position-relative bg-warning p-3 rounded">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-0">Low Stock Alerts</h6>
+                                        <p class="mb-0 small">You have <?= $lowStockNotifications ?> low stock alerts.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activities -->
+            <div class="col-md-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-white p-2 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-bold recent-activities-title">Recent Activities</h6>
+                        <a href="orders.php" class="btn btn-sm btn-link p-0">View All →</a>
+                    </div>
+                    <div class="card-body p-2">
+                        <?php if (!empty($recentOrders)): ?>
+                            <?php foreach ($recentOrders as $order): ?>
+                                <?php
+                                $statusColor = match ($order['status']) {
+                                    'Pending' => 'warning',
+                                    'Shipped' => 'primary',
+                                    'Delivered' => 'success',
+                                    default => 'secondary'
+                                }; ?>
+                                <div class="recent-activity-item border-<?= $statusColor ?>">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="small fw-medium order-id">
+                                                Order #<?= htmlspecialchars($order['order_id']) ?>
+                                            </div>
+                                            <small class="text-muted order-date">
+                                                <?= date('M j, H:i', strtotime($order['order_date'])) ?>
+                                            </small>
+                                        </div>
+                                        <span class="badge bg-<?= $statusColor ?> small">
+                                            <?= htmlspecialchars($order['status']) ?>
+                                        </span>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="text-center text-muted small py-2">No recent activity</div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
 
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -496,7 +532,8 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
         </script>
 
         <?php
-        function time_elapsed_string($datetime, $full = false) {
+        function time_elapsed_string($datetime, $full = false)
+        {
             $now = new DateTime;
             $ago = new DateTime($datetime);
             $diff = $now->diff($ago);
@@ -506,20 +543,29 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
 
             $string = array();
 
-            if ($diff->y) $string[] = $diff->y . ' year' . ($diff->y > 1 ? 's' : '');
-            if ($diff->m) $string[] = $diff->m . ' month' . ($diff->m > 1 ? 's' : '');
-            if ($weeks) $string[] = $weeks . ' week' . ($weeks > 1 ? 's' : '');
-            if ($remaining_days) $string[] = $remaining_days . ' day' . ($remaining_days > 1 ? 's' : '');
-            if ($diff->h) $string[] = $diff->h . ' hour' . ($diff->h > 1 ? 's' : '');
-            if ($diff->i) $string[] = $diff->i . ' minute' . ($diff->i > 1 ? 's' : '');
-            if ($diff->s) $string[] = $diff->s . ' second' . ($diff->s > 1 ? 's' : '');
+            if ($diff->y)
+                $string[] = $diff->y . ' year' . ($diff->y > 1 ? 's' : '');
+            if ($diff->m)
+                $string[] = $diff->m . ' month' . ($diff->m > 1 ? 's' : '');
+            if ($weeks)
+                $string[] = $weeks . ' week' . ($weeks > 1 ? 's' : '');
+            if ($remaining_days)
+                $string[] = $remaining_days . ' day' . ($remaining_days > 1 ? 's' : '');
+            if ($diff->h)
+                $string[] = $diff->h . ' hour' . ($diff->h > 1 ? 's' : '');
+            if ($diff->i)
+                $string[] = $diff->i . ' minute' . ($diff->i > 1 ? 's' : '');
+            if ($diff->s)
+                $string[] = $diff->s . ' second' . ($diff->s > 1 ? 's' : '');
 
-            if (!$full) $string = array_slice($string, 0, 1);
+            if (!$full)
+                $string = array_slice($string, 0, 1);
 
             return $string ? implode(', ', $string) . ' ago' : 'just now';
         }
         ?>
 
-    <?php include 'includes/nav/footer.php'; ?>
+        <?php include 'includes/nav/footer.php'; ?>
 </body>
+
 </html>
