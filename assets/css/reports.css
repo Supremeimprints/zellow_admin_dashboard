@@ -1,21 +1,17 @@
 /* Custom CSS for Business Analytics Dashboard */
-
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap');
 body {
   background-color: #f8f9fc;
+ 
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
 }
 
 .container-fluid {
-  width: -webkit-fill-available;
-  --bs-gutter-x: 1.5rem;
-  --bs-gutter-y: 0;
-  padding-right: calc(var(--bs-gutter-x) * 0.5);
-  padding-left: calc(var(--bs-gutter-x) * 0.5);
-  margin-right: 100px;
-  margin-left: 100px;
-}
-
-.container-fluid {
-  padding: 20px;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 20px 40px;
 }
 
 /* Card Styles */
@@ -24,6 +20,7 @@ body {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   margin-bottom: 20px;
   transition: transform 0.3s ease;
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .card:hover {
@@ -56,8 +53,8 @@ body {
   background-color: #1cc88a !important;
 }
 
-.bg-warning {
-  background-color: #f6c23e !important;
+.bg-danger {
+  background-color: #FF0033 !important;
 }
 
 .bg-info {
@@ -102,6 +99,10 @@ body {
   max-height: 300px;
 }
 
+.card-body canvas {
+  margin-top: 20px;
+  padding: 0 15px;
+}
 /* Responsive Adjustments */
 @media (max-width: 768px) {
   .card {

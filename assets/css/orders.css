@@ -1,0 +1,100 @@
+/* orders.css - Scoped card styles matching reports page */
+
+/* Container scoping */
+.container.mt-5 {
+    padding: 20px 0;
+    animation: fadeIn 0.4s ease-out;
+}
+
+/* Card Styles - Reports page adaptation */
+.container.mt-5 .card {
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    transition: transform 0.3s ease;
+    border: none;
+}
+
+.container.mt-5 .card:hover {
+    transform: translateY(-5px);
+}
+
+/* Card content styling */
+.container.mt-5 .card-body {
+    padding: 20px;
+}
+
+.container.mt-5 .card-body h6 {
+    color: rgba(255, 255, 255, 0.7) !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+}
+
+.container.mt-5 .card-body h3 {
+    font-weight: bold;
+    color: white !important;
+    font-size: 1.8rem;
+    margin-bottom: 0;
+}
+
+/* Color overrides - Enhanced vibrancy */
+.container.mt-5 .bg-primary { background-color: #4e73df !important; }
+.container.mt-5 .bg-success { background-color: #1cc88a !important; }
+.container.mt-5 .bg-warning { background-color: #ffcc00 !important; }
+.container.mt-5 .bg-info { background-color: #db036c !important; }
+.container.mt-5 .bg-danger { background-color:  #FF0033!important; }
+.container.mt-5 .bg-dark { background-color: #5a5c69 !important; }
+
+/* Table styling - Optional consistency */
+.container.mt-5 .table-responsive {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.container.mt-5 .table thead {
+    background-color: #f8f9fc;
+    border-bottom: 2px solid #e3e6f0;
+}
+.table th {
+    font-weight: 600;
+    color: #6e707e;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 15px;
+    border-bottom: 2px solid #e3e6f0;
+}
+/* Animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container.mt-5 {
+        padding: 15px;
+    }
+    
+    .container.mt-5 .card-body h3 {
+        font-size: 1.5rem;
+    }
+    
+    .container.mt-5 .card-body h6 {
+        font-size: 0.8rem;
+    }
+    
+    .container.mt-5 .table-responsive {
+        border-radius: 0;
+        box-shadow: none;
+    }
+}

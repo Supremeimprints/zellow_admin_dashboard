@@ -1,31 +1,80 @@
 /* assets/css/themes.css */
 :root, [data-bs-theme="light"] {
-    --background: #f6f5f7;
-    --container-bg: #fff;
-    --button-bg: #FF4B2B;
-    --text-color: #333;
-    --input-bg: #eee;
-    --box-shadow: 0 14px 28px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.22);
+    --background: #ffffff;
+    --container-bg: #f6f5f7;
+    --button-bg: #1D9BF0;
+    --text-color: #15202B;
+    --input-bg: #EFF3F4;
+    --border-color: #8899AC;
+    --box-shadow: 0 14px 28px rgba(0,0,0,0.15), 0 10px 10px rgba(0,0,0,0.12);
     --font-family: 'Montserrat', sans-serif;
+    --feedback-bg: #fcf8e3;
+    --feedback-border: #faebcc;
+    --unread-bg: #e3f2fd;
+    --primary-accent: #2196F3;
+    --priority-high: #dc3545;
+    --priority-medium: #ffc107;
+    --priority-low: #28a745;
+    --rating-star: #ffc107;
+    --text-muted: #6c757d;
 }
 
 [data-bs-theme="dark"] {
-    --background: #1a1a1a;
-    --container-bg: #2d2d2d;
-    --button-bg: #FF416C;
-    --text-color: #fff;
-    --input-bg: #3a3a3a;
-    --box-shadow: 0 14px 28px rgba(255,255,255,0.1), 0 10px 10px rgba(255,255,255,0.05);
+    --font-family: 'Montserrat', sans-serif;
+    --background: #15202B;
+    --container-bg: #192734;
+    --button-bg: #1D9BF0;
+    --text-color: #ffffff;
+    --input-bg: #22303C;
+    --border-color: #38444D;
+    --box-shadow: 0 14px 28px rgba(255,255,255,0.08), 0 10px 10px rgba(255,255,255,0.03);
+    --feedback-bg: #22303c;
+    --feedback-border: #8899AC;
+    --unread-bg: #1a3658;
+    --primary-accent: #1D9BF0;
+    --priority-high: #e74c3c;
+    --priority-medium: #f1c40f;
+    --priority-low: #2ecc71;
+    --rating-star: #f39c12;
+    --text-muted: #8899AC;
 }
 
-/* Add other signup page styles as needed */
+/* Apply variables to Bootstrap components */
+body {
+    background-color: var(--background);
+    color: var(--text-color);
+    font-family: var(--font-family);
+}
 
+.card, .form-control, .dropdown-menu {
+    background-color: var(--container-bg);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
 
-/* Default light theme 
+.form-control {
+    background-color: var(--input-bg);
+}
 
-[data-bs-theme="dark"] {
-    --background: #1a1a1a;
-    --card-bg: #2d2d2d;
-    --text-main: #ffffff;
-    --border: #4a4a4a;
-  }
+.btn-primary {
+    background-color: var(--button-bg);
+    border-color: var(--button-bg);
+}
+
+.card-title, .card-text {
+    color: var(--text-color) !important;
+}
+
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+.container-fluid {
+    width: -webkit-fill-available;
+    --bs-gutter-x: 1.5rem;
+    --bs-gutter-y: 0;
+    padding-right: calc(var(--bs-gutter-x) * 0.5);
+    padding-left: calc(var(--bs-gutter-x) * 0.5);
+    margin-right: 100px;
+    margin-left: 100px;
+}

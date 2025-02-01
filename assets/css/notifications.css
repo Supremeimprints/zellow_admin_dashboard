@@ -2,35 +2,38 @@
 .notification-section, .feedback-section {
     border-radius: 0.5rem;
     padding: 1.5rem;
+    color: var(--text-color);
 }
 
 /* Message Section Styles */
 .notification-section {
-    border: 1px solid #dee2e6;
-    background-color: #f8f9fa;
+    border: 1px solid var(--border-color);
+    background-color: var(--container-bg);
 }
 
 .feedback-section {
-    border: 1px solid #ffeeba;
-    background-color: #fff3cd;
+    border: 1px solid var(--feedback-border);
+    background-color: var(--feedback-bg);
 }
 
 .message-card {
     transition: transform 0.2s;
     border-left: 4px solid;
+    background-color: var(--container-bg);
+    color: var(--text-color);
 }
 
 .message-card.unread {
-    background-color: #e3f2fd;
-    border-left-color: #2196F3;
+    background-color: var(--unread-bg);
+    border-left-color: var(--primary-accent);
 }
 
-.priority-high { border-left-color: #dc3545 !important; }
-.priority-medium { border-left-color: #ffc107 !important; }
-.priority-low { border-left-color: #28a745 !important; }
+.priority-high { border-left-color: var(--priority-high) !important; }
+.priority-medium { border-left-color: var(--priority-medium) !important; }
+.priority-low { border-left-color: var(--priority-low) !important; }
 
 .rating-stars {
-    color: #ffc107;
+    color: var(--rating-star);
     font-size: 1.2rem;
 }
 
