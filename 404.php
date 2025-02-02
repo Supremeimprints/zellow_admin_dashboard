@@ -51,7 +51,7 @@ http_response_code(404);
 <body>
     <div class="error-container">
         <div class="error-content">
-            <img src="assets/images/404.svg" alt="404 Error" class="error-image">
+            <img src="assets/images/oops-logo.svg" alt="404 Error" class="error-image">
             <div class="error-number">404</div>
             <div class="error-text mb-4">Oops! Page Not Found</div>
             <p class="text-muted mb-4">
