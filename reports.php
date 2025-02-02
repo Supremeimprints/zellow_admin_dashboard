@@ -273,12 +273,9 @@ $reportData['top_categories'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <div class="card-body">
                             <h5>Low Stock Alerts</h5>
                             <div class="btn-group">
-                                <button class="btn btn-sm btn-outline-secondary export-csv"
-                                    data-table="lowStockTable">CSV</button>
-                                <button class="btn btn-sm btn-outline-secondary export-excel"
-                                    data-table="lowStockTable">Excel</button>
-                                <button class="btn btn-sm btn-outline-secondary export-pdf"
-                                    data-table="lowStockTable">PDF</button>
+                                <button class="btn btn-primary" onclick="exportData('csv')">CSV</button>
+                                <button class="btn btn-success" onclick="exportData('excel')">Excel</button>
+                                <button class="btn btn-danger" onclick="exportData('pdf')">PDF</button>
                             </div>
                             <table id="lowStockTable" class="table">
                                 <thead>
@@ -319,12 +316,9 @@ $reportData['top_categories'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <div class="card-body">
                             <h5>Recent Transactions</h5>
                             <div class="btn-group">
-                                <button class="btn btn-sm btn-outline-secondary export-csv"
-                                    data-table="lowStockTable">CSV</button>
-                                <button class="btn btn-sm btn-outline-secondary export-excel"
-                                    data-table="lowStockTable">Excel</button>
-                                <button class="btn btn-sm btn-outline-secondary export-pdf"
-                                    data-table="lowStockTable">PDF</button>
+                                <button class="btn btn-primary" onclick="exportData('csv')">CSV</button>
+                                <button class="btn btn-success" onclick="exportData('excel')">Excel</button>
+                                <button class="btn btn-danger" onclick="exportData('pdf')">PDF</button>
                             </div>
                             <table id="recentTransactionsTable" class="table">
                                 <thead>
@@ -348,12 +342,9 @@ $reportData['top_categories'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <div class="card-body">
                             <h5>Top Spending Customers</h5>
                             <div class="btn-group">
-                                <button class="btn btn-sm btn-outline-secondary export-csv"
-                                    data-table="lowStockTable">CSV</button>
-                                <button class="btn btn-sm btn-outline-secondary export-excel"
-                                    data-table="lowStockTable">Excel</button>
-                                <button class="btn btn-sm btn-outline-secondary export-pdf"
-                                    data-table="lowStockTable">PDF</button>
+                                <button class="btn btn-primary" onclick="exportData('csv')">CSV</button>
+                                <button class="btn btn-success" onclick="exportData('excel')">Excel</button>
+                                <button class="btn btn-danger" onclick="exportData('pdf')">PDF</button>
                             </div>
                             <table id="topCustomersTable" class="table">
                                 <thead>
@@ -490,6 +481,10 @@ $reportData['top_categories'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 // Fetch and update metrics via AJAX
             }, 30000);
         });
+
+        function exportData(type) {
+            window.location.href = 'export.php?format=' + type;
+        }
     </script>
 
 </body>
