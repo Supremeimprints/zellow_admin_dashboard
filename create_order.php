@@ -41,19 +41,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $username = filter_var($_POST['username'], FILTER_SANITIZE_STRING);
         if (empty($username)) throw new Exception("Username is required");
 
-        $productId = filter_input(INPUT_POST, 'product_id', FILTER_VALIDATE_INT);
-        if (!$productId) throw new Exception("Invalid product selection");
-
-        $quantity = filter_input(INPUT_POST, 'quantity', FILTER_VALIDATE_INT, [
-            'options' => ['min_range' => 1]
-        ]);
-        if (!$quantity) throw new Exception("Quantity must be at least 1");
-
-        $total_amount = filter_input(INPUT_POST, 'total_amount', FILTER_VALIDATE_FLOAT, [
-            'options' => ['min_range' => 0]
-        ]);
-        if (!$total_amount) throw new Exception("Invalid price per item");
-
         $shippingMethod = $_POST['shipping_method'] ?? 'Standard';
         $allowedShippingMethods = ['Standard', 'Express', 'Next Day'];
         if (!in_array($shippingMethod, $allowedShippingMethods)) {
@@ -72,62 +59,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Generate tracking number
         $trackingNumber = generateTrackingNumber();
 
-        // Calculate total price based on quantity and total_amount (price per unit)
-        $total_price = $total_amount * $quantity;
-
         // Check/create customer
-$customerQuery = "SELECT id, username FROM users WHERE email = :email";  // Also fetch username
-$customerStmt = $db->prepare($customerQuery);
-$customerStmt->execute([':email' => $email]);
-$customer = $customerStmt->fetch(PDO::FETCH_ASSOC);
+        $customerQuery = "SELECT id, username FROM users WHERE email = :email";  // Also fetch username
+        $customerStmt = $db->prepare($customerQuery);
+        $customerStmt->execute([':email' => $email]);
+        $customer = $customerStmt->fetch(PDO::FETCH_ASSOC);
 
-if (!$customer) {
-    // First check if username already exists
-    $checkUsernameStmt = $db->prepare("SELECT username FROM users WHERE username = :username");
-    $checkUsernameStmt->execute([':username' => $username]);
-    if ($checkUsernameStmt->fetch()) {
-        throw new Exception("Username already exists. Please choose a different username.");
-    }
+        if (!$customer) {
+            // First check if username already exists
+            $checkUsernameStmt = $db->prepare("SELECT username FROM users WHERE username = :username");
+            $checkUsernameStmt->execute([':username' => $username]);
+            if ($checkUsernameStmt->fetch()) {
+                throw new Exception("Username already exists. Please choose a different username.");
+            }
 
-    // Create new user
-    $createCustomerQuery = "INSERT INTO users (username, email, password, role) 
-                            VALUES (:username, :email, :password, 'customer')";
-    $createCustomerStmt = $db->prepare($createCustomerQuery);
-    $createCustomerStmt->execute([
-        ':username' => $username,
-        ':email' => $email,
-        ':password' => password_hash('TempPassword123!', PASSWORD_DEFAULT)
-    ]);
-    $customerId = $db->lastInsertId();
-    $customerUsername = $username; // Use the new username
-} else {
-    $customerId = $customer['id'];
-    $customerUsername = $customer['username']; // Use existing username
-}
+            // Create new user
+            $createCustomerQuery = "INSERT INTO users (username, email, password, role) 
+                                    VALUES (:username, :email, :password, 'customer')";
+            $createCustomerStmt = $db->prepare($createCustomerQuery);
+            $createCustomerStmt->execute([
+                ':username' => $username,
+                ':email' => $email,
+                ':password' => password_hash('TempPassword123!', PASSWORD_DEFAULT)
+            ]);
+            $customerId = $db->lastInsertId();
+            $customerUsername = $username; // Use the new username
+        } else {
+            $customerId = $customer['id'];
+            $customerUsername = $customer['username']; // Use existing username
+        }
 
-// Insert order with tracking number
-$orderQuery = "INSERT INTO orders (
-    id, username, product_id, quantity, total_amount,
-    status, payment_status, payment_method,
-    shipping_address, shipping_method, order_date, tracking_number
-) VALUES (
-    :id, :username, :product_id, :quantity, :total_amount,
-    'Pending', 'Pending', :payment_method,
-    :shipping_address, :shipping_method, CURRENT_TIMESTAMP, :tracking_number
-)";
+        // Insert order
+        $orderQuery = "INSERT INTO orders (
+            id, username, status, payment_status, payment_method,
+            shipping_address, shipping_method, order_date, tracking_number
+        ) VALUES (
+            :id, :username, 'Pending', 'Pending', :payment_method,
+            :shipping_address, :shipping_method, CURRENT_TIMESTAMP, :tracking_number
+        )";
+        $orderStmt = $db->prepare($orderQuery);
+        $orderStmt->execute([
+            ':id' => $customerId,
+            ':username' => $customerUsername, // Use the fetched or new username
+            ':payment_method' => $paymentMethod,
+            ':shipping_address' => $shippingAddress,
+            ':shipping_method' => $shippingMethod,
+            ':tracking_number' => $trackingNumber
+        ]);
+        $orderId = $db->lastInsertId();
 
-$orderStmt = $db->prepare($orderQuery);
-$orderStmt->execute([
-    ':id' => $customerId,
-    ':username' => $customerUsername, // Use the fetched or new username
-    ':product_id' => $productId,
-    ':quantity' => $quantity,
-    ':total_amount' => $total_price,
-    ':payment_method' => $paymentMethod,
-    ':shipping_address' => $shippingAddress,
-    ':shipping_method' => $shippingMethod,
-    ':tracking_number' => $trackingNumber
-]);
+        // Insert order items
+        foreach ($_POST['products'] as $product) {
+            $productId = filter_var($product['product_id'], FILTER_VALIDATE_INT);
+            if (!$productId) throw new Exception("Invalid product selection");
+
+            $quantity = filter_var($product['quantity'], FILTER_VALIDATE_INT, [
+                'options' => ['min_range' => 1]
+            ]);
+            if (!$quantity) throw new Exception("Quantity must be at least 1");
+
+            $unitPrice = filter_var($product['unit_price'], FILTER_VALIDATE_FLOAT, [
+                'options' => ['min_range' => 0]
+            ]);
+            if (!$unitPrice) throw new Exception("Invalid price per item");
+
+            $subtotal = $unitPrice * $quantity;
+
+            $orderItemQuery = "INSERT INTO order_items (
+                order_id, product_id, quantity, unit_price, subtotal
+            ) VALUES (
+                :order_id, :product_id, :quantity, :unit_price, :subtotal
+            )";
+            $orderItemStmt = $db->prepare($orderItemQuery);
+            $orderItemStmt->execute([
+                ':order_id' => $orderId,
+                ':product_id' => $productId,
+                ':quantity' => $quantity,
+                ':unit_price' => $unitPrice,
+                ':subtotal' => $subtotal
+            ]);
+        }
 
         $db->commit();
         header('Location: orders.php?success=' . urlencode("Order created successfully. Tracking Number: $trackingNumber"));
@@ -197,36 +208,35 @@ $orderStmt->execute([
 
             <div class="form-section">
                 <h4 class="mb-3">Order Details</h4>
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label for="product_id" class="form-label">Product</label>
-                        <select name="product_id" id="product_id" class="form-select" required>
-                            <option value="">Select Product</option>
-                            <?php foreach ($products as $product): ?>
-                                <option value="<?= htmlspecialchars($product['product_id']) ?>" 
-                                        data-price="<?= htmlspecialchars($product['price']) ?>">
-                                    <?= htmlspecialchars($product['product_name']) ?> - 
-                                    Ksh. <?= number_format($product['price'], 2) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="quantity" class="form-label">Quantity</label>
-                        <input type="number" name="quantity" id="quantity" 
-                               class="form-control" min="1" value="1" required>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="total_amount" class="form-label">Price per Unit</label>
-                        <input type="number" name="total_amount" id="total_amount" 
-                               class="form-control" step="0.01" required>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="total_price" class="form-label">Total Price</label>
-                        <input type="text" id="total_price" class="form-control" 
-                               readonly value="0.00">
+                <div id="products-container">
+                    <div class="row g-3 product-item">
+                        <div class="col-md-6">
+                            <label for="product_id" class="form-label">Product</label>
+                            <select name="products[0][product_id]" class="form-select product-select" required>
+                                <option value="">Select Product</option>
+                                <?php foreach ($products as $product): ?>
+                                    <option value="<?= htmlspecialchars($product['product_id']) ?>" 
+                                            data-price="<?= htmlspecialchars($product['price']) ?>">
+                                        <?= htmlspecialchars($product['product_name']) ?> - 
+                                        Ksh. <?= number_format($product['price'], 2) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="quantity" class="form-label">Quantity</label>
+                            <input type="number" name="products[0][quantity]" class="form-control quantity-input" min="1" value="1" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="unit_price" class="form-label">Price per Unit</label>
+                            <input type="number" name="products[0][unit_price]" class="form-control unit-price-input" step="0.01" required>
+                        </div>
+                        <div class="col-md-12 text-end">
+                            <button type="button" class="btn btn-danger remove-product">Remove</button>
+                        </div>
                     </div>
                 </div>
+                <button type="button" id="add-product" class="btn btn-secondary mt-3">Add Another Product</button>
             </div>
 
             <div class="form-section">
@@ -268,21 +278,72 @@ $orderStmt->execute([
     <script>
         // Real-time price calculation
         function calculateTotal() {
-            const pricePerUnit = parseFloat(document.getElementById('total_amount').value) || 0;
-            const quantity = parseInt(document.getElementById('quantity').value) || 0;
-            document.getElementById('total_price').value = (pricePerUnit * quantity).toFixed(2);
+            const productItems = document.querySelectorAll('.product-item');
+            productItems.forEach(item => {
+                const pricePerUnit = parseFloat(item.querySelector('.unit-price-input').value) || 0;
+                const quantity = parseInt(item.querySelector('.quantity-input').value) || 0;
+                item.querySelector('.total-price-input').value = (pricePerUnit * quantity).toFixed(2);
+            });
         }
 
+        // Add new product row
+        document.getElementById('add-product').addEventListener('click', function() {
+            const container = document.getElementById('products-container');
+            const index = container.children.length;
+            const newItem = document.createElement('div');
+            newItem.classList.add('row', 'g-3', 'product-item');
+            newItem.innerHTML = `
+                <div class="col-md-6">
+                    <label for="product_id" class="form-label">Product</label>
+                    <select name="products[${index}][product_id]" class="form-select product-select" required>
+                        <option value="">Select Product</option>
+                        <?php foreach ($products as $product): ?>
+                            <option value="<?= htmlspecialchars($product['product_id']) ?>" 
+                                    data-price="<?= htmlspecialchars($product['price']) ?>">
+                                <?= htmlspecialchars($product['product_name']) ?> - 
+                                Ksh. <?= number_format($product['price'], 2) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="quantity" class="form-label">Quantity</label>
+                    <input type="number" name="products[${index}][quantity]" class="form-control quantity-input" min="1" value="1" required>
+                </div>
+                <div class="col-md-3">
+                    <label for="unit_price" class="form-label">Price per Unit</label>
+                    <input type="number" name="products[${index}][unit_price]" class="form-control unit-price-input" step="0.01" required>
+                </div>
+                <div class="col-md-12 text-end">
+                    <button type="button" class="btn btn-danger remove-product">Remove</button>
+                </div>
+            `;
+            container.appendChild(newItem);
+        });
+
+        // Remove product row
+        document.addEventListener('click', function(event) {
+            if (event.target.classList.contains('remove-product')) {
+                event.target.closest('.product-item').remove();
+                calculateTotal();
+            }
+        });
+
         // Product selection handler
-        document.getElementById('product_id').addEventListener('change', function() {
-            const price = this.options[this.selectedIndex]?.dataset?.price || 0;
-            document.getElementById('total_amount').value = price;
-            calculateTotal();
+        document.addEventListener('change', function(event) {
+            if (event.target.classList.contains('product-select')) {
+                const price = event.target.options[event.target.selectedIndex]?.dataset?.price || 0;
+                event.target.closest('.product-item').querySelector('.unit-price-input').value = price;
+                calculateTotal();
+            }
         });
 
         // Update handlers
-        document.getElementById('quantity').addEventListener('input', calculateTotal);
-        document.getElementById('total_amount').addEventListener('input', calculateTotal);
+        document.addEventListener('input', function(event) {
+            if (event.target.classList.contains('quantity-input') || event.target.classList.contains('unit-price-input')) {
+                calculateTotal();
+            }
+        });
 
         // Form validation
         (() => {

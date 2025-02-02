@@ -11,6 +11,15 @@ if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
 $database = new Database();
 $db = $database->getConnection();
 
+// Initialize filter parameters
+$search = $_GET['search'] ?? '';
+$statusFilter = $_GET['status'] ?? '';
+$paymentStatusFilter = $_GET['payment_status'] ?? '';
+$paymentMethodFilter = $_GET['payment_method'] ?? '';
+$shippingMethodFilter = $_GET['shipping_method'] ?? '';
+$startDate = $_GET['start_date'] ?? '';
+$endDate = $_GET['end_date'] ?? '';
+
 // Get report data
 $reportData = [];
 
@@ -28,18 +37,17 @@ $reportData['sales_trends'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
 // 2. Product Performance
 $query = "SELECT 
             p.product_name,
-            SUM(o.quantity) AS total_units,
-            SUM(o.total_amount) AS total_revenue
-          FROM orders o
-          JOIN products p ON o.product_id = p.product_id
+            SUM(oi.quantity) AS total_units,
+            SUM(oi.subtotal) AS total_revenue
+          FROM order_items oi
+          JOIN products p ON oi.product_id = p.product_id
           GROUP BY p.product_name
           ORDER BY total_revenue DESC
           LIMIT 10";
 $stmt = $db->query($query);
 $reportData['top_products'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-
-// 3. Inventory Status (Corrected)
+// 3. Inventory Status
 $query = "SELECT 
             p.product_name,
             i.stock_quantity,
@@ -50,42 +58,41 @@ $query = "SELECT
 $stmt = $db->query($query);
 $reportData['low_stock'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-/// 4. Customer Metrics (Improved)
+// 4. Customer Metrics
 $query = "SELECT 
-COUNT(*) AS total_customers,
-AVG(co.order_count) AS avg_orders,
-MAX(co.order_count) AS max_orders
-FROM (
-SELECT u.id, COUNT(o.order_id) AS order_count
-FROM users u
-LEFT JOIN orders o ON u.id = o.id
-WHERE u.role = 'customer'
-GROUP BY u.id
-) AS co";
+            COUNT(*) AS total_customers,
+            AVG(co.order_count) AS avg_orders,
+            MAX(co.order_count) AS max_orders
+          FROM (
+            SELECT u.id, COUNT(o.order_id) AS order_count
+            FROM users u
+            LEFT JOIN orders o ON u.id = o.id
+            WHERE u.role = 'customer'
+            GROUP BY u.id
+          ) AS co";
 $stmt = $db->query($query);
 $reportData['customer_stats'] = $stmt->fetch(PDO::FETCH_ASSOC);
 
-// New Key Metrics & Insights
-// Total Revenue and Net Profit (excluding refunded and cancelled orders)
+// 5. Total Revenue and Net Profit
 $query = "SELECT 
             SUM(total_amount) AS total_revenue,
-            (SUM(total_amount)) AS net_profit
-          FROM orders
-          WHERE payment_status = 'Paid' AND status NOT IN ('Cancelled', 'Refunded')";
+            (SUM(total_amount) - SUM(expenses)) AS net_profit
+          FROM transactions
+          WHERE payment_status = 'Completed' AND transaction_type = 'Customer Payment'";
 $stmt = $db->query($query);
 $reportData['financials'] = $stmt->fetch(PDO::FETCH_ASSOC);
 
-// Revenue Growth % (compared to last month)
+// 6. Revenue Growth
 $query = "SELECT 
-            (SUM(IF(MONTH(order_date) = MONTH(NOW()), total_amount, 0)) - 
-             SUM(IF(MONTH(order_date) = MONTH(NOW()) - 1, total_amount, 0))) / 
-             SUM(IF(MONTH(order_date) = MONTH(NOW()) - 1, total_amount, 0)) * 100 AS revenue_growth
-          FROM orders
-          WHERE payment_status = 'Paid' AND status NOT IN ('Cancelled', 'Refunded')";
+            (SUM(IF(MONTH(transaction_date) = MONTH(NOW()), total_amount, 0)) - 
+             SUM(IF(MONTH(transaction_date) = MONTH(NOW()) - 1, total_amount, 0))) / 
+             SUM(IF(MONTH(transaction_date) = MONTH(NOW()) - 1, total_amount, 0)) * 100 AS revenue_growth
+          FROM transactions
+          WHERE payment_status = 'Completed' AND transaction_type = 'Customer Payment'";
 $stmt = $db->query($query);
 $reportData['revenue_growth'] = $stmt->fetch(PDO::FETCH_ASSOC)['revenue_growth'];
 
-// Peak Sales Hours
+// 7. Peak Sales Hours
 $query = "SELECT 
             HOUR(order_date) AS hour,
             COUNT(*) AS order_count
@@ -96,17 +103,44 @@ $query = "SELECT
 $stmt = $db->query($query);
 $reportData['peak_sales_hour'] = $stmt->fetch(PDO::FETCH_ASSOC);
 
-// Best-Performing Product Categories
+// 8. Best-Performing Product Categories
 $query = "SELECT 
             c.category_name,
-            SUM(o.total_amount) AS total_revenue
-          FROM orders o
-          JOIN products p ON o.product_id = p.product_id
+            SUM(oi.subtotal) AS total_revenue
+          FROM order_items oi
+          JOIN products p ON oi.product_id = p.product_id
           JOIN categories c ON p.category_id = c.category_id
           GROUP BY c.category_name
           ORDER BY total_revenue DESC";
 $stmt = $db->query($query);
 $reportData['top_categories'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// 9. Recent Transactions
+$query = "SELECT 
+            t.reference_id,
+            u.username AS customer,
+            t.total_amount,
+            t.transaction_date
+          FROM transactions t
+          JOIN users u ON t.user = u.id
+          WHERE t.transaction_type = 'Customer Payment'
+          ORDER BY t.transaction_date DESC
+          LIMIT 10";
+$stmt = $db->query($query);
+$reportData['recent_transactions'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// 10. Top Spending Customers
+$query = "SELECT 
+            u.username AS customer,
+            SUM(t.total_amount) AS total_spent
+          FROM transactions t
+          JOIN users u ON t.user = u.id
+          WHERE t.transaction_type = 'Customer Payment'
+          GROUP BY u.username
+          ORDER BY total_spent DESC
+          LIMIT 10";
+$stmt = $db->query($query);
+$reportData['top_customers'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 ?>
 <!DOCTYPE html>
@@ -139,24 +173,28 @@ $reportData['top_categories'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <h2 class="container mt-5">Analytics Dashboard</h2>
 
             <!-- Date Range Filter -->
-            <div class="row mb-4">
-                <div class="col-md-4">
-                    <select id="dateFilter" class="form-select">
-                        <option value="month">This Month</option>
-                        <option value="week">This Week</option>
-                        <option value="year">This Year</option>
-                        <option value="custom">Custom Date Range</option>
-                    </select>
-                </div>
-                <div class="col-md-6">
-                    <div class="input-group">
-                        <input type="text" id="dateRange" class="form-control" />
+            <form method="GET" action="reports.php" class="mb-4">
+                <div class="row g-3">
+
+                    <!-- Date Range -->
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <input type="date" name="start_date" class="form-control"
+                                value="<?= htmlspecialchars($startDate) ?>" placeholder="Start Date">
+                            <input type="date" name="end_date" class="form-control"
+                                value="<?= htmlspecialchars($endDate) ?>" placeholder="End Date">
+                        </div>
+                    </div>
+
+                    <!-- Submit and Reset Buttons -->
+                    <div class="col-md-2">
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary flex-grow-1">Filter</button>
+                            <a href="reports.php" class="btn btn-secondary">Reset</a>
+                        </div>
                     </div>
                 </div>
-                <div class="col-md-2">
-                    <button id="filterBtn" class="btn btn-primary">Apply Filter</button>
-                </div>
-            </div>
+            </form>
 
             <!-- Row 1: Key Metrics -->
             <div class="row mb-4">
@@ -323,14 +361,21 @@ $reportData['top_categories'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <table id="recentTransactionsTable" class="table">
                                 <thead>
                                     <tr>
-                                        <th>Order ID</th>
+                                        <th>Reference ID</th>
                                         <th>Customer</th>
                                         <th>Amount</th>
                                         <th>Date</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <!-- Populate with recent transactions data -->
+                                    <?php foreach ($reportData['recent_transactions'] as $transaction): ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars($transaction['reference_id']) ?></td>
+                                            <td><?= htmlspecialchars($transaction['customer']) ?></td>
+                                            <td>Ksh.<?= number_format($transaction['total_amount'], 2) ?></td>
+                                            <td><?= htmlspecialchars(date('Y-m-d H:i', strtotime($transaction['transaction_date']))) ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
                                 </tbody>
                             </table>
                         </div>
@@ -354,7 +399,12 @@ $reportData['top_categories'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <!-- Populate with top spending customers data -->
+                                    <?php foreach ($reportData['top_customers'] as $customer): ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars($customer['customer']) ?></td>
+                                            <td>Ksh.<?= number_format($customer['total_spent'], 2) ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
                                 </tbody>
                             </table>
                         </div>

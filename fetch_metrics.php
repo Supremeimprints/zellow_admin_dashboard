@@ -30,12 +30,16 @@ $stmt = $db->query($query);
 $metrics['low_stock_items'] = $stmt->fetch(PDO::FETCH_ASSOC)['low_stock_items'];
 
 // Avg Orders per Customer
-$query = "SELECT AVG(order_count) AS avg_orders_customer FROM (SELECT COUNT(*) AS order_count FROM orders GROUP BY user_id) AS subquery";
+$query = "SELECT AVG(order_count) AS avg_orders_customer FROM (SELECT COUNT(*) AS order_count FROM orders GROUP BY id) AS subquery";
 $stmt = $db->query($query);
 $metrics['avg_orders_customer'] = $stmt->fetch(PDO::FETCH_ASSOC)['avg_orders_customer'];
 
 // Total Revenue and Net Profit
-$query = "SELECT SUM(total_amount) AS total_revenue, SUM(total_amount) - SUM(expenses) AS net_profit FROM orders WHERE payment_status = 'Paid' AND order_status NOT IN ('Cancelled', 'Refunded')";
+$query = "SELECT 
+            SUM(total_amount) AS total_revenue, 
+            SUM(total_amount) - SUM(expenses) AS net_profit 
+          FROM transactions 
+          WHERE payment_status = 'Completed' AND transaction_type = 'Customer Payment'";
 $stmt = $db->query($query);
 $financials = $stmt->fetch(PDO::FETCH_ASSOC);
 $metrics['total_revenue'] = $financials['total_revenue'];
@@ -43,10 +47,11 @@ $metrics['net_profit'] = $financials['net_profit'];
 
 // Revenue Growth
 $query = "SELECT 
-            (SUM(IF(MONTH(order_date) = MONTH(NOW()), total_amount, 0)) - 
-             SUM(IF(MONTH(order_date) = MONTH(NOW()) - 1, total_amount, 0))) / 
-             SUM(IF(MONTH(order_date) = MONTH(NOW()) - 1, total_amount, 0)) * 100 AS revenue_growth
-          FROM orders WHERE payment_status = 'Paid' AND order_status NOT IN ('Cancelled', 'Refunded')";
+            (SUM(IF(MONTH(transaction_date) = MONTH(NOW()), total_amount, 0)) - 
+             SUM(IF(MONTH(transaction_date) = MONTH(NOW()) - 1, total_amount, 0))) / 
+             SUM(IF(MONTH(transaction_date) = MONTH(NOW()) - 1, total_amount, 0)) * 100 AS revenue_growth
+          FROM transactions 
+          WHERE payment_status = 'Completed' AND transaction_type = 'Customer Payment'";
 $stmt = $db->query($query);
 $metrics['revenue_growth'] = $stmt->fetch(PDO::FETCH_ASSOC)['revenue_growth'];
 

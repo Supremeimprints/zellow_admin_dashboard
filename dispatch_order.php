@@ -29,7 +29,14 @@ $order_id = $_GET['order_id'];
 
 // Fetch order details including payment status
 try {
-    $stmt = $db->prepare("SELECT * FROM orders WHERE order_id = :order_id");
+    $stmt = $db->prepare("SELECT o.*, 
+                                 GROUP_CONCAT(CONCAT(p.product_name, ' (', oi.quantity, ' x ', oi.unit_price, ')') SEPARATOR ', ') AS products, 
+                                 SUM(oi.subtotal) AS total_amount 
+                          FROM orders o
+                          JOIN order_items oi ON o.order_id = oi.order_id
+                          JOIN products p ON oi.product_id = p.product_id
+                          WHERE o.order_id = :order_id
+                          GROUP BY o.order_id");
     $stmt->bindParam(':order_id', $order_id, PDO::PARAM_INT);
     $stmt->execute();
     $order = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -47,24 +54,35 @@ try {
     }
 
     // Check inventory levels
-    $inventoryStmt = $db->prepare("SELECT stock_quantity FROM inventory WHERE product_id = :product_id");
-    $inventoryStmt->bindParam(':product_id', $order['product_id']);
+    $inventoryStmt = $db->prepare("SELECT product_id, stock_quantity FROM inventory WHERE product_id IN (SELECT product_id FROM order_items WHERE order_id = :order_id)");
+    $inventoryStmt->bindParam(':order_id', $order_id);
     $inventoryStmt->execute();
-    $inventory = $inventoryStmt->fetch(PDO::FETCH_ASSOC);
+    $inventory = $inventoryStmt->fetchAll(PDO::FETCH_ASSOC);
 
-    if ($inventory['stock_quantity'] < $order['quantity']) {
-        // Add notification to notifications.php
-        $notificationStmt = $db->prepare("INSERT INTO notifications (message, type) VALUES (:message, 'warning')");
-        $message = "Product " . $order['product_name'] . " is out of stock.";
-        $notificationStmt->bindParam(':message', $message);
-        $notificationStmt->execute();
+    foreach ($inventory as $item) {
+        $productId = $item['product_id'];
+        $stockQuantity = $item['stock_quantity'];
 
-        // Redirect to dispatch.php with alert
-        echo "<script>
-            alert('Insufficient inventory for product: " . $order['product_name'] . ". Redirecting to inventory page.');
-            window.location.href = 'inventory.php';
-        </script>";
-        exit();
+        $orderItemStmt = $db->prepare("SELECT quantity FROM order_items WHERE order_id = :order_id AND product_id = :product_id");
+        $orderItemStmt->bindParam(':order_id', $order_id);
+        $orderItemStmt->bindParam(':product_id', $productId);
+        $orderItemStmt->execute();
+        $orderItem = $orderItemStmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($stockQuantity < $orderItem['quantity']) {
+            // Add notification to notifications.php
+            $notificationStmt = $db->prepare("INSERT INTO notifications (message, type) VALUES (:message, 'warning')");
+            $message = "Product " . $order['product_name'] . " is out of stock.";
+            $notificationStmt->bindParam(':message', $message);
+            $notificationStmt->execute();
+
+            // Redirect to dispatch.php with alert
+            echo "<script>
+                alert('Insufficient inventory for product: " . $order['product_name'] . ". Redirecting to inventory page.');
+                window.location.href = 'inventory.php';
+            </script>";
+            exit();
+        }
     }
 
 } catch (Exception $e) {
@@ -132,10 +150,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([':driver_id' => $driver_id]);
 
             // Update inventory
-            $updateInventoryStmt = $db->prepare("UPDATE inventory SET stock_quantity = stock_quantity - :quantity WHERE product_id = :product_id");
-            $updateInventoryStmt->bindParam(':quantity', $order['quantity']);
-            $updateInventoryStmt->bindParam(':product_id', $order['product_id']);
-            $updateInventoryStmt->execute();
+            foreach ($inventory as $item) {
+                $productId = $item['product_id'];
+                $orderItemStmt = $db->prepare("SELECT quantity FROM order_items WHERE order_id = :order_id AND product_id = :product_id");
+                $orderItemStmt->bindParam(':order_id', $order_id);
+                $orderItemStmt->bindParam(':product_id', $productId);
+                $orderItemStmt->execute();
+                $orderItem = $orderItemStmt->fetch(PDO::FETCH_ASSOC);
+
+                $updateInventoryStmt = $db->prepare("UPDATE inventory SET stock_quantity = stock_quantity - :quantity WHERE product_id = :product_id");
+                $updateInventoryStmt->bindParam(':quantity', $orderItem['quantity']);
+                $updateInventoryStmt->bindParam(':product_id', $productId);
+                $updateInventoryStmt->execute();
+            }
 
             $db->commit();
             $_SESSION['success'] = "Order #$order_id has been dispatched successfully!";

@@ -54,6 +54,11 @@ switch ($table) {
 $stmt = $db->query($query);
 $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+if (empty($data)) {
+    echo "No data available for export.";
+    exit();
+}
+
 if ($format === 'csv') {
     header('Content-Type: text/csv');
     header('Content-Disposition: attachment;filename="export.csv"');

@@ -30,13 +30,16 @@ $errorMessage = '';
 $successMessage = '';
 
 // Build query with enhanced filters for dispatch page
-$query = "SELECT o.order_id, u.username, o.quantity, p.product_name, p.price, (o.quantity * p.price) AS product, total_amount, 
-          o.status, o.payment_status, o.payment_method, o.shipping_method, o.tracking_number, o.shipping_address, o.order_date 
+$query = "SELECT o.order_id, u.username, o.status, o.payment_status, o.payment_method, 
+          o.shipping_method, o.tracking_number, o.shipping_address, o.order_date, 
+          GROUP_CONCAT(CONCAT(p.product_name, ' (', oi.quantity, ' x ', oi.unit_price, ')') SEPARATOR ', ') AS products, 
+          SUM(oi.subtotal) AS total_amount 
           FROM orders o 
           JOIN users u ON o.id = u.id 
-          JOIN products p ON o.product_id = p.product_id 
-          WHERE 1 AND (o.status = 'Pending' OR o.status = 'Processing')
-          AND (o.payment_status = 'Paid' OR o.payment_status = 'Pending')"; // Assuming "Pending" status is relevant for dispatch orders
+          JOIN order_items oi ON o.order_id = oi.order_id 
+          JOIN products p ON oi.product_id = p.product_id 
+          WHERE (o.status = 'Pending' OR o.status = 'Processing') 
+          AND (o.payment_status = 'Paid' OR o.payment_status = 'Pending')";
 
 // Add filters to query
 if ($statusFilter) {
@@ -66,7 +69,7 @@ if ($search) {
               OR o.tracking_number LIKE :search)";
 }
 
-$query .= " ORDER BY o.order_date DESC";
+$query .= " GROUP BY o.order_id ORDER BY o.order_date DESC";
 
 
 try {
@@ -261,9 +264,7 @@ foreach ($statuses as $status) {
                     <tr>
                         <th>Order ID</th>
                         <th>Username</th>
-                        <th>Product</th>
-                        <th>Quantity</th>
-                        <th>Price</th>
+                        <th>Products</th>
                         <th>Total Amount</th>
                         <th>Status</th>
                         <th>Payment Status</th>
@@ -283,9 +284,7 @@ foreach ($statuses as $status) {
                             <tr>
                                 <td>#<?php echo htmlspecialchars($order['order_id']); ?></td>
                                 <td><?php echo htmlspecialchars($order['username']); ?></td>
-                                <td><?php echo htmlspecialchars($order['product_name']); ?></td>
-                                <td><?php echo htmlspecialchars($order['quantity']); ?></td>
-                                <td>Ksh.<?php echo htmlspecialchars(number_format($order['price'], 2)); ?></td>
+                                <td><?php echo htmlspecialchars($order['products']); ?></td>
                                 <td>Ksh.<?php echo htmlspecialchars(number_format($order['total_amount'], 2)); ?></td>
                                 <td>
                                     <span class="badge bg-<?php echo getStatusColor($order['status']); ?>">
