@@ -98,7 +98,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Product - Zellow Enterprises</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        body {
+            font-family: 'Montserrat', sans-serif;
+        }
         .image-preview {
             width: 150px;
             height: 150px;
@@ -110,6 +114,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             height: 100%;
             object-fit: cover;
             border-radius: 8px;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 600;
+        }
+        .form-label {
+            font-weight: 500;
         }
         .remove-image {
             position: absolute;
@@ -131,37 +142,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             justify-content: center;
             cursor: pointer;
         }
+        .upload-placeholder.main-image {
+            width: 200px;
+            height: 200px;
+        }
+        .image-preview.main-image {
+            width: 200px;
+            height: 200px;
+        }
     </style>
 </head>
 <body>
 
 <?php include 'includes/nav/collapsed.php'; ?>
+<?php include 'includes/theme.php'; ?>
 
-<div class="container mt-4">
-    <h1>Edit Product</h1>
+<div class="container mt-5">
+    <h2>Edit Product</h2>
+    
     <form method="POST" enctype="multipart/form-data">
         <div class="row mb-4">
             <div class="col-12">
                 <label class="form-label">Media</label>
-                <div class="d-flex gap-3">
+                <div class="d-flex gap-3 align-items-start">
                     <!-- Main Image -->
                     <div>
                         <input type="file" id="main_image" name="main_image" class="d-none" accept="image/*">
                         <?php if (!empty($product['main_image'])): ?>
-                            <div class="image-preview">
+                            <div class="image-preview main-image">
                                 <img src="<?= htmlspecialchars($product['main_image']); ?>" alt="Main Image">
                                 <button type="button" class="remove-image" onclick="removeImage('main_image')">×</button>
                             </div>
                         <?php else: ?>
-                            <div class="upload-placeholder" onclick="document.getElementById('main_image').click()">
-                                <span>+ Add Image</span>
+                            <div class="upload-placeholder main-image" onclick="document.getElementById('main_image').click()">
+                                <span>+ Add Main Image</span>
                             </div>
                         <?php endif; ?>
                     </div>
 
                     <!-- Variant Image 1 -->
                     <div>
-                        <input type="file" id="variant_image_1" name="variant_image_1" class="d-none" accept="image/*">
+                        <input type="file" id="variant_image_1" name="variant_images[]" class="d-none" accept="image/*">
                         <?php if (!empty($product['variant_image_1'])): ?>
                             <div class="image-preview">
                                 <img src="<?= htmlspecialchars($product['variant_image_1']); ?>" alt="Variant Image 1">
@@ -176,7 +197,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <!-- Variant Image 2 -->
                     <div>
-                        <input type="file" id="variant_image_2" name="variant_image_2" class="d-none" accept="image/*">
+                        <input type="file" id="variant_image_2" name="variant_images[]" class="d-none" accept="image/*">
                         <?php if (!empty($product['variant_image_2'])): ?>
                             <div class="image-preview">
                                 <img src="<?= htmlspecialchars($product['variant_image_2']); ?>" alt="Variant Image 2">
@@ -191,18 +212,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
         </div>
+
         <div class="mb-3">
             <label for="product_name" class="form-label">Product Name</label>
             <input type="text" class="form-control" id="product_name" name="product_name" value="<?= htmlspecialchars($product['product_name']); ?>" required>
         </div>
+
         <div class="mb-3">
             <label for="description" class="form-label">Description</label>
             <textarea class="form-control" id="description" name="description" rows="3" required><?= htmlspecialchars($product['description']); ?></textarea>
         </div>
+
         <div class="mb-3">
             <label for="price" class="form-label">Price</label>
-            <input type="number" class="form-control" id="price" name="price" value="<?= htmlspecialchars($product['price']); ?>" required>
+            <input type="number" class="form-control" id="price" name="price" step="0.01" value="<?= htmlspecialchars($product['price']); ?>" required>
         </div>
+
         <div class="mb-3">
             <label for="category_id" class="form-label">Category</label>
             <select class="form-select" id="category_id" name="category_id" required>
@@ -214,25 +239,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php endforeach; ?>
             </select>
         </div>
+
         <div class="mb-3 form-check">
             <input type="checkbox" class="form-check-input" id="is_active" name="is_active" <?= $product['is_active'] ? 'checked' : ''; ?>>
             <label class="form-check-label" for="is_active">Active</label>
         </div>
-        <button type="submit" class="btn btn-primary">Save Changes</button>
-        <a href="products.php" class="btn btn-secondary">Cancel</a>
+
+        <div class="d-flex justify-content-between">
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <a href="products.php" class="btn btn-danger">Cancel</a>
+        </div>
     </form>
 </div>
-<script>
-function removeImage(inputId) {
-    document.getElementById(inputId).value = '';
-    const preview = event.target.closest('.image-preview');
-    const placeholder = document.createElement('div');
-    placeholder.className = 'upload-placeholder';
-    placeholder.innerHTML = '<span>+ Add Image</span>';
-    placeholder.onclick = () => document.getElementById(inputId).click();
-    preview.parentNode.replaceChild(placeholder, preview);
-}
 
+<script>
 // Preview image before upload
 document.querySelectorAll('input[type="file"]').forEach(input => {
     input.addEventListener('change', function(e) {
@@ -240,12 +260,13 @@ document.querySelectorAll('input[type="file"]').forEach(input => {
             const reader = new FileReader();
             reader.onload = function(e) {
                 const preview = document.createElement('div');
-                preview.className = 'image-preview';
+                preview.className = input.id === 'main_image' ? 'image-preview main-image' : 'image-preview';
                 preview.innerHTML = `
                     <img src="${e.target.result}" alt="Preview">
                     <button type="button" class="remove-image" onclick="removeImage('${input.id}')">×</button>
                 `;
-                const placeholder = input.parentNode.querySelector('.upload-placeholder');
+                const placeholder = input.parentNode.querySelector('.upload-placeholder') || 
+                                  input.parentNode.querySelector('.image-preview');
                 if (placeholder) {
                     placeholder.parentNode.replaceChild(preview, placeholder);
                 }
@@ -254,7 +275,18 @@ document.querySelectorAll('input[type="file"]').forEach(input => {
         }
     });
 });
+
+function removeImage(inputId) {
+    document.getElementById(inputId).value = '';
+    const preview = event.target.closest('.image-preview');
+    const placeholder = document.createElement('div');
+    placeholder.className = inputId === 'main_image' ? 'upload-placeholder main-image' : 'upload-placeholder';
+    placeholder.innerHTML = '<span>+ Add Image</span>';
+    placeholder.onclick = () => document.getElementById(inputId).click();
+    preview.parentNode.replaceChild(placeholder, preview);
+}
 </script>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 <?php include 'includes/nav/footer.php'; ?>

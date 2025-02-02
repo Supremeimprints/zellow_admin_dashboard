@@ -146,20 +146,35 @@ $orderStmt->execute([
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create Order</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        body {
+            font-family: 'Montserrat', sans-serif;
+        }
         .form-section {
             background: #f8f9fa;
             border-radius: 8px;
             padding: 20px;
             margin-bottom: 25px;
         }
+        h2, h4 {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 600;
+        }
+        .form-label {
+            font-weight: 500;
+        }
+        .form-control, .form-select {
+            font-family: 'Montserrat', sans-serif;
+        }
     </style>
 </head>
 <body>
 <?php include 'includes/nav/collapsed.php'; ?>
+<?php include 'includes/theme.php'; ?>
 
     <div class="container mt-5">
-        <h2 class="mb-4">Create New Order</h2>
+        <h2>Create New Order</h2>
         
         <?php if ($error): ?>
             <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>

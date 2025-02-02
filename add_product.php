@@ -91,7 +91,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Add Product - Zellow Enterprises</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        body {
+            font-family: 'Montserrat', sans-serif;
+        }
         .image-preview {
             width: 150px;
             height: 150px;
@@ -103,6 +107,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             height: 100%;
             object-fit: cover;
             border-radius: 8px;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 600;
+        }
+        .form-label {
+            font-weight: 500;
         }
         .remove-image {
             position: absolute;
@@ -124,25 +135,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             justify-content: center;
             cursor: pointer;
         }
+        .upload-placeholder.main-image {
+            width: 200px;
+            height: 200px;
+        }
+        .image-preview.main-image {
+            width: 200px;
+            height: 200px;
+        }
     </style>
 </head>
 <body>
 
 <?php include 'includes/nav/collapsed.php'; ?>
+<?php include 'includes/theme.php'; ?>
 
-<div class="container mt-4">
-    <h1>Add Product</h1>
+<div class="container mt-5">
+    <h2>Add Product</h2>
     
     <form method="POST" enctype="multipart/form-data">
         <div class="row mb-4">
             <div class="col-12">
                 <label class="form-label">Media</label>
-                <div class="d-flex gap-3">
+                <div class="d-flex gap-3 align-items-start">
                     <!-- Main Image -->
                     <div>
                         <input type="file" id="main_image" name="main_image" class="d-none" accept="image/*">
-                        <div class="upload-placeholder" onclick="document.getElementById('main_image').click()">
-                            <span>+ Add Image</span>
+                        <div class="upload-placeholder main-image" onclick="document.getElementById('main_image').click()">
+                            <span>+ Add Main Image</span>
                         </div>
                     </div>
 
@@ -197,8 +217,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <label class="form-check-label" for="is_active">Active</label>
         </div>
 
-        <button type="submit" class="btn btn-primary">Add Product</button>
-        <a href="products.php" class="btn btn-secondary">Cancel</a>
+        <div class="d-flex justify-content-between">
+            <button type="submit" class="btn btn-primary">Add Product</button>
+            <a href="products.php" class="btn btn-danger">Cancel</a>
+        </div>
     </form>
 </div>
 
@@ -210,7 +232,7 @@ document.querySelectorAll('input[type="file"]').forEach(input => {
             const reader = new FileReader();
             reader.onload = function(e) {
                 const preview = document.createElement('div');
-                preview.className = 'image-preview';
+                preview.className = input.id === 'main_image' ? 'image-preview main-image' : 'image-preview';
                 preview.innerHTML = `
                     <img src="${e.target.result}" alt="Preview">
                     <button type="button" class="remove-image" onclick="removeImage('${input.id}')">×</button>

@@ -1,0 +1,11 @@
+ErrorDocument 404 /zellow_admin/404.php
+
+RewriteEngine On
+RewriteBase /zellow_admin/
+
+# If the request is not for a valid file or directory
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Redirect to 404 page
+RewriteRule ^ 404.php [L]

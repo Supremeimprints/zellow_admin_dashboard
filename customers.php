@@ -70,12 +70,30 @@ if (isset($_GET['delete']) && isset($_GET['source_table'])) {
     <title>Manage Customers</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="assets/css/customers.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', 'Segoe UI', sans-serif;
+        }
+        h2 {
+            font-family: 'Poppins', 'Segoe UI', sans-serif;
+            font-weight: 600;
+        }
+        .table {
+            font-family: 'Poppins', 'Segoe UI', sans-serif;
+        }
+        .table thead th {
+            font-weight: 600;
+        }
+    </style>
 </head>
 
 <body>
     <?php include 'includes/nav/collapsed.php'; ?>
-    <div class="container mt-4">
-        <h1>Manage Customers</h1>
+    <!-- Theme CSS -->
+    <?php include 'includes/theme.php'; ?>
+    
+    <div class="container mt-5">
+        <h2>Manage Customers</h2>
 
         <table class="table table-striped">
             <thead>
@@ -85,7 +103,8 @@ if (isset($_GET['delete']) && isset($_GET['source_table'])) {
                     <th>Email</th>
                     <th>Status</th>
                     <th>Registered At</th>
-                    <th>Actions</th>
+                    <th class="text-end">Actions</th>
+                    
                 </tr>
             </thead>
             <tbody>
@@ -95,14 +114,14 @@ if (isset($_GET['delete']) && isset($_GET['source_table'])) {
                         <td><?php echo htmlspecialchars($customer['username']); ?></td>
                         <td><?php echo htmlspecialchars($customer['email']); ?></td>
                         <td>
-                            <span class="status-badge <?php echo $customer['is_active'] ? 'active' : 'inactive'; ?>">
+                            <span class="badge bg-<?php echo $customer['is_active'] ? 'success' : 'danger'; ?>">
                                 <?php echo $customer['is_active'] ? 'Active' : 'Inactive'; ?>
                             </span>
                         </td>
                         <td><?php echo htmlspecialchars($customer['created_at']); ?></td>
-                        <td>
+                        <td class="text-end pe-4">
                             <a href="customers.php?toggle_status=<?php echo $customer['id']; ?>&source_table=<?php echo $customer['source_table']; ?>"
-                                class="btn btn-sm btn-warning">
+                                class="btn btn-sm btn-warning me-2">
                                 <?php echo $customer['is_active'] ? 'Deactivate' : 'Activate'; ?>
                             </a>
                             <a href="customers.php?delete=<?php echo $customer['id']; ?>&source_table=<?php echo $customer['source_table']; ?>"

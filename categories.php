@@ -78,8 +78,6 @@ if (isset($_GET['delete_id'])) {
 }
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -87,64 +85,65 @@ if (isset($_GET['delete_id'])) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="assets/css/categories.css" rel="stylesheet">
 </head>
+
 <body>
+    <!-- Navigation Bar -->
+    <?php include 'includes/nav/collapsed.php'; ?>
+    <!-- Theme CSS -->
+    <?php include 'includes/theme.php'; ?>
 
-<!-- Navigation Bar -->
-<?php include 'includes/nav/collapsed.php'; ?>
+    <div class="container mt-5">
+        <h2>Manage Categories</h2>
 
+        <!-- Display Messages -->
+        <?php if (isset($_SESSION['success'])): ?>
+            <div class="alert alert-success"><?= $_SESSION['success']; unset($_SESSION['success']); ?></div>
+        <?php endif; ?>
+        <?php if (isset($_SESSION['error'])): ?>
+            <div class="alert alert-danger"><?= $_SESSION['error']; unset($_SESSION['error']); ?></div>
+        <?php endif; ?>
 
-<div class="container mt-4">
-    <h1>Manage Categories</h1>
-
-    <!-- Display Messages -->
-    <?php if (isset($_SESSION['success'])): ?>
-        <div class="alert alert-success"><?= $_SESSION['success']; unset($_SESSION['success']); ?></div>
-    <?php endif; ?>
-    <?php if (isset($_SESSION['error'])): ?>
-        <div class="alert alert-danger"><?= $_SESSION['error']; unset($_SESSION['error']); ?></div>
-    <?php endif; ?>
-
-    <!-- Add Category Form -->
-    <form action="categories.php" method="POST" class="mb-4">
-        <div class="row">
-            <div class="col-md-8">
-                <input type="text" name="category_name" class="form-control" placeholder="Enter new category name" required>
+        <!-- Add Category Form -->
+        <form action="categories.php" method="POST" class="mb-4">
+            <div class="row">
+                <div class="col-md-8">
+                    <input type="text" name="category_name" class="form-control" placeholder="Enter new category name" required>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" name="add_category" class="btn btn-primary w-100">Add Category</button>
+                </div>
             </div>
-            <div class="col-md-4">
-                <button type="submit" name="add_category" class="btn btn-primary w-100">Add Category</button>
-            </div>
-        </div>
-    </form>
+        </form>
 
-    <!-- Categories Table -->
-    <table class="table table-striped table-hover">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Category Name</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php foreach ($categories as $category): ?>
+        <!-- Categories Table -->
+        <table class="table table-striped table-hover">
+            <thead>
                 <tr>
-                    <td><?= htmlspecialchars($category['category_id']); ?></td>
-                    <td><?= htmlspecialchars($category['category_name']); ?></td>
-                    <td>
-                        <a href="edit_category.php?id=<?= $category['category_id']; ?>" class="btn btn-warning btn-sm">Edit</a>
-                        <a href="categories.php?delete_id=<?= $category['category_id']; ?>" 
-                           class="btn btn-danger btn-sm"
-                           onclick="return confirm('Are you sure you want to delete this category?');">
-                           Delete
-                        </a>
-                    </td>
+                    <th>ID</th>
+                    <th>Category Name</th>
+                    <th>Actions</th>
                 </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
-</div>
+            </thead>
+            <tbody>
+                <?php foreach ($categories as $category): ?>
+                    <tr>
+                        <td><?= htmlspecialchars($category['category_id']); ?></td>
+                        <td><?= htmlspecialchars($category['category_name']); ?></td>
+                        <td>
+                            <a href="edit_category.php?id=<?= $category['category_id']; ?>" class="btn btn-warning btn-sm">Edit</a>
+                            <a href="categories.php?delete_id=<?= $category['category_id']; ?>" 
+                               class="btn btn-danger btn-sm"
+                               onclick="return confirm('Are you sure you want to delete this category?');">
+                               Delete
+                            </a>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 <?php include 'includes/nav/footer.php'; ?>
 </html>

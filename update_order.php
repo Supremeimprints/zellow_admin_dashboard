@@ -101,8 +101,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body>
 <?php include 'includes/nav/collapsed.php'; ?>
+<?php include 'includes/theme.php'; ?>
+
     <div class="container mt-5">
-        <h2>Update Order #<?= htmlspecialchars($orderId) ?></h2>
+        <div class="alert alert-primary" role="alert">
+            <h4 class="mb-0">Update Order #<?= htmlspecialchars($orderId) ?></h4>
+        </div>
         
         <?php if ($error): ?>
             <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
@@ -181,9 +185,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
 
-            <div class="mt-4">
+            <div class="d-flex justify-content-between mt-4">
                 <button type="submit" class="btn btn-primary">Update Order</button>
-                <button type="button" onclick="window.history.back()" class="btn btn-secondary ms-2">Cancel</button>
+                <button type="button" onclick="window.history.back()" class="btn btn-danger">Cancel</button>
             </div>
         </form>
     </div>

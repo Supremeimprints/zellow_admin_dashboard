@@ -72,9 +72,12 @@ if (isset($_GET['id'])) {
 </head>
 <body>
 <?php include 'includes/nav/collapsed.php'; ?>
+<?php include 'includes/theme.php'; ?>
 
     <div class="container mt-5">
-        <h2>Update Inventory</h2>
+        <div class="alert alert-primary" role="alert">
+            <h4 class="mb-0">Update Inventory</h4>
+        </div>
 
         <?php if (isset($errorMessage)): ?>
             <div class="alert alert-danger" role="alert">
@@ -103,7 +106,10 @@ if (isset($_GET['id'])) {
                 <label for="min_stock_level" class="form-label">Min Stock Level</label>
                 <input type="number" class="form-control" id="min_stock_level" name="min_stock_level" value="<?php echo htmlspecialchars($item['min_stock_level']); ?>" required>
             </div>
-            <button type="submit" name="update_inventory" class="btn btn-primary">Update Inventory</button>
+            <div class="d-flex justify-content-between">
+                <button type="submit" name="update_inventory" class="btn btn-primary">Update Inventory</button>
+                <a href="inventory.php" class="btn btn-danger">Cancel</a>
+            </div>
         </form>
     </div>
 

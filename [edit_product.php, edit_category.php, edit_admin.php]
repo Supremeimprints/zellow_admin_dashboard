@@ -1,0 +1,31 @@
+// In the <style> section of each file, update the .form-section class:
+
+<style>
+    // ...existing code...
+    .form-section {
+        background: var(--bs-body-bg);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 25px;
+    }
+    .form-control, .form-select {
+        background-color: var(--bs-body-bg);
+        border-color: var(--bs-border-color);
+        color: var(--bs-body-color);
+    }
+    .form-control:focus, .form-select:focus {
+        background-color: var(--bs-body-bg);
+        border-color: var(--bs-primary);
+        color: var(--bs-body-color);
+    }
+    .form-check-input {
+        background-color: var(--bs-body-bg);
+        border-color: var(--bs-border-color);
+    }
+    .form-check-input:checked {
+        background-color: var(--bs-primary);
+        border-color: var(--bs-primary);
+    }
+    // ...existing code...
+</style>

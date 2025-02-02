@@ -101,77 +101,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Update Vehicle Information</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="assets/css/dispatch.css" rel="stylesheet">
 </head>
 <body>
     <?php include 'includes/nav/collapsed.php'; ?>
+    <?php include 'includes/theme.php'; ?>
     
     <div class="container mt-5">
-        <div class="row justify-content-center">
-            <div class="col-md-8">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-primary text-white">
-                        <h4 class="card-title mb-0">Update Vehicle Information</h4>
-                    </div>
-                    <div class="card-body">
-                        <?php if ($errorMsg): ?>
-                            <div class="alert alert-danger"><?= htmlspecialchars($errorMsg) ?></div>
-                        <?php endif; ?>
+        <div class="alert alert-primary" role="alert">
+            <h4 class="mb-0">Update Vehicle Information: <?= htmlspecialchars($driver['name'] ?? '') ?></h4>
+        </div>
+        
+        <?php if ($errorMsg): ?>
+            <div class="alert alert-danger"><?= htmlspecialchars($errorMsg) ?></div>
+        <?php endif; ?>
+        
+        <?php if ($successMsg): ?>
+            <div class="alert alert-success"><?= htmlspecialchars($successMsg) ?></div>
+        <?php endif; ?>
+        
+        <form method="POST">
+            <input type="hidden" name="driver_id" value="<?= htmlspecialchars($driver_id) ?>">
+            
+            <div class="card mb-4">
+                <div class="card-header">Vehicle Information</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="vehicle_type" class="form-label">Vehicle Type</label>
+                            <select class="form-select" name="vehicle_type" id="vehicle_type" required>
+                                <option value="">Select Vehicle Type</option>
+                                <option value="Car" <?= ($vehicle['vehicle_type'] ?? '') === 'Car' ? 'selected' : '' ?>>Car</option>
+                                <option value="Motorcycle" <?= ($vehicle['vehicle_type'] ?? '') === 'Motorcycle' ? 'selected' : '' ?>>Motorcycle</option>
+                                <option value="Van" <?= ($vehicle['vehicle_type'] ?? '') === 'Van' ? 'selected' : '' ?>>Van</option>
+                                <option value="Truck" <?= ($vehicle['vehicle_type'] ?? '') === 'Truck' ? 'selected' : '' ?>>Truck</option>
+                            </select>
+                        </div>
                         
-                        <?php if ($successMsg): ?>
-                            <div class="alert alert-success"><?= htmlspecialchars($successMsg) ?></div>
-                        <?php endif; ?>
+                        <div class="col-md-6">
+                            <label for="vehicle_model" class="form-label">Vehicle Model</label>
+                            <input type="text" class="form-control" name="vehicle_model" id="vehicle_model"
+                                value="<?= htmlspecialchars($vehicle['vehicle_model'] ?? '') ?>" required>
+                        </div>
                         
-                        <form method="POST" action="update_vehicle.php">
-                            <input type="hidden" name="driver_id" value="<?= htmlspecialchars($driver_id) ?>">
-                            
-                            <?php if (isset($driver['name'])): ?>
-                                <div class="alert alert-info">
-                                    Updating vehicle for driver: <?= htmlspecialchars($driver['name']) ?>
-                                </div>
-                            <?php endif; ?>
-                            
-                            <div class="mb-3">
-                                <label for="vehicle_type" class="form-label">Vehicle Type</label>
-                                <select class="form-select" name="vehicle_type" id="vehicle_type" required>
-                                    <option value="">Select Vehicle Type</option>
-                                    <option value="Car" <?= ($vehicle['vehicle_type'] ?? '') === 'Car' ? 'selected' : '' ?>>Car</option>
-                                    <option value="Motorcycle" <?= ($vehicle['vehicle_type'] ?? '') === 'Motorcycle' ? 'selected' : '' ?>>Motorcycle</option>
-                                    <option value="Van" <?= ($vehicle['vehicle_type'] ?? '') === 'Van' ? 'selected' : '' ?>>Van</option>
-                                    <option value="Truck" <?= ($vehicle['vehicle_type'] ?? '') === 'Truck' ? 'selected' : '' ?>>Truck</option>
-                                </select>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="vehicle_model" class="form-label">Vehicle Model</label>
-                                <input type="text" class="form-control" name="vehicle_model" id="vehicle_model"
-                                    value="<?= htmlspecialchars($vehicle['vehicle_model'] ?? '') ?>" required>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="registration" class="form-label">Registration Number</label>
-                                <input type="text" class="form-control" name="registration" id="registration"
-                                    value="<?= htmlspecialchars($vehicle['registration_number'] ?? '') ?>" required>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="vehicle_status" class="form-label">Vehicle Status</label>
-                                <select class="form-select" name="vehicle_status" id="vehicle_status" required>
-                                    <option value="">Select Status</option>
-                                    <option value="Available" <?= ($vehicle['vehicle_status'] ?? '') === 'Available' ? 'selected' : '' ?>>Available</option>
-                                    <option value="In Use" <?= ($vehicle['vehicle_status'] ?? '') === 'In Use' ? 'selected' : '' ?>>In Use</option>
-                                    <option value="Under Maintenance" <?= ($vehicle['vehicle_status'] ?? '') === 'Under Maintenance' ? 'selected' : '' ?>>Under Maintenance</option>
-                                </select>
-                            </div>
-                            
-                            <div class="d-flex justify-content-between">
-                                <a href="dispatch.php" class="btn btn-secondary">Cancel</a>
-                                <button type="submit" class="btn btn-primary">Update Vehicle</button>
-                            </div>
-                        </form>
+                        <div class="col-md-6">
+                            <label for="registration" class="form-label">Registration Number</label>
+                            <input type="text" class="form-control" name="registration" id="registration"
+                                value="<?= htmlspecialchars($vehicle['registration_number'] ?? '') ?>" required>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="vehicle_status" class="form-label">Vehicle Status</label>
+                            <select class="form-select" name="vehicle_status" id="vehicle_status" required>
+                                <option value="">Select Status</option>
+                                <option value="Available" <?= ($vehicle['vehicle_status'] ?? '') === 'Available' ? 'selected' : '' ?>>Available</option>
+                                <option value="In Use" <?= ($vehicle['vehicle_status'] ?? '') === 'In Use' ? 'selected' : '' ?>>In Use</option>
+                                <option value="Under Maintenance" <?= ($vehicle['vehicle_status'] ?? '') === 'Under Maintenance' ? 'selected' : '' ?>>Under Maintenance</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+            
+            <div class="d-flex justify-content-between">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <a href="dispatch.php" class="btn btn-danger">Cancel</a>
+            </div>
+        </form>
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

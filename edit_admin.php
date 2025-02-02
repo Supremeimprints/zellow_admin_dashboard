@@ -91,56 +91,91 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Montserrat', sans-serif;
+        }
+        .form-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        h2, h4 {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 600;
+        }
+        .form-label {
+            font-weight: 500;
+        }
+        .form-control, .form-select {
+            font-family: 'Montserrat', sans-serif;
+        }
+    </style>
 </head>
 <body>
 <?php include 'includes/nav/collapsed.php'; ?>
+<?php include 'includes/theme.php'; ?>
 <div class="container mt-5">
-    <h2>Edit Admin</h2>
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <h2>Edit Admin</h2>
 
-    <?php if (isset($error)): ?>
-        <div class="alert alert-danger">
-            <?php echo htmlspecialchars($error); ?>
+            <?php if (isset($error)): ?>
+                <div class="alert alert-danger">
+                    <?php echo htmlspecialchars($error); ?>
+                </div>
+            <?php endif; ?>
+
+            <form method="POST" action="">
+                <div class="form-section">
+                    <h4 class="mb-3"><i class="bi bi-person-badge"></i> Admin Information</h4>
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" name="username" value="<?php echo htmlspecialchars($admin['username']); ?>" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email" value="<?php echo htmlspecialchars($admin['email']); ?>" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Role</label>
+                        <select class="form-select" id="role" name="role" required>
+                            <option value="admin" <?php echo $admin['role'] === 'admin' ? 'selected' : ''; ?>>Admin</option>
+                            <option value="finance_manager" <?php echo $admin['role'] === 'finance_manager' ? 'selected' : ''; ?>>Finance Manager</option>
+                            <option value="supply_manager" <?php echo $admin['role'] === 'supply_manager' ? 'selected' : ''; ?>>Supply Manager</option>
+                            <option value="inventory_manager" <?php echo $admin['role'] === 'inventory_manager' ? 'selected' : ''; ?>>Inventory Manager</option>
+                            <option value="dispatch_manager" <?php echo $admin['role'] === 'dispatch_manager' ? 'selected' : ''; ?>>Dispatch Manager</option>
+                            <option value="service_manager" <?php echo $admin['role'] === 'service_manager' ? 'selected' : ''; ?>>Service Manager</option>
+                        </select>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active" <?php echo $admin['is_active'] ? 'checked' : ''; ?>>
+                        <label class="form-check-label" for="is_active">
+                            Active
+                        </label>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password (Leave blank to keep current)</label>
+                        <input type="password" class="form-control" id="password" name="password">
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-save"></i> Save Changes
+                    </button>
+                    <a href="admins.php" class="btn btn-danger btn-lg">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </a>
+                </div>
+            </form>
         </div>
-    <?php endif; ?>
-
-    <form method="POST" action="">
-        <div class="mb-3">
-            <label for="username" class="form-label">Username</label>
-            <input type="text" class="form-control" id="username" name="username" value="<?php echo htmlspecialchars($admin['username']); ?>" required>
-        </div>
-
-        <div class="mb-3">
-            <label for="email" class="form-label">Email</label>
-            <input type="email" class="form-control" id="email" name="email" value="<?php echo htmlspecialchars($admin['email']); ?>" required>
-        </div>
-
-        <div class="mb-3">
-            <label for="role" class="form-label">Role</label>
-            <select class="form-select" id="role" name="role" required>
-                <option value="admin" <?php echo $admin['role'] === 'admin' ? 'selected' : ''; ?>>Admin</option>
-                <option value="finance_manager" <?php echo $admin['role'] === 'finance_manager' ? 'selected' : ''; ?>>Finance Manager</option>
-                <option value="supply_manager" <?php echo $admin['role'] === 'supply_manager' ? 'selected' : ''; ?>>Supply Manager</option>
-                <option value="inventory_manager" <?php echo $admin['role'] === 'inventory_manager' ? 'selected' : ''; ?>>Inventory Manager</option>
-                <option value="dispatch_manager" <?php echo $admin['role'] === 'dispatch_manager' ? 'selected' : ''; ?>>Dispatch Manager</option>
-                <option value="service_manager" <?php echo $admin['role'] === 'service_manager' ? 'selected' : ''; ?>>Service Manager</option>
-            </select>
-        </div>
-
-        <div class="form-check mb-3">
-            <input class="form-check-input" type="checkbox" id="is_active" name="is_active" <?php echo $admin['is_active'] ? 'checked' : ''; ?>>
-            <label class="form-check-label" for="is_active">
-                Active
-            </label>
-        </div>
-
-        <div class="mb-3">
-            <label for="password" class="form-label">Password (Leave blank to keep current)</label>
-            <input type="password" class="form-control" id="password" name="password">
-        </div>
-
-        <button type="submit" class="btn btn-primary">Save Changes</button>
-        <a href="admins.php" class="btn btn-secondary">Cancel</a>
-    </form>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

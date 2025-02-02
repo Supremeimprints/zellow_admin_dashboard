@@ -126,8 +126,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body>
 <?php include 'includes/nav/collapsed.php'; ?>
-    <div class="container mt-4">
-        <h2>Edit Driver: <?= htmlspecialchars($driver['name'] ?? '') ?></h2>
+<?php include 'includes/theme.php'; ?>
+
+    <div class="container mt-5">
+        <div class="alert alert-primary" role="alert">
+            <h4 class="mb-0">Edit Driver: <?= htmlspecialchars($driver['name'] ?? '') ?></h4>
+        </div>
         
         <?php if ($error): ?>
             <div class="alert alert-danger"><?= $error ?></div>
@@ -200,9 +204,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
 
-            <div class="d-flex gap-2">
+            <div class="d-flex justify-content-between">
                 <button type="submit" class="btn btn-primary">Save Changes</button>
-                <a href="dispatch.php" class="btn btn-secondary">Cancel</a>
+                <a href="dispatch.php" class="btn btn-danger">Cancel</a>
             </div>
         </form>
     </div>
