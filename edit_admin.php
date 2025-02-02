@@ -27,7 +27,7 @@ if (!isset($_GET['id'])) {
 $id = $_GET['id'];
 
 // Fetch admin details
-$query = "SELECT id, username, email, role, is_active FROM users WHERE id = ? AND role IN ('admin', 'finance_manager', 'supply_manager', 'inventory_manager', 'dispatch_manager', 'service_manager')";
+$query = "SELECT id, username, email, phone, address, role, is_active, profile_photo FROM users WHERE id = ? AND role IN ('admin', 'finance_manager', 'supply_manager', 'inventory_manager', 'dispatch_manager', 'service_manager')";
 $stmt = $db->prepare($query);
 $stmt->execute([$id]);
 $admin = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -38,7 +38,7 @@ if (!$admin) {
 }
 
 // Initialize variables for form submission handling
-$username = $email = $role = $isActive = $hashedPassword = null;
+$username = $email = $phone = $address = $role = $isActive = $hashedPassword = null;
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -46,6 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = $_POST['username'] ?? $admin['username'];  // Default to current value if not posted
     $username = ucwords(strtolower(trim($_POST['username'])));
     $email = $_POST['email'] ?? $admin['email'];
+    $phone = $_POST['phone'] ?? $admin['phone'];
+    $address = $_POST['address'] ?? $admin['address'];
     $role = $_POST['role'] ?? $admin['role'];
     $isActive = isset($_POST['is_active']) ? 1 : 0;
 
@@ -68,12 +70,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Check if password is set for update
         $hashedPassword = (!empty($_POST['password'])) ? password_hash($_POST['password'], PASSWORD_DEFAULT) : null;
 
+        // Handle profile photo upload
+        $profilePhoto = $admin['profile_photo'];
+        if (isset($_FILES['profile_photo']) && $_FILES['profile_photo']['error'] === UPLOAD_ERR_OK) {
+            $targetDir = "uploads/profile_photos/";
+            $targetFile = $targetDir . basename($_FILES['profile_photo']['name']);
+            if (move_uploaded_file($_FILES['profile_photo']['tmp_name'], $targetFile)) {
+                $profilePhoto = $targetFile;
+            } else {
+                $error = "Failed to upload profile photo.";
+            }
+        }
+
         // Update query
-        $updateQuery = "UPDATE users SET username = ?, email = ?, password = ?, role = ?, is_active = ? WHERE id = ?";
+        $updateQuery = "UPDATE users SET username = ?, email = ?, phone = ?, address = ?, password = ?, role = ?, is_active = ?, profile_photo = ? WHERE id = ?";
         $updateStmt = $db->prepare($updateQuery);
 
         // Bind values for update query
-        if ($updateStmt->execute([$username, $email, $hashedPassword, $role, $isActive, $id])) {
+        if ($updateStmt->execute([$username, $email, $phone, $address, $hashedPassword, $role, $isActive, $profilePhoto, $id])) {
             header('Location: admins.php');
             exit();
         } else {
@@ -92,7 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Edit Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body {
+        .container mt-5{
             font-family: 'Montserrat', sans-serif;
         }
         .form-section {
@@ -112,6 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-family: 'Montserrat', sans-serif;
         }
     </style>
+    <link href="assets/css/admins.css" rel="stylesheet">
 </head>
 <body>
 <?php include 'includes/nav/collapsed.php'; ?>
@@ -127,7 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             <?php endif; ?>
 
-            <form method="POST" action="">
+            <form method="POST" action="" enctype="multipart/form-data">
                 <div class="form-section">
                     <h4 class="mb-3"><i class="bi bi-person-badge"></i> Admin Information</h4>
                     <div class="mb-3">
@@ -138,6 +153,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="mb-3">
                         <label for="email" class="form-label">Email</label>
                         <input type="email" class="form-control" id="email" name="email" value="<?php echo htmlspecialchars($admin['email']); ?>" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">Phone</label>
+                        <input type="text" class="form-control" id="phone" name="phone" value="<?php echo htmlspecialchars($admin['phone']); ?>">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="address" class="form-label">Address</label>
+                        <textarea class="form-control" id="address" name="address" rows="3"><?php echo htmlspecialchars($admin['address']); ?></textarea>
                     </div>
 
                     <div class="mb-3">
@@ -162,6 +187,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="mb-3">
                         <label for="password" class="form-label">Password (Leave blank to keep current)</label>
                         <input type="password" class="form-control" id="password" name="password">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="profile_photo" class="form-label">Profile Photo</label>
+                        <input type="file" class="form-control" id="profile_photo" name="profile_photo">
+                        <?php if ($admin['profile_photo']): ?>
+                            <img src="<?php echo htmlspecialchars($admin['profile_photo']); ?>" alt="Profile Photo" class="img-thumbnail mt-2" width="150">
+                        <?php endif; ?>
                     </div>
                 </div>
 

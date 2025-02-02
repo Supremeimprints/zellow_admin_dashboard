@@ -154,7 +154,7 @@ foreach ($statuses as $status) {
     <?php include 'includes/theme.php'; ?>
     <div class="container mt-5">
         <!-- Keep existing summary stats and orders table -->
-        <h2>Dispatch Summary</h2>
+        <h2>Dispatch & Logistics Summary</h2>
         <div class="row row-cols-1 row-cols-md-6 g-4 mb-4">
             <?php foreach ($statuses as $status):
                 $color = match ($status) {

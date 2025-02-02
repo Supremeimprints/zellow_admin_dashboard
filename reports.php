@@ -11,6 +11,8 @@ if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
 $database = new Database();
 $db = $database->getConnection();
 
+$whereClause = [];
+$params = [];
 // Initialize filter parameters
 $search = $_GET['search'] ?? '';
 $statusFilter = $_GET['status'] ?? '';
@@ -265,7 +267,7 @@ $reportData['top_customers'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <!-- Row 2: Main Charts -->
             <div class="row mb-4">
                 <div class="col-md-6">
-                    <div class="card">
+                    <div class="card chart-card">
                         <div class="card-body">
                             <h5>Sales Trend (Last 6 Months)</h5>
                             <canvas id="salesChart"></canvas>
@@ -274,7 +276,7 @@ $reportData['top_customers'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 </div>
 
                 <div class="col-md-6">
-                    <div class="card">
+                    <div class="card chart-card">
                         <div class="card-body">
                             <h5>Top Performing Products</h5>
                             <canvas id="productsChart"></canvas>
@@ -286,7 +288,7 @@ $reportData['top_customers'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <!-- New Charts -->
             <div class="row mb-4">
                 <div class="col-md-6">
-                    <div class="card">
+                    <div class="card chart-card">
                         <div class="card-body">
                             <h5>Income vs Expenditures</h5>
                             <canvas id="incomeExpenditureChart"></canvas>
@@ -295,7 +297,7 @@ $reportData['top_customers'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 </div>
 
                 <div class="col-md-6">
-                    <div class="card">
+                    <div class="card chart-card">
                         <div class="card-body">
                             <h5>Category-Wise Revenue</h5>
                             <canvas id="categoryRevenueChart"></canvas>
@@ -307,7 +309,7 @@ $reportData['top_customers'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <!-- Row 3: Tables -->
             <div class="row">
                 <div class="col-md-6">
-                    <div class="card">
+                    <div class="card chart-card">
                         <div class="card-body">
                             <h5>Low Stock Alerts</h5>
                             <div class="btn-group">
@@ -338,7 +340,7 @@ $reportData['top_customers'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 </div>
 
                 <div class="col-md-6">
-                    <div class="card">
+                    <div class="card chart-card">
                         <div class="card-body">
                             <h5>Customer Order Distribution</h5>
                             <canvas id="customersChart"></canvas>
@@ -350,7 +352,7 @@ $reportData['top_customers'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <!-- New Tables -->
             <div class="row mt-4">
                 <div class="col-md-6">
-                    <div class="card">
+                    <div class="card chart-card">
                         <div class="card-body">
                             <h5>Recent Transactions</h5>
                             <div class="btn-group">
@@ -383,7 +385,7 @@ $reportData['top_customers'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 </div>
 
                 <div class="col-md-6">
-                    <div class="card">
+                    <div class="card chart-card">
                         <div class="card-body">
                             <h5>Top Spending Customers</h5>
                             <div class="btn-group">

@@ -134,3 +134,21 @@ body {
 .row > div {
   animation: fadeIn 0.6s ease-out;
 }
+
+.chart-card {
+  background-color: #f8f9fa !important; /* Bootstrap's light gray */
+  border: 1px solid #dee2e6 ; /* Add border for definition */
+}
+
+.chart-card .card-body {
+  color: #212529 !important; /* Bootstrap's dark gray */
+}
+
+.chart-card h5 {
+  color: #212529 !important; /* Ensure headings are visible */
+}
+
+/* In reports.css */
+.chart-card canvas {
+  filter: brightness(0.9); /* Darken chart elements slightly */
+}

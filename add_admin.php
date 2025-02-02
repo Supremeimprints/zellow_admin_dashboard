@@ -20,9 +20,10 @@ $db = $database->getConnection();
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = $_POST['username'];
     $username = ucwords(strtolower(trim($_POST['username'])));
     $email = $_POST['email'];
+    $phone = $_POST['phone'];
+    $address = $_POST['address'];
     $role = $_POST['role'];
     $isActive = isset($_POST['is_active']) ? 1 : 0;
 
@@ -55,44 +56,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Fetch the highest employee number for the given prefix
         $query = "SELECT MAX(CAST(SUBSTRING(employee_number, LENGTH(?) + 2) AS UNSIGNED)) AS max_employee_number
-          FROM users 
-          WHERE employee_number LIKE ?";
-
+                  FROM users 
+                  WHERE employee_number LIKE ?";
         $stmt = $db->prepare($query);
-        $stmt->execute([$prefix, "$prefix%"]); // Query all employee numbers that start with the prefix
-
+        $stmt->execute([$prefix, "$prefix%"]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
         // If there are no results, the table is empty for that prefix, so start at 1
         $maxEmployeeNumber = $result['max_employee_number'] ?? 0; // Default to 0 if no result
         $newEmployeeNumber = $prefix . '-' . ($maxEmployeeNumber + 1);
 
-        // DEBUGGING: Check what $newEmployeeNumber is
-        // echo "Generated Employee Number: $newEmployeeNumber<br>";  // remove this after debugging
-
         // Now use $newEmployeeNumber when inserting the admin (into users table)
-        $insertQuery = "INSERT INTO users (username, email, password, role, is_active, employee_number) 
-                VALUES (?, ?, ?, ?, ?, ?)";
+        $insertQuery = "INSERT INTO users (username, email, password, phone, address, role, is_active, employee_number) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         $insertStmt = $db->prepare($insertQuery);
 
-        if ($insertStmt->execute([$username, $email, $hashedPassword, $role, $isActive, $newEmployeeNumber])) {
+        if ($insertStmt->execute([$username, $email, $hashedPassword, $phone, $address, $role, $isActive, $newEmployeeNumber])) {
             header('Location: admins.php');
             exit();
         } else {
             $error = "Failed to add admin.";
         }
-        //into users table
-        $insertQuery = "INSERT INTO users (username, email, password, role, is_active, employee_number) 
-                VALUES (?, ?, ?, ?, ?, ?)";
-        $insertStmt = $db->prepare($insertQuery);
-
-        if ($insertStmt->execute([$username, $email, $hashedPassword, $role, $isActive, $newEmployeeNumber])) {
-            header('Location: admins.php');
-            exit();
-        } else {
-            $error = "Failed to add admin.";
-        }
-
     }
 }
 ?>
@@ -119,6 +103,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         .form-control, .form-select {
             font-family: 'Montserrat', sans-serif;
+        }
+        .button-group {
+            display: flex;
+            justify-content: space-between;
         }
     </style>
 </head>
@@ -153,6 +141,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <div class="mb-3">
+                <label for="phone" class="form-label">Phone</label>
+                <input type="text" class="form-control" id="phone" name="phone">
+            </div>
+
+            <div class="mb-3">
+                <label for="address" class="form-label">Address</label>
+                <textarea class="form-control" id="address" name="address" rows="3"></textarea>
+            </div>
+
+            <div class="mb-3">
                 <label for="role" class="form-label">Role</label>
                 <select class="form-select" id="role" name="role" required>
                     <option value="admin">Admin</option>
@@ -171,8 +169,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </label>
             </div>
 
-            <button type="submit" class="btn btn-primary">Add Admin</button>
-            <a href="admins.php" class="btn btn-secondary">Cancel</a>
+            <div class="button-group">
+                <button type="submit" class="btn btn-primary">Add Admin</button>
+                <a href="admins.php" class="btn btn-danger">Cancel</a>
+            </div>
         </form>
     </div>
 
