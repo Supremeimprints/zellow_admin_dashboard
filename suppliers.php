@@ -16,10 +16,10 @@ $successMsg = $errorMsg = '';
 $suppliers = [];
 
 // Handle supplier deletion
-if (isset($_POST['delete_supplier']) && isset($_POST['supplier_id'])) {
+if (isset($_POST['delete_supplier']) && isset($_POST['id'])) {
     try {
-        $stmt = $db->prepare("DELETE FROM suppliers WHERE supplier_id = ?");
-        $stmt->execute([$_POST['supplier_id']]);
+        $stmt = $db->prepare("DELETE FROM suppliers WHERE id = ?");
+        $stmt->execute([$_POST['id']]);
         $successMsg = "Supplier deleted successfully";
     } catch (PDOException $e) {
         $errorMsg = "Error deleting supplier: " . $e->getMessage();
@@ -32,6 +32,18 @@ try {
     $suppliers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     $errorMsg = "Error fetching suppliers: " . $e->getMessage();
+}
+
+// Fetch invoices for each supplier
+$supplierInvoices = [];
+try {
+    $stmt = $db->query("SELECT * FROM invoices");
+    $invoices = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($invoices as $invoice) {
+        $supplierInvoices[$invoice['supplier_id']][] = $invoice;
+    }
+} catch (PDOException $e) {
+    $errorMsg = "Error fetching invoices: " . $e->getMessage();
 }
 
 ?>
@@ -108,15 +120,62 @@ try {
                                         </td>
                                         <td>
                                             <div class="btn-group">
-                                                <a href="edit_supplier.php?id=<?= $supplier['supplier_id'] ?>" 
+                                                <a href="edit_supplier.php?id=<?= $supplier['id'] ?>" 
                                                    class="btn btn-sm btn-outline-primary">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
                                                 <button type="button" 
                                                         class="btn btn-sm btn-outline-danger"
-                                                        onclick="confirmDelete(<?= $supplier['supplier_id'] ?>)">
+                                                        onclick="confirmDelete(<?= $supplier['id'] ?>)">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="6">
+                                            <div class="accordion" id="accordionInvoices<?= $supplier['id'] ?>">
+                                                <div class="accordion-item">
+                                                    <h2 class="accordion-header" id="heading<?= $supplier['id'] ?>">
+                                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?= $supplier['id'] ?>" aria-expanded="false" aria-controls="collapse<?= $supplier['id'] ?>">
+                                                            View Invoices
+                                                        </button>
+                                                    </h2>
+                                                    <div id="collapse<?= $supplier['id'] ?>" class="accordion-collapse collapse" aria-labelledby="heading<?= $supplier['id'] ?>" data-bs-parent="#accordionInvoices<?= $supplier['id'] ?>">
+                                                        <div class="accordion-body">
+                                                            <?php if (isset($supplierInvoices[$supplier['id']])): ?>
+                                                                <table class="table table-sm">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th>Invoice Number</th>
+                                                                            <th>Amount</th>
+                                                                            <th>Due Date</th>
+                                                                            <th>Status</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        <?php foreach ($supplierInvoices[$supplier['id']] as $invoice): ?>
+                                                                            <tr>
+                                                                                <td><?= htmlspecialchars($invoice['invoice_number']) ?></td>
+                                                                                <td><?= htmlspecialchars($invoice['amount']) ?></td>
+                                                                                <td><?= htmlspecialchars($invoice['due_date']) ?></td>
+                                                                                <td>
+                                                                                    <span class="badge bg-<?= $invoice['status'] === 'Paid' ? 'success' : 'danger' ?>">
+                                                                                        <?= htmlspecialchars($invoice['status']) ?>
+                                                                                    </span>
+                                                                                </td>
+                                                                            </tr>
+                                                                        <?php endforeach; ?>
+                                                                    </tbody>
+                                                                </table>
+                                                            <?php else: ?>
+                                                                <div class="alert alert-info" role="alert">
+                                                                    No invoices found for this supplier.
+                                                                </div>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </td>
                                     </tr>
@@ -154,7 +213,7 @@ try {
                 </div>
                 <div class="modal-footer">
                     <form method="POST">
-                        <input type="hidden" name="supplier_id" id="deleteSupplierID">
+                        <input type="hidden" name="id" id="deleteSupplierID">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" name="delete_supplier" class="btn btn-danger">Delete</button>
                     </form>
@@ -165,8 +224,8 @@ try {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function confirmDelete(supplierID) {
-            document.getElementById('deleteSupplierID').value = supplierID;
+        function confirmDelete(id) {
+            document.getElementById('deleteSupplierID').value = id;
             new bootstrap.Modal(document.getElementById('deleteModal')).show();
         }
     </script>

@@ -130,3 +130,107 @@ form {
 .service-request-card .card-title img {
     margin-right: 10px;
 }
+
+/* Custom Scrollbar Styles */
+.alert-list, .feedback-list, .service-requests-list {
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-accent) var(--container-bg);
+}
+
+.alert-list::-webkit-scrollbar, 
+.feedback-list::-webkit-scrollbar, 
+.service-requests-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.alert-list::-webkit-scrollbar-track, 
+.feedback-list::-webkit-scrollbar-track, 
+.service-requests-list::-webkit-scrollbar-track {
+    background: var(--container-bg);
+}
+
+.alert-list::-webkit-scrollbar-thumb, 
+.feedback-list::-webkit-scrollbar-thumb, 
+.service-requests-list::-webkit-scrollbar-thumb {
+    background-color: var(--primary-accent);
+    border-radius: 10px;
+    border: 2px solid var(--container-bg);
+}
+
+/* Alert Styles */
+.alert {
+    max-width: 800px;
+    margin: 1rem auto;
+    border-radius: 0.5rem;
+    /* Remove the fadeOut animation */
+    /* animation: fadeOut 5s forwards; */
+}
+
+/* Remove the fadeOut keyframes */
+
+/* ...existing code... */
+
+.invoice-section {
+    border: 1px solid var(--border-color);
+    background-color: var(--container-bg);
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.invoice-card {
+    transition: transform 0.2s;
+    border-left: 4px solid;
+    background-color: var(--container-bg);
+    color: var(--text-color);
+    margin-bottom: 1rem;
+    padding: 1rem;
+}
+
+.invoice-card.unpaid {
+    background-color: var(--unpaid-bg);
+    border-left-color: var(--primary-accent);
+}
+
+.invoice-card.paid {
+    background-color: var(--paid-bg);
+    border-left-color: var(--success);
+}
+
+.invoice-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.invoice-details .invoice-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.invoice-details .invoice-actions {
+    display: flex;
+    align-items: center;
+}
+
+.invoice-details .invoice-actions .btn {
+    margin-left: 0.5rem;
+}
+
+.invoice-status {
+    font-size: 0.9rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: 0.3rem;
+}
+
+.invoice-status.unpaid {
+    background-color: var(--unpaid-bg);
+    color: var(--unpaid-text);
+}
+
+.invoice-status.paid {
+    background-color: var(--paid-bg);
+    color: var(--paid-text);
+}
+
+/* ...existing code... */

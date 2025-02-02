@@ -57,7 +57,16 @@ try {
     $inventoryStmt = $db->prepare($inventoryQuery);
     $inventoryStmt->execute();
     $inventoryStats = $inventoryStmt->fetch(PDO::FETCH_ASSOC) ?: ['total_stock' => 0, 'unique_items' => 0];
-
+    // LOW INVENTORY STATS
+    $query = "SELECT 
+            p.product_name,
+            i.stock_quantity,
+            i.min_stock_level
+          FROM inventory i
+          JOIN products p ON i.product_id = p.product_id
+          WHERE i.stock_quantity < i.min_stock_level";
+    $stmt = $db->query($query);
+    $reportData['low_stock'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     // Fetch recent orders
     $recentQuery = "SELECT order_id, status, order_date FROM orders ORDER BY order_date DESC LIMIT 5";
     $recentStmt = $db->prepare($recentQuery);
@@ -297,7 +306,7 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
                 </div>
             </div>
         </div>
-        
+
 
         <!-- Quick Actions -->
         <div class="row g-3 mb-3">
@@ -471,12 +480,11 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
                         <?php endif; ?>
 
                         <a href="inventory.php" class="text-decoration-none">
-                            <div class="list-group-item position-relative bg-warning p-3 rounded">
+                            <div class="alert alert-warning low-stock-alert">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
                                         <h6 class="mb-0">Low Stock Alerts</h6>
-                                        <p class="mb-0 small">You have <?= $lowStockNotifications ?> low stock alerts.
-                                        </p>
+                                        <p class="mb-0 small">You have <?= count($reportData['low_stock']) ?> low stock alerts.</p>
                                     </div>
                                 </div>
                             </div>

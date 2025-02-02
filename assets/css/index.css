@@ -191,6 +191,22 @@ body.light-mode .card-body .fw-medium {
     font-weight: 600;
 }
 
+/* Low Stock Alert Styles */
+.low-stock-alert {
+    background-color: var(--low-stock-bg);
+    color: var(--low-stock-text);
+}
+
+body.light-mode .low-stock-alert {
+    --low-stock-bg: #fff3cd; /* Bootstrap warning background color */
+    --low-stock-text: #856404; /* Darker text for better contrast */
+}
+
+body.dark-mode .low-stock-alert {
+    --low-stock-bg: #3e3e3e; /* Darker background for dark mode */
+    --low-stock-text: #ffcc00; /* Lighter text for better contrast */
+}
+
 /* Scrollbar Styling */
 ::-webkit-scrollbar {
     width: 4px;

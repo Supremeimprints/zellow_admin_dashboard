@@ -48,6 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Send Message</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="assets/css/dispatch.css" rel="stylesheet">
     <style>
         .message-form-card {
             max-width: 800px;
@@ -59,23 +60,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 1.5rem;
             margin-right: 0.5rem;
         }
+        .alert-primary {
+            max-width: 800px;
+            margin: 2rem auto;
+            border-radius: 1rem;
+        }
     </style>
 </head>
 <body>
 <?php include 'includes/nav/collapsed.php'; ?>
 <?php include 'includes/theme.php'; ?>
 
-<div class="container py-4">
+<div class="container mt-5">
+    <div class="alert alert-primary" role="alert">
+        <h4 class="mb-0"><i class="fas fa-envelope form-icon"></i>Compose Message</h4>
+    </div>
+
+    <?php if($error): ?>
+        <div class="alert alert-danger"><?= $error ?></div>
+    <?php endif; ?>
+
+    <?php
+    // Display Messages
+    if (isset($_SESSION['success'])): ?>
+        <div class="alert alert-success"><?= $_SESSION['success']; unset($_SESSION['success']); ?></div>
+    <?php endif; ?>
+    <?php if (isset($_SESSION['error'])): ?>
+        <div class="alert alert-danger"><?= $_SESSION['error']; unset($_SESSION['error']); ?></div>
+    <?php endif; ?>
+
     <div class="message-form-card card">
-        <div class="card-header bg-primary text-white">
-            <h3 class="mb-0"><i class="fas fa-envelope form-icon"></i>Compose Message</h3>
-        </div>
-        
         <div class="card-body">
-            <?php if($error): ?>
-                <div class="alert alert-danger"><?= $error ?></div>
-            <?php endif; ?>
-            
             <form method="POST">
                 <div class="row g-3">
                     <!-- Recipient Selection -->
@@ -128,11 +143,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
 
                     <!-- Buttons -->
-                    <div class="col-12 text-end">
+                    <div class="col-12 d-flex justify-content-between">
                         <button type="submit" class="btn btn-primary btn-lg">
                             <i class="fas fa-paper-plane me-2"></i>Send Message
                         </button>
-                        <a href="notifications.php" class="btn btn-secondary btn-lg ms-2">Cancel</a>
+                        <a href="notifications.php" class="btn btn-danger btn-lg">Cancel</a>
                     </div>
                 </div>
             </form>
