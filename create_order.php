@@ -231,12 +231,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <label for="unit_price" class="form-label">Price per Unit</label>
                             <input type="number" name="products[0][unit_price]" class="form-control unit-price-input" step="0.01" required>
                         </div>
-                        <div class="col-md-12 text-end">
-                            <button type="button" class="btn btn-danger remove-product">Remove</button>
+                        <div class="d-flex justify-content-between">
+                        <button type="button" id="add-product" class="btn btn-secondary mt-3">Add Another Product</button>
+                            <button type="button" class="btn btn-danger remove-product mt-3">Remove</button>
                         </div>
                     </div>
                 </div>
-                <button type="button" id="add-product" class="btn btn-secondary mt-3">Add Another Product</button>
+                
             </div>
 
             <div class="form-section">
