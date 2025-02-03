@@ -1,0 +1,31 @@
+:root {
+    --background: #ffffff;
+    --card-bg: white;
+    --text-color: #1F2937;
+    --table-header-bg: #F9FAFB;
+    --metric-value-color: #1F2937;
+    --border-color: #E5E7EB;
+    --text-muted: #6B7280;
+    --priority-low: #10B981;
+    --priority-medium: #F59E0B;
+    --priority-high: #EF4444;
+    --container-bg: #ffffff;
+    --box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 6px -1px, rgba(0, 0, 0, 0.06) 0px 2px 4px -1px;
+    --feedback-bg: #F3F4F6;
+}
+
+body.dark-mode {
+    --background: #15202B;
+    --card-bg: #1F2937;
+    --text-color: #F9FAFB;
+    --table-header-bg: #374151;
+    --metric-value-color: #F9FAFB;
+    --border-color: #4B5563;
+    --text-muted: #9CA3AF;
+    --priority-low: #10B981;
+    --priority-medium: #F59E0B;
+    --priority-high: #EF4444;
+    --container-bg: #1F2937;
+    --box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 6px -1px, rgba(0, 0, 0, 0.06) 0px 2px 4px -1px;
+    --feedback-bg: #2D3748;
+}

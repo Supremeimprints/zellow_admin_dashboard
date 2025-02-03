@@ -1,6 +1,8 @@
 <?php
 session_start();
 require_once 'config/database.php';
+require_once 'includes/nav/collapsed.php'; // Include collapsed.php for the header
+require_once 'includes/theme.php'; // Include themes
 
 // Authentication check
 if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
@@ -25,521 +27,757 @@ $endDate = $_GET['end_date'] ?? '';
 // Get report data
 $reportData = [];
 
-// 1. Sales Trends (Last 6 Months)
-$query = "SELECT 
-            DATE_FORMAT(order_date, '%Y-%m') AS month,
-            SUM(total_amount) AS total_sales
-          FROM orders
-          WHERE order_date >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
-          GROUP BY month
-          ORDER BY month DESC";
-$stmt = $db->query($query);
-$reportData['sales_trends'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// Helper functions for data retrieval
+function getRevenueData($pdo, $startDate = null, $endDate = null)
+{
+    $query = "SELECT 
+        DATE_FORMAT(o.order_date, '%Y-%m') as month,
+        SUM(o.total_amount) as revenue,
+        SUM(t.expenses) as expenses,
+        COUNT(DISTINCT o.order_id) as total_orders
+    FROM orders o
+    LEFT JOIN transactions t ON o.order_id = t.order_id
+    WHERE 1=1";
+    
+    $params = [];
+    if ($startDate) {
+        $query .= " AND o.order_date >= :start_date";
+        $params[':start_date'] = $startDate . ' 00:00:00';
+    }
+    if ($endDate) {
+        $query .= " AND o.order_date <= :end_date";
+        $params[':end_date'] = $endDate . ' 23:59:59';
+    }
+    
+    $query .= " GROUP BY DATE_FORMAT(o.order_date, '%Y-%m')
+                ORDER BY month DESC LIMIT 6";
 
-// 2. Product Performance
-$query = "SELECT 
-            p.product_name,
-            SUM(oi.quantity) AS total_units,
-            SUM(oi.subtotal) AS total_revenue
-          FROM order_items oi
-          JOIN products p ON oi.product_id = p.product_id
-          GROUP BY p.product_name
-          ORDER BY total_revenue DESC
-          LIMIT 10";
-$stmt = $db->query($query);
-$reportData['top_products'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt = $pdo->prepare($query);
+    $stmt->execute($params);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
 
-// 3. Inventory Status
-$query = "SELECT 
-            p.product_name,
-            i.stock_quantity,
-            i.min_stock_level
-          FROM inventory i
-          JOIN products p ON i.product_id = p.product_id
-          WHERE i.stock_quantity < i.min_stock_level";
-$stmt = $db->query($query);
-$reportData['low_stock'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+function getTopProducts($pdo, $startDate = null, $endDate = null)
+{
+    $query = "SELECT 
+        p.product_name as product_name,
+        SUM(oi.quantity) as total_quantity,
+        SUM(oi.quantity * oi.unit_price) as total_revenue
+    FROM order_items oi
+    JOIN orders o ON oi.order_id = o.order_id
+    JOIN products p ON oi.product_id = p.product_id
+    WHERE 1=1";
+    
+    $params = [];
+    if ($startDate) {
+        $query .= " AND o.order_date >= :start_date";
+        $params[':start_date'] = $startDate . ' 00:00:00';
+    }
+    if ($endDate) {
+        $query .= " AND o.order_date <= :end_date";
+        $params[':end_date'] = $endDate . ' 23:59:59';
+    }
+    
+    $query .= " GROUP BY p.product_name
+                ORDER BY total_revenue DESC
+                LIMIT 5";
 
-// 4. Customer Metrics
-$query = "SELECT 
-            COUNT(*) AS total_customers,
-            AVG(co.order_count) AS avg_orders,
-            MAX(co.order_count) AS max_orders
-          FROM (
-            SELECT u.id, COUNT(o.order_id) AS order_count
-            FROM users u
-            LEFT JOIN orders o ON u.id = o.id
-            WHERE u.role = 'customer'
-            GROUP BY u.id
-          ) AS co";
-$stmt = $db->query($query);
-$reportData['customer_stats'] = $stmt->fetch(PDO::FETCH_ASSOC);
+    $stmt = $pdo->prepare($query);
+    $stmt->execute($params);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
 
-// 5. Total Revenue and Net Profit
-$query = "SELECT 
-            SUM(total_amount) AS total_revenue,
-            (SUM(total_amount) - SUM(expenses)) AS net_profit
-          FROM transactions
-          WHERE payment_status = 'Completed' AND transaction_type = 'Customer Payment'";
-$stmt = $db->query($query);
-$reportData['financials'] = $stmt->fetch(PDO::FETCH_ASSOC);
+function getRecentTransactions($pdo) {
+    try {
+        $search = $_GET['search'] ?? '';
+        $startDate = $_GET['start_date'] ?? '';
+        $endDate = $_GET['end_date'] ?? '';
+        
+        $query = "
+            SELECT * FROM (
+                SELECT 
+                    reference_id,
+                    total_amount,
+                    'IN' as transaction_type,
+                    payment_status,
+                    transaction_date
+                FROM transactions 
+                WHERE payment_status = 'completed'
+                    AND transaction_type = 'Customer Payment'
+                
+                UNION ALL
+                
+                SELECT 
+                    reference_id,
+                    total_amount,
+                    transaction_type,
+                    payment_status,
+                    transaction_date
+                FROM transactions
+                WHERE transaction_type = 'OUT'
+            ) AS combined_transactions 
+            WHERE 1=1";
+        
+        $params = [];
+        
+        // Add search condition
+        if ($search) {
+            $query .= " AND reference_id LIKE :search";
+            $params[':search'] = "%$search%";
+        }
+        
+        // Add date range conditions
+        if ($startDate) {
+            $query .= " AND transaction_date >= :start_date";
+            $params[':start_date'] = $startDate . ' 00:00:00';
+        }
+        if ($endDate) {
+            $query .= " AND transaction_date <= :end_date";
+            $params[':end_date'] = $endDate . ' 23:59:59';
+        }
+        
+        $query .= " ORDER BY transaction_date DESC LIMIT 10";
 
-// 6. Revenue Growth
-$query = "SELECT 
-            (SUM(IF(MONTH(transaction_date) = MONTH(NOW()), total_amount, 0)) - 
-             SUM(IF(MONTH(transaction_date) = MONTH(NOW()) - 1, total_amount, 0))) / 
-             SUM(IF(MONTH(transaction_date) = MONTH(NOW()) - 1, total_amount, 0)) * 100 AS revenue_growth
-          FROM transactions
-          WHERE payment_status = 'Completed' AND transaction_type = 'Customer Payment'";
-$stmt = $db->query($query);
-$reportData['revenue_growth'] = $stmt->fetch(PDO::FETCH_ASSOC)['revenue_growth'];
+        $stmt = $pdo->prepare($query);
+        $stmt->execute($params);
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        return $results;
+    } catch (PDOException $e) {
+        error_log("Error in getRecentTransactions: " . $e->getMessage());
+        return [];
+    }
+}
 
-// 7. Peak Sales Hours
-$query = "SELECT 
-            HOUR(order_date) AS hour,
-            COUNT(*) AS order_count
-          FROM orders
-          GROUP BY hour
-          ORDER BY order_count DESC
-          LIMIT 1";
-$stmt = $db->query($query);
-$reportData['peak_sales_hour'] = $stmt->fetch(PDO::FETCH_ASSOC);
+function getSalesByCategory($pdo, $startDate = null, $endDate = null)
+{
+    $query = "SELECT 
+        c.category_name as category,
+        SUM(oi.quantity * oi.unit_price) as total_revenue
+    FROM order_items oi
+    JOIN orders o ON oi.order_id = o.order_id
+    JOIN products p ON oi.product_id = p.product_id
+    JOIN categories c ON p.category_id = c.category_id
+    WHERE 1=1";
+    
+    $params = [];
+    if ($startDate) {
+        $query .= " AND o.order_date >= :start_date";
+        $params[':start_date'] = $startDate . ' 00:00:00';
+    }
+    if ($endDate) {
+        $query .= " AND o.order_date <= :end_date";
+        $params[':end_date'] = $endDate . ' 23:59:59';
+    }
+    
+    $query .= " GROUP BY c.category_name
+                ORDER BY total_revenue DESC";
 
-// 8. Best-Performing Product Categories
-$query = "SELECT 
-            c.category_name,
-            SUM(oi.subtotal) AS total_revenue
-          FROM order_items oi
-          JOIN products p ON oi.product_id = p.product_id
-          JOIN categories c ON p.category_id = c.category_id
-          GROUP BY c.category_name
-          ORDER BY total_revenue DESC";
-$stmt = $db->query($query);
-$reportData['top_categories'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt = $pdo->prepare($query);
+    $stmt->execute($params);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
 
-// 9. Recent Transactions
-$query = "SELECT 
-            t.reference_id,
-            u.username AS customer,
-            t.total_amount,
-            t.transaction_date
-          FROM transactions t
-          JOIN users u ON t.user = u.id
-          WHERE t.transaction_type = 'Customer Payment'
-          ORDER BY t.transaction_date DESC
-          LIMIT 10";
-$stmt = $db->query($query);
-$reportData['recent_transactions'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// Get data for the dashboard
+$revenueData = getRevenueData($db, $startDate, $endDate);
+$topProducts = getTopProducts($db, $startDate, $endDate);
+$recentTransactions = getRecentTransactions($db); // This already has date filtering
+$salesByCategory = getSalesByCategory($db, $startDate, $endDate);
 
-// 10. Top Spending Customers
-$query = "SELECT 
-            u.username AS customer,
-            SUM(t.total_amount) AS total_spent
-          FROM transactions t
-          JOIN users u ON t.user = u.id
-          WHERE t.transaction_type = 'Customer Payment'
-          GROUP BY u.username
-          ORDER BY total_spent DESC
-          LIMIT 10";
-$stmt = $db->query($query);
-$reportData['top_customers'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// Calculate summary metrics
+$currentMonthRevenue = $revenueData[0]['revenue'] ?? 0;
+$previousMonthRevenue = $revenueData[1]['revenue'] ?? 0;
+$revenueGrowth = $previousMonthRevenue != 0 ?
+    (($currentMonthRevenue - $previousMonthRevenue) / $previousMonthRevenue * 100) : 0;
+
+function getTotalOrders($pdo)
+{
+    if (!$pdo)
+        return 0;
+    try {
+        $query = "SELECT 
+                COUNT(*) as total_orders,
+                COUNT(CASE WHEN order_date >= DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH) THEN 1 END) as current_month_orders,
+                COUNT(CASE WHEN order_date >= DATE_SUB(CURRENT_DATE, INTERVAL 2 MONTH) 
+                          AND order_date < DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH) THEN 1 END) as previous_month_orders
+            FROM orders";
+
+        $result = $pdo->query($query)->fetch();
+        return [
+            'total' => $result['total_orders'],
+            'current' => $result['current_month_orders'],
+            'previous' => $result['previous_month_orders']
+        ];
+    } catch (PDOException $e) {
+        error_log("Error in getTotalOrders: " . $e->getMessage());
+        return ['total' => 0, 'current' => 0, 'previous' => 0];
+    }
+}
+
+function getNetProfit($pdo, $startDate = null, $endDate = null) {
+    if (!$pdo) return 0;
+    try {
+        $query = "SELECT 
+                SUM(o.total_amount) as total_revenue,
+                SUM(t.expenses) as total_expenses,
+                SUM(CASE 
+                    WHEN o.order_date >= DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH) 
+                    THEN o.total_amount ELSE 0 
+                END) as current_month_revenue,
+                SUM(CASE 
+                    WHEN o.order_date >= DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH) 
+                    THEN COALESCE(t.expenses, 0) ELSE 0 
+                END) as current_month_expenses
+            FROM orders o
+            LEFT JOIN transactions t ON o.order_id = t.order_id
+            WHERE 1=1";
+        
+        $params = [];
+        if ($startDate) {
+            $query .= " AND o.order_date >= :start_date";
+            $params[':start_date'] = $startDate . ' 00:00:00';
+        }
+        if ($endDate) {
+            $query .= " AND o.order_date <= :end_date";
+            $params[':end_date'] = $endDate . ' 23:59:59';
+        }
+
+        $stmt = $pdo->prepare($query);
+        $stmt->execute($params);
+        $result = $stmt->fetch();
+
+        // Get previous period data for comparison
+        $prevStartDate = $startDate ? date('Y-m-d', strtotime($startDate . ' -1 month')) : date('Y-m-d', strtotime('-2 month'));
+        $prevEndDate = $startDate ? date('Y-m-d', strtotime($startDate . ' -1 day')) : date('Y-m-d', strtotime('-1 month'));
+        
+        $prevQuery = "SELECT 
+                SUM(o.total_amount) as prev_revenue,
+                SUM(t.expenses) as prev_expenses
+            FROM orders o
+            LEFT JOIN transactions t ON o.order_id = t.order_id
+            WHERE o.order_date BETWEEN :prev_start AND :prev_end";
+        
+        $prevStmt = $pdo->prepare($prevQuery);
+        $prevStmt->execute([
+            ':prev_start' => $prevStartDate . ' 00:00:00',
+            ':prev_end' => $prevEndDate . ' 23:59:59'
+        ]);
+        $prevResult = $prevStmt->fetch();
+
+        $currentProfit = $result['current_month_revenue'] - $result['current_month_expenses'];
+        $previousProfit = $prevResult['prev_revenue'] - $prevResult['prev_expenses'];
+        $totalProfit = $result['total_revenue'] - $result['total_expenses'];
+
+        return [
+            'current' => $currentProfit,
+            'previous' => $previousProfit,
+            'total' => $totalProfit
+        ];
+    } catch (PDOException $e) {
+        error_log("Error in getNetProfit: " . $e->getMessage());
+        return ['current' => 0, 'previous' => 0, 'total' => 0];
+    }
+}
+
+function getActiveCustomers($pdo)
+{
+    if (!$pdo)
+        return 0;
+    try {
+        $query = "SELECT 
+                COUNT(DISTINCT email) as total_customers,
+                COUNT(DISTINCT CASE WHEN order_date >= DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH) 
+                    THEN email END) as current_month_customers,
+                COUNT(DISTINCT CASE WHEN order_date >= DATE_SUB(CURRENT_DATE, INTERVAL 2 MONTH) 
+                                   AND order_date < DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH)
+                    THEN email END) as previous_month_customers
+            FROM orders";
+
+        $result = $pdo->query($query)->fetch();
+        return [
+            'total' => $result['total_customers'],
+            'current' => $result['current_month_customers'],
+            'previous' => $result['previous_month_customers']
+        ];
+    } catch (PDOException $e) {
+        error_log("Error in getActiveCustomers: " . $e->getMessage());
+        return ['total' => 0, 'current' => 0, 'previous' => 0];
+    }
+}
+
+// Get data for all cards
+$orderStats = getTotalOrders($db);
+$profitStats = getNetProfit($db, $startDate, $endDate);
+$customerStats = getActiveCustomers($db);
+
+// Calculate growth percentages
+$orderGrowth = $orderStats['previous'] != 0 ?
+    (($orderStats['current'] - $orderStats['previous']) / $orderStats['previous'] * 100) : 0;
+
+$profitGrowth = $profitStats['previous'] != 0 ?
+    (($profitStats['current'] - $profitStats['previous']) / $profitStats['previous'] * 100) : 0;
+
+$customerGrowth = $customerStats['previous'] != 0 ?
+    (($customerStats['current'] - $customerStats['previous']) / $customerStats['previous'] * 100) : 0;
 
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
-    <title>Business Analytics Dashboard</title>
-    <link href="assets/css/reports.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.1.0/js/dataTables.buttons.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.1.0/js/buttons.html5.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.1.0/js/buttons.print.min.js"></script>
-    <script src="assets/js/datatables.js"></script>
-    <script src="assets/js/jquery.min.js"></script>
-    <script src="assets/js/reports.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="themes/reports.css" rel="stylesheet"> <!-- Link to reports.css -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Link to Montserrat font -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet"> <!-- Link to Bootstrap -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <script src="assets/js/reports.js"></script> <!-- Link to reports.js -->
+    <style>
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: var(--background);
+            color: var(--text-color);
+        }
+
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px;
+            box-shadow: var(--box-shadow);
+            background: var(--container-bg);
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .metric-title {
+            font-size: 1rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--metric-value-color);
+        }
+
+        .growth-indicator {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-top: 8px;
+        }
+
+        .growth-positive {
+            color: var(--priority-low);
+        }
+
+        .growth-negative {
+            color: var(--priority-high);
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            box-shadow: var(--box-shadow);
+            background-color: var(--container-bg);
+            border: 1px solid var(--border-color);
+        }
+
+        table {
+            width: 100%;
+            color: var(--text-color);
+            font-family: var(--font-family);
+        }
+
+        th {
+            padding: 12px 24px;
+            text-align: left;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            background-color: var(--table-header-bg);
+            color: var(--text-muted);
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        td {
+            padding: 12px 24px;
+            white-space: nowrap;
+            font-size: 0.875rem;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        tr:hover {
+            background-color: var(--feedback-bg);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-completed {
+            background-color: var(--priority-low);
+            color: white;
+        }
+
+        .status-pending {
+            background-color: var(--priority-medium);
+            color: black;
+        }
+
+        .status-failed {
+            background-color: var(--priority-high);
+            color: white;
+        }
+
+        .numeric-cell {
+            text-align: right;
+            font-family: monospace;
+            color: var(--text-color) !important;
+        }
+
+        .table-heading {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        body.dark-mode {
+            --background: #15202B;
+            --card-bg: #1F2937;
+            --text-color: #F9FAFB;
+            --table-header-bg: #374151;
+            --metric-value-color: #F9FAFB !important;
+            --border-color: #4B5563;
+            --text-muted: #9CA3AF;
+            --priority-low: #10B981;
+            --priority-medium: #F59E0B;
+            --priority-high: #EF4444;
+            --container-bg: #1F2937;
+            --box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 6px -1px, rgba(0, 0, 0, 0.06) 0px 2px 4px -1px;
+            --feedback-bg: #2D3748;
+        }
+
+        body.dark-mode .metric-value,
+        body.dark-mode .numeric-cell {
+            color: #ffffff !important;
+        }
+
+        body.light-mode {
+            --background: #ffffff;
+            --card-bg: white;
+            --text-color: #1F2937;
+            --table-header-bg: #F9FAFB;
+            --metric-value-color: #1F2937;
+        }
+
+        @media (max-width: 768px) {
+            .grid-container {
+                grid-template-columns: repeat(auto-fit, minmax(100%, 1fr));
+            }
+        }
+    </style>
 </head>
 
-<body>
-    <?php include 'includes/nav/collapsed.php'; ?>
-    <?php include 'includes/theme.php' ?>
-
-    <div class="container-fluid mt-4">
-        <div class="dashboard-content">
-            <h2 class="container mt-5">Analytics Dashboard</h2>
-
-            <!-- Date Range Filter -->
-            <form method="GET" action="reports.php" class="mb-4">
-                <div class="row g-3">
-
-                    <!-- Date Range -->
-                    <div class="col-md-4">
-                        <div class="input-group">
-                            <input type="date" name="start_date" class="form-control"
-                                value="<?= htmlspecialchars($startDate) ?>" placeholder="Start Date">
-                            <input type="date" name="end_date" class="form-control"
-                                value="<?= htmlspecialchars($endDate) ?>" placeholder="End Date">
-                        </div>
+<body class="bg-gray-100 p-6 light-mode">
+    <div class="container">
+        <!-- Date Filter Section -->
+        <div class="mb-6 bg-white p-4 rounded-lg shadow">
+            <form id="dateFilterForm" class="flex flex-wrap items-end gap-4">
+                <div class="flex-1 min-w-[200px]">
+                    <label class="block text-sm font-medium mb-1 text-gray-700">Date Range</label>
+                    <div class="flex gap-2">
+                        <input type="date" name="start_date" id="start_date"
+                            class="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            value="<?= htmlspecialchars($startDate) ?>">
+                        <input type="date" name="end_date" id="end_date"
+                            class="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            value="<?= htmlspecialchars($endDate) ?>">
                     </div>
-
-                    <!-- Submit and Reset Buttons -->
-                    <div class="col-md-2">
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-primary flex-grow-1">Filter</button>
-                            <a href="reports.php" class="btn btn-secondary">Reset</a>
-                        </div>
-                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                        Apply Filter
+                    </button>
+                    <button type="button" id="resetFilter" class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">
+                        Reset
+                    </button>
                 </div>
             </form>
+        </div>
 
-            <!-- Row 1: Key Metrics -->
-            <div class="row mb-4">
-                <div class="col-md-3">
-                    <div class="card text-white bg-primary">
-                        <div class="card-body">
-                            <h5>Total Customers</h5>
-                            <h2 id="totalCustomers"><?= $reportData['customer_stats']['total_customers'] ?></h2>
-                        </div>
+        <!-- Summary Cards -->
+        <div class="grid-container">
+            <div class="card metric-card" data-metric="revenue">
+                <div>
+                    <h3 class="metric-title">Total Revenue</h3>
+                    <p class="metric-value" style="color: var(--metric-value-color);">Ksh.<?= number_format($currentMonthRevenue, 2) ?></p>
+                    <p class="growth-indicator <?= $revenueGrowth >= 0 ? 'growth-positive' : 'growth-negative' ?>">
+                        <?= $revenueGrowth >= 0 ? '↑' : '↓' ?> <?= abs(round($revenueGrowth, 1)) ?>% from last month
+                    </p>
+                </div>
+            </div>
+            <div class="card metric-card" data-metric="orders">
+                <div>
+                    <h3 class="metric-title">Total Orders</h3>
+                    <p class="metric-value" style="color: var(--metric-value-color);"><?= number_format($orderStats['current'] ?? 0) ?></p>
+                    <p class="growth-indicator <?= $orderGrowth >= 0 ? 'growth-positive' : 'growth-negative' ?>">
+                        <?= $orderGrowth >= 0 ? '↑' : '↓' ?> <?= abs(round($orderGrowth, 1)) ?>% from last month
+                    </p>
+                </div>
+            </div>
+            <div class="card metric-card" data-metric="profit">
+                <div>
+                    <h3 class="metric-title">Net Profit</h3>
+                    <p class="metric-value" style="color: var(--metric-value-color);">Ksh.<?= number_format($profitStats['current'] ?? 0, 2) ?></p>
+                    <p class="growth-indicator <?= $profitGrowth >= 0 ? 'growth-positive' : 'growth-negative' ?>">
+                        <?= $profitGrowth >= 0 ? '↑' : '↓' ?> <?= abs(round($profitGrowth, 1)) ?>% from last month
+                    </p>
+                </div>
+            </div>
+            <div class="card metric-card" data-metric="customers">
+                <div>
+                    <h3 class="metric-title">Active Customers</h3>
+                    <p class="metric-value" style="color: var(--metric-value-color);"><?= number_format($customerStats['current'] ?? 0) ?></p>
+                    <p class="growth-indicator <?= $customerGrowth >= 0 ? 'growth-positive' : 'growth-negative' ?>">
+                        <?= $customerGrowth >= 0 ? '↑' : '↓' ?> <?= abs(round($customerGrowth, 1)) ?>% from last month
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="grid-container">
+            <div class="card">
+                <h2 class="text-lg font-semibold mb-4">Revenue vs Expenses</h2>
+                <canvas id="revenueChart"></canvas>
+            </div>
+            
+            <div class="card">
+                <h2 class="text-lg font-semibold mb-4">Sales by Category</h2>
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Tables Section -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <!-- Top Products Table -->
+            <div class="space-y-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2 class="table-heading">Top Products</h2>
+                    <div>
+                        <a href="export.php?table=topProductsTable&format=csv" class="btn btn-primary btn-sm">Export CSV</a>
+                        <a href="export.php?table=topProductsTable&format=excel" class="btn btn-success btn-sm">Export Excel</a>
+                        <a href="export.php?table=topProductsTable&format=pdf" class="btn btn-danger btn-sm">Export PDF</a>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card text-white bg-success">
-                        <div class="card-body">
-                            <h5>Monthly Sales</h5>
-                            <h2 id="monthlySales">
-                                Ksh.<?= number_format(end($reportData['sales_trends'])['total_sales'] ?? 0, 2) ?></h2>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card text-white bg-danger">
-                        <div class="card-body">
-                            <h5>Low Stock Items</h5>
-                            <h2 id="lowStockItems"><?= count($reportData['low_stock']) ?></h2>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card text-white bg-info">
-                        <div class="card-body">
-                            <h5>Avg. Orders/Customer</h5>
-                            <h2 id="avgOrdersCustomer"><?= round($reportData['customer_stats']['avg_orders'], 1) ?></h2>
-                        </div>
-                    </div>
+                <div class="table-container">
+                    <table class="min-w-full divide-y divide-[var(--border-color)]">
+                        <thead>
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Product Name
+                                </th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Units Sold
+                                </th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Revenue (KES)
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[var(--border-color)]">
+                            <?php foreach ($topProducts as $product): ?>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                        <?= htmlspecialchars($product['product_name']) ?>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                                        <?= number_format($product['total_quantity']) ?>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                                        <?= number_format($product['total_revenue'], 2) ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
-            <!-- New Key Metrics -->
-            <div class="row mb-4">
-                <div class="col-md-3">
-                    <div class="card text-white bg-warning">
-                        <div class="card-body">
-                            <h5>Total Revenue</h5>
-                            <h2 id="totalRevenue">
-                                Ksh.<?= number_format($reportData['financials']['total_revenue'], 2) ?></h2>
-                        </div>
+            <!-- Recent Transactions Table -->
+            <div class="space-y-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2 class="table-heading">Recent Transactions</h2>
+                    <div>
+                        <a href="export.php?table=recentTransactionsTable&format=csv" class="btn btn-primary btn-sm">Export CSV</a>
+                        <a href="export.php?table=recentTransactionsTable&format=excel" class="btn btn-success btn-sm">Export Excel</a>
+                        <a href="export.php?table=recentTransactionsTable&format=pdf" class="btn btn-danger btn-sm">Export PDF</a>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card text-white bg-dark">
-                        <div class="card-body">
-                            <h5>Net Profit</h5>
-                            <h2 id="netProfit">Ksh.<?= number_format($reportData['financials']['net_profit'], 2) ?></h2>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card text-white bg-info">
-                        <div class="card-body">
-                            <h5>Revenue Growth</h5>
-                            <h2 id="revenueGrowth"><?= round($reportData['revenue_growth'], 2) ?>%</h2>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Row 2: Main Charts -->
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <div class="card chart-card">
-                        <div class="card-body">
-                            <h5>Sales Trend (Last 6 Months)</h5>
-                            <canvas id="salesChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-6">
-                    <div class="card chart-card">
-                        <div class="card-body">
-                            <h5>Top Performing Products</h5>
-                            <canvas id="productsChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- New Charts -->
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <div class="card chart-card">
-                        <div class="card-body">
-                            <h5>Income vs Expenditures</h5>
-                            <canvas id="incomeExpenditureChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-6">
-                    <div class="card chart-card">
-                        <div class="card-body">
-                            <h5>Category-Wise Revenue</h5>
-                            <canvas id="categoryRevenueChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Row 3: Tables -->
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="card chart-card">
-                        <div class="card-body">
-                            <h5>Low Stock Alerts</h5>
-                            <div class="btn-group">
-                                <button class="btn btn-primary" onclick="exportData('csv')">CSV</button>
-                                <button class="btn btn-success" onclick="exportData('excel')">Excel</button>
-                                <button class="btn btn-danger" onclick="exportData('pdf')">PDF</button>
-                            </div>
-                            <table id="lowStockTable" class="table">
-                                <thead>
+                <div class="table-container">
+                    <table class="min-w-full divide-y divide-[var(--border-color)]">
+                        <thead>
+                            <tr>
+                                <th class="w-1/4">Reference</th>
+                                <th class="w-1/4">Money In</th>
+                                <th class="w-1/4">Money Out</th>
+                                <th class="w-1/4">Status</th>
+                                <th class="w-1/4">Date</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[var(--border-color)]">
+                            <?php if (empty($recentTransactions)): ?>
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">No transactions found</td>
+                                </tr>
+                            <?php else: ?>
+                                <?php foreach ($recentTransactions as $transaction): ?>
                                     <tr>
-                                        <th>Product</th>
-                                        <th>Current Stock</th>
-                                        <th>Minimum Required</th>
+                                        <td><?= htmlspecialchars($transaction['reference_id'] ?? 'N/A') ?></td>
+                                        <td class="numeric-cell <?= ($transaction['transaction_type'] ?? '') === 'IN' ? 'text-green-600' : '' ?>">
+                                            <?= ($transaction['transaction_type'] ?? '') === 'IN' ? number_format($transaction['total_amount'] ?? 0, 2) : '-' ?>
+                                        </td>
+                                        <td class="numeric-cell <?= ($transaction['transaction_type'] ?? '') === 'OUT' ? 'text-red-600' : '' ?>">
+                                            <?= ($transaction['transaction_type'] ?? '') === 'OUT' ? number_format($transaction['total_amount'] ?? 0, 2) : '-' ?>
+                                        </td>
+                                        <td>
+                                            <span class="status-badge status-<?= strtolower($transaction['payment_status'] ?? 'pending') ?>">
+                                                <?= htmlspecialchars($transaction['payment_status'] ?? 'Pending') ?>
+                                            </span>
+                                        </td>
+                                        <td><?= $transaction['transaction_date'] ? date('M d, Y', strtotime($transaction['transaction_date'])) : 'N/A' ?></td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($reportData['low_stock'] as $item): ?>
-                                        <tr>
-                                            <td><?= htmlspecialchars($item['product_name']) ?></td>
-                                            <td><?= $item['stock_quantity'] ?></td>
-                                            <td><?= $item['min_stock_level'] ?></td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-6">
-                    <div class="card chart-card">
-                        <div class="card-body">
-                            <h5>Customer Order Distribution</h5>
-                            <canvas id="customersChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- New Tables -->
-            <div class="row mt-4">
-                <div class="col-md-6">
-                    <div class="card chart-card">
-                        <div class="card-body">
-                            <h5>Recent Transactions</h5>
-                            <div class="btn-group">
-                                <button class="btn btn-primary" onclick="exportData('csv')">CSV</button>
-                                <button class="btn btn-success" onclick="exportData('excel')">Excel</button>
-                                <button class="btn btn-danger" onclick="exportData('pdf')">PDF</button>
-                            </div>
-                            <table id="recentTransactionsTable" class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Reference ID</th>
-                                        <th>Customer</th>
-                                        <th>Amount</th>
-                                        <th>Date</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($reportData['recent_transactions'] as $transaction): ?>
-                                        <tr>
-                                            <td><?= htmlspecialchars($transaction['reference_id']) ?></td>
-                                            <td><?= htmlspecialchars($transaction['customer']) ?></td>
-                                            <td>Ksh.<?= number_format($transaction['total_amount'], 2) ?></td>
-                                            <td><?= htmlspecialchars(date('Y-m-d H:i', strtotime($transaction['transaction_date']))) ?></td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-6">
-                    <div class="card chart-card">
-                        <div class="card-body">
-                            <h5>Top Spending Customers</h5>
-                            <div class="btn-group">
-                                <button class="btn btn-primary" onclick="exportData('csv')">CSV</button>
-                                <button class="btn btn-success" onclick="exportData('excel')">Excel</button>
-                                <button class="btn btn-danger" onclick="exportData('pdf')">PDF</button>
-                            </div>
-                            <table id="topCustomersTable" class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Customer</th>
-                                        <th>Total Spent</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($reportData['top_customers'] as $customer): ?>
-                                        <tr>
-                                            <td><?= htmlspecialchars($customer['customer']) ?></td>
-                                            <td>Ksh.<?= number_format($customer['total_spent'], 2) ?></td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        $(document).ready(function () {
-            // Date Range Picker
-            $('#dateRange').daterangepicker({
-                locale: {
-                    format: 'YYYY-MM-DD'
-                }
-            });
-
-            $('#dateFilter').change(function () {
-                if ($(this).val() === 'custom') {
-                    $('#customDateRange').show();
-                } else {
-                    $('#customDateRange').hide();
-                }
-            });
-
-            $('#filterBtn').click(function () {
-                const startDate = $('input[name="start_date"]').val();
-                const endDate = $('input[name="end_date"]').val();
-                updateMetrics({
-                    start: startDate,
-                    end: endDate
-                });
-            });
-
-            // Sales Trend Chart
-            new Chart(document.getElementById('salesChart'), {
-                type: 'line',
-                data: {
-                    labels: <?= json_encode(array_column($reportData['sales_trends'], 'month')) ?>,
-                    datasets: [{
-                        label: 'Monthly Sales',
-                        data: <?= json_encode(array_column($reportData['sales_trends'], 'total_sales')) ?>,
-                        borderColor: '#4e73df',
-                        tension: 0.3
-                    }]
-                }
-            });
-
-            // Products Chart
-            new Chart(document.getElementById('productsChart'), {
-                type: 'bar',
-                data: {
-                    labels: <?= json_encode(array_column($reportData['top_products'], 'product_name')) ?>,
-                    datasets: [{
-                        label: 'Revenue',
-                        data: <?= json_encode(array_column($reportData['top_products'], 'total_revenue')) ?>,
-                        backgroundColor: '#1cc88a'
-                    }]
-                }
-            });
-
-            // Income vs Expenditures Chart
-            new Chart(document.getElementById('incomeExpenditureChart'), {
-                type: 'bar',
-                data: {
-                    labels: ['Income', 'Expenditures'],
-                    datasets: [{
-                        label: 'Amount',
-                        data: [<?= $reportData['financials']['total_revenue'] ?>, 0], // Assuming no expenses
-                        backgroundColor: ['#4e73df', '#e74a3b']
-                    }]
-                }
-            });
-
-            // Category-Wise Revenue Chart
-            new Chart(document.getElementById('categoryRevenueChart'), {
-                type: 'pie',
-                data: {
-                    labels: <?= json_encode(array_column($reportData['top_categories'], 'category_name')) ?>,
-                    datasets: [{
-                        data: <?= json_encode(array_column($reportData['top_categories'], 'total_revenue')) ?>,
-                        backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b']
-                    }]
-                }
-            });
-
-            // Customers Chart
-            new Chart(document.getElementById('customersChart'), {
-                type: 'doughnut',
-                data: {
-                    labels: ['1 Order', '2-5 Orders', '5+ Orders'],
-                    datasets: [{
-                        data: [65, 24, 12], // Example data, replace with actual data
-                        backgroundColor: ['#36b9cc', '#1cc88a', '#f6c23e']
-                    }]
-                }
-            });
-
-            // DataTables Initialization
-            $('#lowStockTable').DataTable({
-                dom: 'Bfrtip',
-                buttons: [
-                    'csv', 'excel', 'pdf'
-                ]
-            });
-
-            $('#recentTransactionsTable').DataTable({
-                dom: 'Bfrtip',
-                buttons: [
-                    'csv', 'excel', 'pdf'
-                ]
-            });
-
-            $('#topCustomersTable').DataTable({
-                dom: 'Bfrtip',
-                buttons: [
-                    'csv', 'excel', 'pdf'
-                ]
-            });
-
-            // Real-Time Data Updates
-            setInterval(function () {
-                // Fetch and update metrics via AJAX
-            }, 30000);
+        // Add this before the existing chart initialization code
+        document.getElementById('dateFilterForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const startDate = document.getElementById('start_date').value;
+            const endDate = document.getElementById('end_date').value;
+            window.location.href = `reports.php?start_date=${startDate}&end_date=${endDate}`;
         });
 
-        function exportData(type) {
-            window.location.href = 'export.php?format=' + type;
+        document.getElementById('resetFilter').addEventListener('click', function() {
+            window.location.href = 'reports.php';
+        });
+
+        // Prepare data for charts
+        const revenueData = <?= json_encode($revenueData) ?>;
+        const salesByCategoryData = <?= json_encode($salesByCategory) ?>;
+
+        // Revenue vs Expenses Chart
+        const revenueChart = new Chart(
+            document.getElementById('revenueChart'),
+            {
+                type: 'line',
+                data: {
+                    labels: revenueData.map(d => d.month),
+                    datasets: [
+                        {
+                            label: 'Revenue',
+                            data: revenueData.map(d => d.revenue),
+                            borderColor: '#4F46E5',
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Expenses',
+                            data: revenueData.map(d => d.expenses),
+                            borderColor: '#EF4444',
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    }
+                }
+            }
+        );
+
+        // Sales by Category Chart
+        const categoryChart = new Chart(
+            document.getElementById('categoryChart'),
+            {
+                type: 'bar',
+                data: {
+                    labels: salesByCategoryData.map(d => d.category),
+                    datasets: [
+                        {
+                            label: 'Revenue',
+                            data: salesByCategoryData.map(d => d.total_revenue),
+                            backgroundColor: '#4F46E5'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    }
+                }
+            }
+        );
+
+        // Toggle dark mode
+        function toggleDarkMode() {
+            const body = document.body;
+            body.classList.toggle('dark-mode');
+            body.classList.toggle('light-mode');
         }
     </script>
-
 </body>
-<?php include 'includes/nav/footer.php'; ?>
 
 </html>

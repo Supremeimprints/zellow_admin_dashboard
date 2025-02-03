@@ -1,5 +1,14 @@
 {
+    "name": "geoff/zellow_admin",
+    "authors": [
+        {
+            "name": "Geoffrey",
+            "email": "supremeimprints@gmail.com"
+        }
+    ],
     "require": {
-        "mpdf/mpdf": "^8.2"
+        "phpoffice/phpspreadsheet": "^3.9",
+        "tecnickcom/tcpdf": "^6.8",
+        "mpdf/mpdf": "*"
     }
 }

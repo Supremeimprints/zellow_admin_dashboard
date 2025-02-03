@@ -104,32 +104,54 @@ try {
     $orders = [];
 }
 
-// Update inventory when an order is paid or dispatched
 foreach ($orders as $order) {
-    if ($order['payment_status'] === 'Paid' || $order['status'] === 'Shipped') {
+    if ($order['payment_status'] === 'Paid') {
+        try {
+            // Insert Customer Payment transaction
+            $insertTransactionStmt = $db->prepare("
+                INSERT INTO transactions (reference_id, transaction_type, total_amount, currency, payment_method, 
+                                          payment_status, user, order_id, remarks)
+                VALUES (:reference_id, 'Customer Payment', :total_amount, 'KES', :payment_method, 
+                        'Completed', :user, :order_id, 'Order payment recorded')
+            ");
+            $reference_id = 'TXN-' . uniqid(); // Generate unique reference ID
+
+            $insertTransactionStmt->bindParam(':reference_id', $reference_id);
+            $insertTransactionStmt->bindParam(':total_amount', $order['total_amount']);
+            $insertTransactionStmt->bindParam(':payment_method', $order['payment_method']);
+            $insertTransactionStmt->bindParam(':user', $order['user_id']);
+            $insertTransactionStmt->bindParam(':order_id', $order['order_id']);
+            $insertTransactionStmt->execute();
+        } catch (Exception $e) {
+            $errorMessage = "Error inserting transaction: " . $e->getMessage();
+        }
+    }
+
+    if ($order['status'] === 'Shipped') {
         try {
             $inventoryStmt = $db->prepare("SELECT stock_quantity FROM inventory WHERE product_id = :product_id");
             $inventoryStmt->bindParam(':product_id', $order['product_id']);
             $inventoryStmt->execute();
             $inventory = $inventoryStmt->fetch(PDO::FETCH_ASSOC);
-            
+
             if (!$inventory) {
                 $errorMessage = "Error: Product ID " . $order['product_id'] . " not found in inventory.";
             } else {
-                    if ($inventory['stock_quantity'] < $order['quantity']) {
-                        $errorMessage = "Insufficient inventory for product: " . $order['product_name'];
-                    } else {
-                        $updateInventoryStmt = $db->prepare("UPDATE inventory SET stock_quantity = stock_quantity - :quantity WHERE product_id = :product_id");
-                        $updateInventoryStmt->bindParam(':quantity', $order['quantity']);
-                        $updateInventoryStmt->bindParam(':product_id', $order['product_id']);
-                        $updateInventoryStmt->execute();
-                    }
+                if ($inventory['stock_quantity'] < $order['quantity']) {
+                    $errorMessage = "Insufficient inventory for product: " . $order['product_name'];
+                } else {
+                    $updateInventoryStmt = $db->prepare("UPDATE inventory SET stock_quantity = stock_quantity - :quantity WHERE product_id = :product_id");
+                    $updateInventoryStmt->bindParam(':quantity', $order['quantity']);
+                    $updateInventoryStmt->bindParam(':product_id', $order['product_id']);
+                    $updateInventoryStmt->execute();
                 }
-            } catch (Exception $e) {
+            }
+        } catch (Exception $e) {
             $errorMessage = "Error updating inventory: " . $e->getMessage();
         }
     }
 }
+
 
 // Get order counts
 $orderCounts = [];
