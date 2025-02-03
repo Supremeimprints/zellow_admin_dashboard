@@ -642,8 +642,8 @@ $customerGrowth = $customerStats['previous'] != 0 ?
             <div class="card metric-card" data-metric="profit">
                 <div>
                     <h3 class="metric-title">Net Profit</h3>
-                    <p class="metric-value" style="color: var(--metric-value-color);">Ksh.<?= number_format($profitStats['current'] ?? 0, 2) ?></p>
-                    <p class="""growth-indicator <?= $profitGrowth >= 0 ? 'growth-positive' : 'growth-negative' ?>">
+                    <p class="metric-value">Ksh.<?= number_format($profitStats['current'] ?? 0, 2) ?></p>
+                    <p class="growth-indicator <?= $profitGrowth >= 0 ? 'growth-positive' : 'growth-negative' ?>">
                         <?= $profitGrowth >= 0 ? '↑' : '↓' ?> <?= abs(round($profitGrowth, 1)) ?>% from last month
                     </p>
                 </div>

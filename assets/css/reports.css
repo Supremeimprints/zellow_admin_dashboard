@@ -158,3 +158,33 @@ body.light-mode {
       grid-template-columns: repeat(auto-fit, minmax(100%, 1fr));
   }
 }
+
+/* Update metric card styling */
+.metric-card {
+  background-color: var(--container-bg);
+  border: 1px solid var(--border-color);
+}
+
+.metric-card .metric-value {
+  color: var(--metric-value-color) !important;
+}
+
+[data-bs-theme="dark"] .metric-card,
+body.dark-mode .metric-card {
+  background-color: var(--container-bg);
+}
+
+[data-bs-theme="dark"] .metric-card .metric-value,
+body.dark-mode .metric-card .metric-value {
+  color: var(--text-color) !important;
+}
+
+/* Ensure consistent profit card styling */
+.metric-card[data-metric="profit"] .metric-value {
+  color: var(--metric-value-color) !important;
+}
+
+[data-bs-theme="dark"] .metric-card[data-metric="profit"] .metric-value,
+body.dark-mode .metric-card[data-metric="profit"] .metric-value {
+  color: var(--text-color) !important;
+}
