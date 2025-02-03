@@ -43,15 +43,35 @@ http_response_code(404);
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
         .error-image {
+            width: 100%;
             max-width: 300px;
+            max-height: 250px;
+            height: auto;
+            object-fit: contain;
             margin-bottom: 2rem;
+            transition: transform 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .error-image {
+                max-width: 200px;
+                max-height: 180px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .error-image {
+                max-width: 150px;
+                max-height: 140px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="error-container">
         <div class="error-content">
-            <img src="assets/images/oops-logo.svg" alt="404 Error" class="error-image">
+            <img src="assets/images/404bot.png" alt="404 Error" class="error-image">
+                    
             <div class="error-number">404</div>
             <div class="error-text mb-4">Oops! Page Not Found</div>
             <p class="text-muted mb-4">
@@ -64,6 +84,13 @@ http_response_code(404);
                 </a>
                 <a href="index.php" class="btn btn-primary home-button">
                     <i class="fas fa-home me-2"></i>Home Page
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
                 </a>
             </div>
         </div>
