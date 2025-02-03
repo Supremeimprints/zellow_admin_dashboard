@@ -178,11 +178,72 @@ function getSalesByCategory($pdo, $startDate = null, $endDate = null)
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+// Add this new function after your existing functions
+function getOrdersPerCustomer($pdo, $startDate = null, $endDate = null) {
+    try {
+        $query = "WITH OrderStats AS (
+            SELECT 
+                o.id,
+                COUNT(DISTINCT oi.order_id) as order_count,
+                SUM(oi.quantity) as total_items,
+                ROUND(AVG(oi.quantity), 1) as avg_items_per_order,
+                SUM(oi.subtotal) as total_spent
+            FROM orders o
+            JOIN order_items oi ON o.order_id = oi.order_id
+            WHERE 1=1";
+        
+        $params = [];
+        if ($startDate) {
+            $query .= " AND o.order_date >= :start_date";
+            $params[':start_date'] = $startDate . ' 00:00:00';
+        }
+        if ($endDate) {
+            $query .= " AND o.order_date <= :end_date";
+            $params[':end_date'] = $endDate . ' 23:59:59';
+        }
+        
+        $query .= " GROUP BY o.id
+        )
+        SELECT 
+            CASE 
+                WHEN order_count = 1 THEN 'Single Order'
+                WHEN order_count = 2 THEN '2 Orders'
+                WHEN order_count BETWEEN 3 AND 5 THEN '3-5 Orders'
+                WHEN order_count BETWEEN 6 AND 10 THEN '6-10 Orders'
+                ELSE '10+ Orders'
+            END as order_group,
+            COUNT(*) as customer_count,
+            ROUND(AVG(total_items), 1) as avg_items,
+            ROUND(AVG(avg_items_per_order), 1) as avg_items_per_order,
+            ROUND(AVG(total_spent), 2) as avg_spent,
+            MIN(order_count) as min_orders,
+            MAX(order_count) as max_orders
+        FROM OrderStats
+        GROUP BY 
+            CASE 
+                WHEN order_count = 1 THEN 'Single Order'
+                WHEN order_count = 2 THEN '2 Orders'
+                WHEN order_count BETWEEN 3 AND 5 THEN '3-5 Orders'
+                WHEN order_count BETWEEN 6 AND 10 THEN '6-10 Orders'
+                ELSE '10+ Orders'
+            END
+        ORDER BY min_orders ASC";
+
+        $stmt = $pdo->prepare($query);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log("Error in getOrdersPerCustomer: " . $e->getMessage());
+        return [];
+    }
+}
+
 // Get data for the dashboard
 $revenueData = getRevenueData($db, $startDate, $endDate);
 $topProducts = getTopProducts($db, $startDate, $endDate);
 $recentTransactions = getRecentTransactions($db); // This already has date filtering
 $salesByCategory = getSalesByCategory($db, $startDate, $endDate);
+$ordersPerCustomer = getOrdersPerCustomer($db, $startDate, $endDate);
 
 // Calculate summary metrics
 $currentMonthRevenue = $revenueData[0]['revenue'] ?? 0;
@@ -236,7 +297,7 @@ function getTotalOrders($pdo, $startDate = null, $endDate = null)
 }
 
 function getNetProfit($pdo, $startDate = null, $endDate = null) {
-    if (!$pdo) return 0;
+    if (!$pdo) return ['current' => 0, 'previous' => 0, 'total' => 0];
     try {
         $query = "SELECT 
                 SUM(o.total_amount) as total_revenue,
@@ -725,102 +786,123 @@ $customerGrowth = $customerStats['previous'] != 0 ?
         </div>
 
         <!-- Tables Section -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-            <!-- Top Products Table -->
-            <div class="space-y-4">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h2 class="table-heading">Top Products</h2>
-                    <div>
-                        <a href="export.php?table=topProductsTable&format=csv" class="btn btn-primary btn-sm">Export CSV</a>
-                        <a href="export.php?table=topProductsTable&format=excel" class="btn btn-success btn-sm">Export Excel</a>
-                        <a href="export.php?table=topProductsTable&format=pdf" class="btn btn-danger btn-sm">Export PDF</a>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+            <!-- Left Column - Top Products and Orders per Customer -->
+            <div class="lg:col-span-1 space-y-6">
+                <!-- Top Products Table -->
+                <div class="space-y-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h2 class="table-heading">Top Products</h2>
+                        <div>
+                            <a href="export.php?table=topProductsTable&format=csv" class="btn btn-primary btn-sm">CSV</a>
+                            <a href="export.php?table=topProductsTable&format=excel" class="btn btn-success btn-sm">Excel</a>
+                            <a href="export.php?table=topProductsTable&format=pdf" class="btn btn-danger btn-sm">PDF</a>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table class="min-w-full divide-y divide-[var(--border-color)]">
+                            <thead>
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Product Name
+                                    </th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Units Sold
+                                    </th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Revenue (KES)
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-[var(--border-color)]">
+                                <?php foreach ($topProducts as $product): ?>
+                                    <tr class="hover:bg-opacity-10 hover:bg-gray-500">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <?= htmlspecialchars($product['product_name']) ?>
+                                        </td></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                                            <?= number_format($product['total_quantity']) ?>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                                            <?= number_format($product['total_revenue'], 2) ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                <div class="table-container">
-                    <table class="min-w-full divide-y divide-[var(--border-color)]">
-                        <thead>
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Product Name
-                                </th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Units Sold
-                                </th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Revenue (KES)
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-[var(--border-color)]">
-                            <?php foreach ($topProducts as $product): ?>
-                                <tr class="hover:bg-opacity-10 hover:bg-gray-500">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <?= htmlspecialchars($product['product_name']) ?>
-                                    </td></td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                                        <?= number_format($product['total_quantity']) ?>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                                        <?= number_format($product['total_revenue'], 2) ?>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+
+                <!-- Orders per Customer Chart -->
+                <div class="card">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2 class="text-lg font-semibold">Items per Order Distribution</h2>
+                        <div>
+                            <a href="export.php?table=ordersPerCustomer&format=csv" class="btn btn-primary btn-sm">CSV</a>
+                            <a href="export.php?table=ordersPerCustomer&format=excel" class="btn btn-success btn-sm">Excel</a>
+                            <a href="export.php?table=ordersPerCustomer&format=pdf" class="btn btn-danger btn-sm">PDF</a>
+                        </div>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-4" style="height: 300px;">
+                        <canvas id="ordersPerCustomerChart"></canvas>
+                    </div>
                 </div>
             </div>
 
-            <!-- Recent Transactions Table -->
-            <div class="space-y-4">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h2 class="table-heading">Recent Transactions</h2>
-                    <div>
-                        <a href="export.php?table=recentTransactionsTable&format=csv" class="btn btn-primary btn-sm">Export CSV</a>
-                        <a href="export.php?table=recentTransactionsTable&format=excel" class="btn btn-success btn-sm">Export Excel</a>
-                        <a href="export.php?table=recentTransactionsTable&format=pdf" class="btn btn-danger btn-sm">Export PDF</a>
+            <!-- Right Column - Recent Transactions -->
+            <div class="lg:col-span-2">
+                <div class="space-y-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h2 class="table-heading">Recent Transactions</h2>
+                        <div>
+                            <a href="export.php?table=recentTransactionsTable&format=csv" class="btn btn-primary btn-sm">CSV</a>
+                            <a href="export.php?table=recentTransactionsTable&format=excel" class="btn btn-success btn-sm">Excel</a>
+                            <a href="export.php?table=recentTransactionsTable&format=pdf" class="btn btn-danger btn-sm">PDF</a>
+                        </div>
                     </div>
-                </div>
-                <div class="table-container">
-                    <table class="min-w-full divide-y divide-[var(--border-color)]">
-                        <thead>
-                            <tr>
-                                <th class="w-1/4">Reference</th>
-                                <th class="w-1/4">Money In</th>
-                                <th class="w-1/4">Money Out</th>
-                                <th class="w-1/4">Status</th>
-                                <th class="w-1/4">Date</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-[var(--border-color)]">
-                            <?php if (empty($recentTransactions)): ?>
+                    <div class="table-container">
+                        <table class="min-w-full divide-y divide-[var(--border-color)]">
+                            <thead>
                                 <tr>
-                                    <td colspan="5" class="text-center py-4">No transactions found</td>
+                                    <th class="w-1/4">Reference</th>
+                                    <th class="w-1/4">Money In</th>
+                                    <th class="w-1/4">Money Out</th>
+                                    <th class="w-1/4">Status</th>
+                                    <th class="w-1/4">Date</th>
                                 </tr>
-                            <?php else: ?>
-                                <?php foreach ($recentTransactions as $transaction): ?>
+                            </thead>
+                            <tbody class="divide-y divide-[var(--border-color)]">
+                                <?php if (empty($recentTransactions)): ?>
                                     <tr>
-                                        <td><?= htmlspecialchars($transaction['reference_id'] ?? 'N/A') ?></td>
-                                        <td class="numeric-cell <?= ($transaction['transaction_type'] ?? '') === 'IN' ? 'text-green-600' : '' ?>">
-                                            <?= ($transaction['transaction_type'] ?? '') === 'IN' ? number_format($transaction['total_amount'] ?? 0, 2) : '-' ?>
-                                        </td>
-                                        <td class="numeric-cell <?= ($transaction['transaction_type'] ?? '') === 'OUT' ? 'text-red-600' : '' ?>">
-                                            <?= ($transaction['transaction_type'] ?? '') === 'OUT' ? number_format($transaction['total_amount'] ?? 0, 2) : '-' ?>
-                                        </td>
-                                        <td>
-                                            <span class="status-badge status-<?= strtolower($transaction['payment_status'] ?? 'pending') ?>">
-                                                <?= htmlspecialchars($transaction['payment_status'] ?? 'Pending') ?>
-                                            </span>
-                                        </td>
-                                        <td><?= $transaction['transaction_date'] ? date('M d, Y', strtotime($transaction['transaction_date'])) : 'N/A' ?></td>
+                                        <td colspan="5" class="text-center py-4">No transactions found</td>
                                     </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
+                                <?php else: ?>
+                                    <?php foreach ($recentTransactions as $transaction): ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars($transaction['reference_id'] ?? 'N/A') ?></td>
+                                            <td class="numeric-cell <?= ($transaction['transaction_type'] ?? '') === 'IN' ? 'text-green-600' : '' ?>">
+                                                <?= ($transaction['transaction_type'] ?? '') === 'IN' ? number_format($transaction['total_amount'] ?? 0, 2) : '-' ?>
+                                            </td>
+                                            <td class="numeric-cell <?= ($transaction['transaction_type'] ?? '') === 'OUT' ? 'text-red-600' : '' ?>">
+                                                <?= ($transaction['transaction_type'] ?? '') === 'OUT' ? number_format($transaction['total_amount'] ?? 0, 2) : '-' ?>
+                                            </td>
+                                            <td>
+                                                <span class="status-badge status-<?= strtolower($transaction['payment_status'] ?? 'pending') ?>">
+                                                    <?= htmlspecialchars($transaction['payment_status'] ?? 'Pending') ?>
+                                                </span>
+                                            </td>
+                                            <td><?= $transaction['transaction_date'] ? date('M d, Y', strtotime($transaction['transaction_date'])) : 'N/A' ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+
+    </div> <!-- closing container div -->
 
     <script>
         // Add this before the existing chart initialization code
@@ -898,6 +980,64 @@ $customerGrowth = $customerStats['previous'] != 0 ?
             }
         );
 
+        // Add this after your existing chart initializations
+        const ordersPerCustomerData = <?= json_encode($ordersPerCustomer) ?>;
+        
+        // Orders per Customer Pie Chart
+        const ordersPerCustomerChart = new Chart(
+            document.getElementById('ordersPerCustomerChart'),
+            {
+                type: 'doughnut',
+                data: {
+                    labels: ordersPerCustomerData.map(d => d.order_group),
+                    datasets: [{
+                        data: ordersPerCustomerData.map(d => d.customer_count),
+                        backgroundColor: [
+                            '#4F46E5', // Indigo
+                            '#10B981', // Green
+                            '#F59E0B', // Yellow
+                            '#EF4444', // Red
+                            '#8B5CF6'  // Purple
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '60%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: {
+                                    family: "'Montserrat', sans-serif",
+                                    size: 11
+                                },
+                                padding: 10
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value * 100) / total).toFixed(1);
+                                    const avgItems = ordersPerCustomerData[context.dataIndex].avg_items;
+                                    return [
+                                        `${label}: ${value} orders`,
+                                        `${percentage}% of total`,
+                                        `Avg items: ${avgItems}`
+                                    ];
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        );
+
         // Toggle dark mode
         function toggleDarkMode() {
             const body = document.body;
@@ -956,6 +1096,7 @@ $customerGrowth = $customerStats['previous'] != 0 ?
             document.documentElement.setAttribute('data-bs-theme', isDark ? 'dark' : 'light');
             revenueChart.update();
             categoryChart.update();
+            ordersPerCustomerChart.update();
         };
 
         // Add theme change listener
