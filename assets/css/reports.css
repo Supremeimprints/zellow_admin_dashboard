@@ -25,13 +25,14 @@ body {
   padding: 20px;
   text-align: center;
   border-radius: 8px;
-  box-shadow: var(--box-shadow);
+  border: 1px solid var(--border-color);
   background: var(--container-bg);
-  transition: transform 0.2s;
+  transition: transform 0.2s, border-color 0.2s;
 }
 
 .card:hover {
   transform: translateY(-5px);
+  border-color: var(--text-muted);
 }
 
 .metric-title {
@@ -67,9 +68,8 @@ body {
 .table-container {
   overflow-x: auto;
   border-radius: 8px;
-  box-shadow: var(--box-shadow);
-  background-color: var(--container-bg);
   border: 1px solid var(--border-color);
+  background-color: var(--container-bg);
 }
 
 table {
@@ -96,8 +96,16 @@ td {
   border-bottom: 1px solid var(--border-color);
 }
 
+/* Update table hover styles */
 tr:hover {
-  background-color: var(--feedback-bg);
+  background-color: rgba(156, 163, 175, 0.1) !important;
+  transition: background-color 0.2s ease;
+}
+
+/* Dark mode specific hover */
+[data-bs-theme="dark"] tr:hover,
+body.dark-mode tr:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
 }
 
 .status-badge {
@@ -138,11 +146,17 @@ tr:hover {
 }
 
 body.dark-mode {
-  --background: #15202B;
+  --background: #0A0F1A;  /* Darker blue-black background */
   --card-bg: #1F2937;
+  --container-bg: #1E293B; /* Slightly lighter than background for contrast */
   --text-color: #F9FAFB;
   --table-header-bg: #374151;
   --metric-value-color: #F9FAFB;
+  --border-color: #374151;
+  --text-muted: #9CA3AF;
+  --feedback-bg: #2D3748;
+  --hover-border: #4B5563;
+  --dark-shadow: rgba(0, 0, 0, 0.3) 0px 4px 6px -1px;
 }
 
 body.light-mode {
@@ -167,6 +181,7 @@ body.light-mode {
 
 .metric-card .metric-value {
   color: var(--metric-value-color) !important;
+  transition: color 0.2s ease;
 }
 
 [data-bs-theme="dark"] .metric-card,
@@ -176,7 +191,7 @@ body.dark-mode .metric-card {
 
 [data-bs-theme="dark"] .metric-card .metric-value,
 body.dark-mode .metric-card .metric-value {
-  color: var(--text-color) !important;
+  color: rgba(255, 255, 255, 0.95) !important;
 }
 
 /* Ensure consistent profit card styling */
@@ -186,5 +201,89 @@ body.dark-mode .metric-card .metric-value {
 
 [data-bs-theme="dark"] .metric-card[data-metric="profit"] .metric-value,
 body.dark-mode .metric-card[data-metric="profit"] .metric-value {
-  color: var(--text-color) !important;
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Override for specific metrics to maintain consistency */
+[data-bs-theme="dark"] .metric-card[data-metric="revenue"] .metric-value,
+[data-bs-theme="dark"] .metric-card[data-metric="orders"] .metric-value,
+[data-bs-theme="dark"] .metric-card[data-metric="profit"] .metric-value,
+[data-bs-theme="dark"] .metric-card[data-metric="customers"] .metric-value,
+body.dark-mode .metric-card[data-metric="revenue"] .metric-value,
+body.dark-mode .metric-card[data-metric="orders"] .metric-value,
+body.dark-mode .metric-card[data-metric="profit"] .metric-value,
+body.dark-mode .metric-card[data-metric="customers"] .metric-value {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Update table text colors for dark mode */
+[data-bs-theme="dark"] tr td,
+body.dark-mode tr td {
+  color: #F9FAFB !important;
+}
+
+[data-bs-theme="dark"] .table-container td,
+body.dark-mode .table-container td {
+  color: #F9FAFB !important;
+}
+
+/* Specific override for table cells in dark mode */
+[data-bs-theme="dark"] .px-6.py-4.whitespace-nowrap.text-sm,
+body.dark-mode .px-6.py-4.whitespace-nowrap.text-sm {
+  color: #F9FAFB !important;
+}
+
+/* Ensure money in/out cells maintain their colors */
+[data-bs-theme="dark"] .numeric-cell.text-green-600,
+body.dark-mode .numeric-cell.text-green-600 {
+  color: var(--priority-low) !important;
+}
+
+[data-bs-theme="dark"] .numeric-cell.text-red-600,
+body.dark-mode .numeric-cell.text-red-600 {
+  color: var(--priority-high) !important;
+}
+
+[data-bs-theme="dark"] {
+  --background: #0A0F1A;
+  --container-bg: #1E293B;
+}
+
+/* Ensure proper background color application */
+body.dark-mode .bg-gray-100 {
+  background-color: var(--background) !important;
+}
+
+/* Update container background in dark mode */
+body.dark-mode .container {
+  background-color: var(--background);
+}
+
+/* Update filter form */
+.filter-form {
+  background-color: var(--container-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.table-container, 
+.filter-form,
+.chart-container {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--container-bg);
+}
+
+/* Dark mode specific shadow for depth when needed */
+[data-bs-theme="dark"] .card,
+body.dark-mode .card {
+  box-shadow: var(--dark-shadow);
+  border: 1px solid var(--border-color);
+}
+
+[data-bs-theme="dark"] .card:hover,
+body.dark-mode .card:hover {
+  border-color: var(--hover-border);
 }

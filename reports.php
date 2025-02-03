@@ -190,19 +190,40 @@ $previousMonthRevenue = $revenueData[1]['revenue'] ?? 0;
 $revenueGrowth = $previousMonthRevenue != 0 ?
     (($currentMonthRevenue - $previousMonthRevenue) / $previousMonthRevenue * 100) : 0;
 
-function getTotalOrders($pdo)
+function getTotalOrders($pdo, $startDate = null, $endDate = null)
 {
-    if (!$pdo)
-        return 0;
+    if (!$pdo) return 0;
     try {
         $query = "SELECT 
                 COUNT(*) as total_orders,
-                COUNT(CASE WHEN order_date >= DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH) THEN 1 END) as current_month_orders,
-                COUNT(CASE WHEN order_date >= DATE_SUB(CURRENT_DATE, INTERVAL 2 MONTH) 
-                          AND order_date < DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH) THEN 1 END) as previous_month_orders
-            FROM orders";
+                COUNT(*) as current_month_orders,
+                (
+                    SELECT COUNT(*) 
+                    FROM orders 
+                    WHERE order_date BETWEEN 
+                        COALESCE(:prev_start, DATE_SUB(CURRENT_DATE, INTERVAL 2 MONTH))
+                        AND COALESCE(:prev_end, DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH))
+                ) as previous_month_orders
+            FROM orders 
+            WHERE 1=1";
+        
+        $params = [
+            ':prev_start' => $startDate ? date('Y-m-d', strtotime($startDate . ' -1 month')) : null,
+            ':prev_end' => $startDate ? date('Y-m-d', strtotime($startDate . ' -1 day')) : null
+        ];
 
-        $result = $pdo->query($query)->fetch();
+        if ($startDate) {
+            $query .= " AND order_date >= :start_date";
+            $params[':start_date'] = $startDate . ' 00:00:00';
+        }
+        if ($endDate) {
+            $query .= " AND order_date <= :end_date";
+            $params[':end_date'] = $endDate . ' 23:59:59';
+        }
+
+        $stmt = $pdo->prepare($query);
+        $stmt->execute($params);
+        $result = $stmt->fetch();
         return [
             'total' => $result['total_orders'],
             'current' => $result['current_month_orders'],
@@ -279,21 +300,40 @@ function getNetProfit($pdo, $startDate = null, $endDate = null) {
     }
 }
 
-function getActiveCustomers($pdo)
+function getActiveCustomers($pdo, $startDate = null, $endDate = null)
 {
-    if (!$pdo)
-        return 0;
+    if (!$pdo) return 0;
     try {
         $query = "SELECT 
                 COUNT(DISTINCT email) as total_customers,
-                COUNT(DISTINCT CASE WHEN order_date >= DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH) 
-                    THEN email END) as current_month_customers,
-                COUNT(DISTINCT CASE WHEN order_date >= DATE_SUB(CURRENT_DATE, INTERVAL 2 MONTH) 
-                                   AND order_date < DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH)
-                    THEN email END) as previous_month_customers
-            FROM orders";
+                COUNT(DISTINCT email) as current_month_customers,
+                (
+                    SELECT COUNT(DISTINCT email)
+                    FROM orders
+                    WHERE order_date BETWEEN 
+                        COALESCE(:prev_start, DATE_SUB(CURRENT_DATE, INTERVAL 2 MONTH))
+                        AND COALESCE(:prev_end, DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH))
+                ) as previous_month_customers
+            FROM orders
+            WHERE 1=1";
+        
+        $params = [
+            ':prev_start' => $startDate ? date('Y-m-d', strtotime($startDate . ' -1 month')) : null,
+            ':prev_end' => $startDate ? date('Y-m-d', strtotime($startDate . ' -1 day')) : null
+        ];
 
-        $result = $pdo->query($query)->fetch();
+        if ($startDate) {
+            $query .= " AND order_date >= :start_date";
+            $params[':start_date'] = $startDate . ' 00:00:00';
+        }
+        if ($endDate) {
+            $query .= " AND order_date <= :end_date";
+            $params[':end_date'] = $endDate . ' 23:59:59';
+        }
+
+        $stmt = $pdo->prepare($query);
+        $stmt->execute($params);
+        $result = $stmt->fetch();
         return [
             'total' => $result['total_customers'],
             'current' => $result['current_month_customers'],
@@ -306,9 +346,9 @@ function getActiveCustomers($pdo)
 }
 
 // Get data for all cards
-$orderStats = getTotalOrders($db);
+$orderStats = getTotalOrders($db, $startDate, $endDate);
 $profitStats = getNetProfit($db, $startDate, $endDate);
-$customerStats = getActiveCustomers($db);
+$customerStats = getActiveCustomers($db, $startDate, $endDate);
 
 // Calculate growth percentages
 $orderGrowth = $orderStats['previous'] != 0 ?
@@ -330,7 +370,7 @@ $customerGrowth = $customerStats['previous'] != 0 ?
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Financial Dashboard</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-    <link href="themes/reports.css" rel="stylesheet"> <!-- Link to reports.css -->
+    <link href="assets/css/reports.css" rel="stylesheet"> <!-- Link to reports.css -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Link to Montserrat font -->
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet"> <!-- Link to Bootstrap -->
@@ -524,6 +564,7 @@ $customerGrowth = $customerStats['previous'] != 0 ?
         [data-bs-theme="dark"] {
             --chart-text: #F9FAFB;
             --chart-grid: #4B5563;
+            --background: #1F2937;
         }
 
         /* Search filter styling to match orders page */
@@ -592,7 +633,7 @@ $customerGrowth = $customerStats['previous'] != 0 ?
     </style>
 </head>
 
-<body class="bg-gray-100 p-6 light-mode">
+<body> <!-- Remove bg-gray-100 class -->
     <div class="container">
         <!-- Date Filter Section -->
         <div class="filter-form">
@@ -624,7 +665,7 @@ $customerGrowth = $customerStats['previous'] != 0 ?
             <div class="card metric-card" data-metric="revenue">
                 <div>
                     <h3 class="metric-title">Total Revenue</h3>
-                    <p class="metric-value" style="color: var(--metric-value-color);">Ksh.<?= number_format($currentMonthRevenue, 2) ?></p>
+                    <p class="metric-value">Ksh.<?= number_format($currentMonthRevenue, 2) ?></p>
                     <p class="growth-indicator <?= $revenueGrowth >= 0 ? 'growth-positive' : 'growth-negative' ?>">
                         <?= $revenueGrowth >= 0 ? '↑' : '↓' ?> <?= abs(round($revenueGrowth, 1)) ?>% from last month
                     </p>
@@ -633,7 +674,7 @@ $customerGrowth = $customerStats['previous'] != 0 ?
             <div class="card metric-card" data-metric="orders">
                 <div>
                     <h3 class="metric-title">Total Orders</h3>
-                    <p class="metric-value" style="color: var(--metric-value-color);"><?= number_format($orderStats['current'] ?? 0) ?></p>
+                    <p class="metric-value"><?= number_format($orderStats['current'] ?? 0) ?></p>
                     <p class="growth-indicator <?= $orderGrowth >= 0 ? 'growth-positive' : 'growth-negative' ?>">
                         <?= $orderGrowth >= 0 ? '↑' : '↓' ?> <?= abs(round($orderGrowth, 1)) ?>% from last month
                     </p>
@@ -651,7 +692,7 @@ $customerGrowth = $customerStats['previous'] != 0 ?
             <div class="card metric-card" data-metric="customers">
                 <div>
                     <h3 class="metric-title">Active Customers</h3>
-                    <p class="metric-value" style="color: var(--metric-value-color);"><?= number_format($customerStats['current'] ?? 0) ?></p>
+                    <p class="metric-value"><?= number_format($customerStats['current'] ?? 0) ?></p>
                     <p class="growth-indicator <?= $customerGrowth >= 0 ? 'growth-positive' : 'growth-negative' ?>">
                         <?= $customerGrowth >= 0 ? '↑' : '↓' ?> <?= abs(round($customerGrowth, 1)) ?>% from last month
                     </p>
@@ -701,8 +742,8 @@ $customerGrowth = $customerStats['previous'] != 0 ?
                         </thead>
                         <tbody class="divide-y divide-[var(--border-color)]">
                             <?php foreach ($topProducts as $product): ?>
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                <tr class="hover:bg-opacity-10 hover:bg-gray-500">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                         <?= htmlspecialchars($product['product_name']) ?>
                                     </td></td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
