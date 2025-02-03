@@ -514,30 +514,105 @@ $customerGrowth = $customerStats['previous'] != 0 ?
                 grid-template-columns: repeat(auto-fit, minmax(100%, 1fr));
             }
         }
+
+        /* Base styles */
+        :root {
+            --chart-text: #1F2937;
+            --chart-grid: #E5E7EB;
+        }
+
+        [data-bs-theme="dark"] {
+            --chart-text: #F9FAFB;
+            --chart-grid: #4B5563;
+        }
+
+        /* Search filter styling to match orders page */
+        .filter-form {
+            background-color: var(--container-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .filter-form label {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .filter-form input[type="date"] {
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem;
+            width: 100%;
+        }
+
+        .filter-form input[type="date"]:focus {
+            border-color: var(--primary-accent);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+        }
+
+        /* Chart container styling */
+        .chart-container {
+            background-color: var(--container-bg);
+            border-radius: 0.5rem;
+            padding: 1rem;
+        }
+
+        /* Metric card improvements */
+        .metric-card .metric-value {
+            color: var(--metric-value-color) !important;
+            font-weight: 700;
+        }
+
+        .metric-card .metric-title {
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* Dark mode specific overrides */
+        [data-bs-theme="dark"] .table td,
+        [data-bs-theme="dark"] .metric-value,
+        [data-bs-theme="dark"] .numeric-cell {
+            color: var(--text-color) !important;
+        }
+
+        [data-bs-theme="dark"] .chart-container {
+            background-color: var(--container-bg);
+        }
+
+        [data-bs-theme="dark"] canvas {
+            filter: none !important;
+        }
     </style>
 </head>
 
 <body class="bg-gray-100 p-6 light-mode">
     <div class="container">
         <!-- Date Filter Section -->
-        <div class="mb-6 bg-white p-4 rounded-lg shadow">
+        <div class="filter-form">
             <form id="dateFilterForm" class="flex flex-wrap items-end gap-4">
                 <div class="flex-1 min-w-[200px]">
-                    <label class="block text-sm font-medium mb-1 text-gray-700">Date Range</label>
+                    <label class="block text-sm font-medium mb-1">Date Range</label>
                     <div class="flex gap-2">
                         <input type="date" name="start_date" id="start_date"
-                            class="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            class="flex-1"
                             value="<?= htmlspecialchars($startDate) ?>">
                         <input type="date" name="end_date" id="end_date"
-                            class="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            class="flex-1"
                             value="<?= htmlspecialchars($endDate) ?>">
                     </div>
                 </div>
                 <div class="flex gap-2">
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    <button type="submit" class="btn btn-primary px-4 py-2">
                         Apply Filter
                     </button>
-                    <button type="button" id="resetFilter" class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">
+                    <button type="button" id="resetFilter" class="btn btn-secondary px-4 py-2">
                         Reset
                     </button>
                 </div>
@@ -568,7 +643,7 @@ $customerGrowth = $customerStats['previous'] != 0 ?
                 <div>
                     <h3 class="metric-title">Net Profit</h3>
                     <p class="metric-value" style="color: var(--metric-value-color);">Ksh.<?= number_format($profitStats['current'] ?? 0, 2) ?></p>
-                    <p class="growth-indicator <?= $profitGrowth >= 0 ? 'growth-positive' : 'growth-negative' ?>">
+                    <p class="""growth-indicator <?= $profitGrowth >= 0 ? 'growth-positive' : 'growth-negative' ?>">
                         <?= $profitGrowth >= 0 ? '↑' : '↓' ?> <?= abs(round($profitGrowth, 1)) ?>% from last month
                     </p>
                 </div>
@@ -629,7 +704,7 @@ $customerGrowth = $customerStats['previous'] != 0 ?
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                         <?= htmlspecialchars($product['product_name']) ?>
-                                    </td>
+                                    </td></td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
                                         <?= number_format($product['total_quantity']) ?>
                                     </td>
@@ -777,6 +852,62 @@ $customerGrowth = $customerStats['previous'] != 0 ?
             body.classList.toggle('dark-mode');
             body.classList.toggle('light-mode');
         }
+
+        // Update chart options for better visibility
+        const chartOptions = {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text'),
+                        font: {
+                            family: "'Montserrat', sans-serif",
+                            weight: '500'
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: getComputedStyle(document.documentElement).getPropertyValue('--chart-grid')
+                    },
+                    ticks: {
+                        color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text'),
+                        font: {
+                            family: "'Montserrat', sans-serif"
+                        }
+                    }
+                },
+                y: {
+                    grid: {
+                        color: getComputedStyle(document.documentElement).getPropertyValue('--chart-grid')
+                    },
+                    ticks: {
+                        color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text'),
+                        font: {
+                            family: "'Montserrat', sans-serif"
+                        }
+                    }
+                }
+            }
+        };
+
+        // Apply options to both charts
+        revenueChart.options = { ...revenueChart.options, ...chartOptions };
+        categoryChart.options = { ...categoryChart.options, ...chartOptions };
+
+        // Update charts when theme changes
+        const updateChartsTheme = () => {
+            const isDark = document.body.classList.contains('dark-mode');
+            document.documentElement.setAttribute('data-bs-theme', isDark ? 'dark' : 'light');
+            revenueChart.update();
+            categoryChart.update();
+        };
+
+        // Add theme change listener
+        document.addEventListener('themeChanged', updateChartsTheme);
     </script>
 </body>
 
