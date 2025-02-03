@@ -74,6 +74,7 @@ if (!$category) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Category - Zellow Enterprises</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/css/dispatch.css" rel="stylesheet">
     <style>
         body {
             font-family: 'Montserrat', sans-serif;
@@ -114,7 +115,7 @@ if (!$category) {
                 <!-- Edit Category Form -->
                 <form method="POST">
                     <div class="form-section">
-                        <h4 class="mb-3"><i class="bi bi-info-circle"></i> Category Information</h4>
+                        <h4 class="mb-3"><i class="bi bi-info-circle"></i></h4>
                         <div class="mb-3">
                             <label for="category_name" class="form-label">Category Name</label>
                             <input type="text" 
