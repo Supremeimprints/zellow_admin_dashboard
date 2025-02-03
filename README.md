@@ -6,7 +6,7 @@
 
 ## Project Overview
 
-An integrated enterprise resource planning system developed for Zellow Enterprises to streamline their logistics, inventory, and administrative operations. This comprehensive web application manages the entire business workflow from inventory tracking to employee management and customer service.
+An integrated enterprise resource planning system developed for Zellow Enterprises to streamline their logistics, inventory, and administrative operations. This comprehensive Admin Dashboard manages the entire business workflow from inventory tracking to employee management and customer service.
 
 ## Technical Stack
 
