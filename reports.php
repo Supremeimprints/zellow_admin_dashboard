@@ -181,16 +181,16 @@ function getSalesByCategory($pdo, $startDate = null, $endDate = null)
 // Add this new function after your existing functions
 function getOrdersPerCustomer($pdo, $startDate = null, $endDate = null) {
     try {
-        $query = "WITH OrderStats AS (
+        $query = "WITH CustomerOrders AS (
             SELECT 
                 o.id,
-                COUNT(DISTINCT oi.order_id) as order_count,
+                COUNT(DISTINCT o.order_id) as order_count,
                 SUM(oi.quantity) as total_items,
-                ROUND(AVG(oi.quantity), 1) as avg_items_per_order,
+                COUNT(oi.id) as items_per_order,
                 SUM(oi.subtotal) as total_spent
             FROM orders o
             JOIN order_items oi ON o.order_id = oi.order_id
-            WHERE 1=1";
+            WHERE 1=1 ";
         
         $params = [];
         if ($startDate) {
@@ -206,28 +206,27 @@ function getOrdersPerCustomer($pdo, $startDate = null, $endDate = null) {
         )
         SELECT 
             CASE 
-                WHEN order_count = 1 THEN 'Single Order'
-                WHEN order_count = 2 THEN '2 Orders'
-                WHEN order_count BETWEEN 3 AND 5 THEN '3-5 Orders'
-                WHEN order_count BETWEEN 6 AND 10 THEN '6-10 Orders'
-                ELSE '10+ Orders'
+                WHEN items_per_order <= 2 THEN '1-2 items'
+                WHEN items_per_order <= 5 THEN '3-5 items'
+                WHEN items_per_order <= 10 THEN '6-10 items'
+                WHEN items_per_order <= 20 THEN '11-20 items'
+                ELSE '20+ items'
             END as order_group,
             COUNT(*) as customer_count,
             ROUND(AVG(total_items), 1) as avg_items,
-            ROUND(AVG(avg_items_per_order), 1) as avg_items_per_order,
-            ROUND(AVG(total_spent), 2) as avg_spent,
-            MIN(order_count) as min_orders,
-            MAX(order_count) as max_orders
-        FROM OrderStats
+            ROUND(AVG(items_per_order), 1) as avg_items_per_order,
+            ROUND(AVG(total_spent), 2) as avg_spent
+        FROM CustomerOrders
         GROUP BY 
             CASE 
-                WHEN order_count = 1 THEN 'Single Order'
-                WHEN order_count = 2 THEN '2 Orders'
-                WHEN order_count BETWEEN 3 AND 5 THEN '3-5 Orders'
-                WHEN order_count BETWEEN 6 AND 10 THEN '6-10 Orders'
-                ELSE '10+ Orders'
+                WHEN items_per_order <= 2 THEN '1-2 items'
+                WHEN items_per_order <= 5 THEN '3-5 items'
+                WHEN items_per_order <= 10 THEN '6-10 items'
+                WHEN items_per_order <= 20 THEN '11-20 items'
+                ELSE '20+ items'
             END
-        ORDER BY min_orders ASC";
+        ORDER BY 
+            MIN(items_per_order) ASC";
 
         $stmt = $pdo->prepare($query);
         $stmt->execute($params);
@@ -385,7 +384,7 @@ function getActiveCustomers($pdo, $startDate = null, $endDate = null)
                 c.last_activity >= COALESCE(:start_date, DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH))
                 OR EXISTS (
                     SELECT 1 FROM orders o 
-                    WHERE o.customer_id = c.customer_id
+                    WHERE o.id = c.customer_id
                     AND o.order_date >= COALESCE(:start_date, DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH))
                 )
                 OR EXISTS (
@@ -837,10 +836,9 @@ $customerGrowth = $customerStats['previous'] != 0 ?
                 <div class="card">
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h2 class="text-lg font-semibold">Items per Order Distribution</h2>
-                        <div>
+                        <div class="d-flex gap-2"> <!-- Added d-flex and gap-2 classes -->
                             <a href="export.php?table=ordersPerCustomer&format=csv" class="btn btn-primary btn-sm">CSV</a>
                             <a href="export.php?table=ordersPerCustomer&format=excel" class="btn btn-success btn-sm">Excel</a>
-                            <a href="export.php?table=ordersPerCustomer&format=pdf" class="btn btn-danger btn-sm">PDF</a>
                         </div>
                     </div>
                     <div class="bg-white dark:bg-gray-800 rounded-lg p-4" style="height: 300px;">
