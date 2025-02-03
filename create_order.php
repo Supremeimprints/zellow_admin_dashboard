@@ -267,9 +267,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
 
-            <div class="mt-4">
+            <div class="d-flex justify-content-between">
                 <button type="submit" class="btn btn-primary btn-lg">Create Order</button>
-                <a href="orders.php" class="btn btn-secondary btn-lg">Cancel</a>
+                <a href="orders.php" class="btn btn-danger btn-lg">Cancel</a>
             </div>
         </form>
     </div>
