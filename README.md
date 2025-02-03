@@ -2,11 +2,11 @@
 
 ## Enterprise Resource Planning (ERP) Solution
 
-### Senior Year Project - Computer Science 2023/2024
+### Senior Year Project - Computer Science 2024/2025
 
 ## Project Overview
 
-An integrated enterprise resource planning system developed for Zellow Enterprises to streamline their logistics, inventory, and administrative operations. This comprehensive Admin Dashboard manages the entire business workflow from inventory tracking to employee management and customer service.
+An integrated enterprise resource planning system was developed for Zellow Enterprises to streamline their logistics, inventory, and administrative operations. This Admin Dashboard manages the entire business workflow from inventory tracking to employee management and customer service.
 
 ## Technical Stack
 
@@ -55,7 +55,7 @@ An integrated enterprise resource planning system developed for Zellow Enterpris
 
 - **Customer Relationship Management**
   - Customer profiles
-  - Service history
+  - Service History
   - Feedback management
   - Communication logs
 
@@ -157,7 +157,7 @@ zellow_admin/
 
 ## Contributing
 
-If you would like to contribute to this project, please fork the repository and submit a pull request. We welcome all contributions!
+If you would like to contribute to this project, please fork the repository and submit a pull request. I welcome all contributions!
 
 ## License
 
@@ -165,4 +165,4 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## Contact
 
-For any questions or support, please contact [yourname@example.com](mailto:yourname@example.com).
+For any questions or support, please contact [geoffreymagana21@gmail.com](mailto:geoffreymagana21@gmail.com).
