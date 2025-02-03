@@ -15,7 +15,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
     $msg_id = $_POST['message_id'];
     $stmt = $db->prepare("DELETE FROM messages WHERE id = ? AND (recipient_id = ? OR recipient_id IS NULL)");
     $stmt->execute([$msg_id, $_SESSION['id']]);
-    header("Location: notifications.php");
+    $_SESSION['success'] = "Message deleted successfully.";
+    header("Location: " . $_SERVER['HTTP_REFERER']);
     exit();
 }
 
