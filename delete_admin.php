@@ -9,7 +9,8 @@ if (!isset($_SESSION['id'])) {
 
 // Check if user has admin access
 if ($_SESSION['role'] !== 'admin') {
-    echo "Access denied. You do not have permission to perform this action.";
+    $_SESSION['error'] = "Access denied. You do not have permission to perform this action.";
+    header('Location: admins.php');
     exit();
 }
 
@@ -20,31 +21,32 @@ $db = $database->getConnection();
 
 // Validate admin ID
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
-    echo "Invalid admin ID.";
+    $_SESSION['error'] = "Invalid admin ID.";
+    header('Location: admins.php');
     exit();
 }
 
 $id = (int)$_GET['id'];
 
-// Check if the admin exists
-$query = "SELECT id FROM users WHERE id = ? AND role IN ('admin', 'finance_manager', 'supply_manager', 'inventory_manager', 'dispatch_manager', 'service_manager')";
-$stmt = $db->prepare($query);
-$stmt->execute([$id]);
+try {
+    // Update messages and notifications first
+    $queries = [
+        "UPDATE messages SET sender_id = NULL WHERE sender_id = ?",
+        "UPDATE messages SET recipient_id = NULL WHERE recipient_id = ?",
+        "UPDATE notifications SET sender_id = NULL WHERE sender_id = ?",
+        "UPDATE notifications SET recipient_id = NULL WHERE recipient_id = ?",
+        "DELETE FROM users WHERE id = ?"
+    ];
 
-if ($stmt->rowCount() === 0) {
-    echo "Admin not found.";
-    exit();
+    foreach ($queries as $query) {
+        $stmt = $db->prepare($query);
+        $stmt->execute([$id]);
+    }
+
+    $_SESSION['success'] = "Admin deleted successfully.";
+} catch (PDOException $e) {
+    $_SESSION['error'] = "Error deleting admin: " . $e->getMessage();
 }
 
-// Delete the admin
-$query = "DELETE FROM users WHERE id = ?";
-$stmt = $db->prepare($query);
-
-if ($stmt->execute([$id])) {
-    echo "<script>
-        alert('Admin deleted successfully.');
-        window.location.href = 'users.php';
-    </script>";
-} else {
-    echo "Error: Unable to delete admin. Please try again later.";
-}
+header("Location: admins.php");
+exit();

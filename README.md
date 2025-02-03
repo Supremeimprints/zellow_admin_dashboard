@@ -1,76 +1,168 @@
-# Zellow Admin
+# Zellow Enterprises Management System
 
-## Project Description
-Zellow Admin is a web-based administration panel for managing various aspects of the Zellow application. It provides a user-friendly interface for administrators to manage users, view reports, and configure settings.
+## Enterprise Resource Planning (ERP) Solution
 
-## Features
-- User management
-- Report generation
-- Configuration settings
-- Dashboard with key metrics
+### Senior Year Project - Computer Science 2023/2024
+
+## Project Overview
+
+An integrated enterprise resource planning system developed for Zellow Enterprises to streamline their logistics, inventory, and administrative operations. This comprehensive web application manages the entire business workflow from inventory tracking to employee management and customer service.
+
+## Technical Stack
+
+- **Backend:** PHP 8.1, MySQL 8.0
+- **Frontend:** HTML5, CSS3, JavaScript, Bootstrap 5.3
+- **Server:** Apache 2.4
+- **Development Environment:** XAMPP
+- **Version Control:** Git
+- **Database Design:** MySQL Workbench
+
+## Core Features
+
+- **Multi-level Authentication System**
+
+  - Role-based access control (Admin, Managers, Staff)
+  - Secure password hashing using PHP's native password_hash()
+  - Session management and security
+
+- **Inventory Management**
+
+  - Real-time stock tracking
+  - Low stock alerts
+  - Automated reorder points
+  - Product categorization
+
+- **Employee Management**
+
+  - Staff profiles and roles
+  - Performance tracking
+  - Attendance monitoring
+  - Task assignment system
+
+- **Vehicle Fleet Management**
+
+  - Driver assignment
+  - Vehicle maintenance tracking
+  - Route optimization
+  - Real-time status updates
+
+- **Order Processing System**
+
+  - Order lifecycle management
+  - Automated status updates
+  - Invoice generation
+  - Payment tracking
+
+- **Customer Relationship Management**
+  - Customer profiles
+  - Service history
+  - Feedback management
+  - Communication logs
+
+## Database Architecture
+
+- Normalized to 3NF
+- Implements foreign key constraints
+- Optimized queries with proper indexing
+- Stored procedures for complex operations
+- Transaction management for data integrity
+
+## Security Implementation
+
+- SQL injection prevention
+- XSS protection
+- CSRF tokens
+- Input validation
+- Secure session handling
+
+## Future Enhancements
+
+- API integration for third-party services
+- Mobile application development
+- Real-time analytics dashboard
+- Machine learning for inventory prediction
+- Integration with accounting software
 
 ## Installation
-To set up the project locally, follow these steps:
 
-1. Clone the repository:
-    ```bash
-    git clone https://github.com/yourusername/zellow_admin.git
-    ```
+1. Clone repository to XAMPP's htdocs directory
+2. Import database schema from `database/schema.sql`
+3. Configure database connection in `config/database.php`
+4. Run `composer install` for dependencies
+5. Access via `localhost/zellow_admin`
 
-2. Navigate to the project directory:
-    ```bash
-    cd zellow_admin
-    ```
+## Project Structure
 
-3. Install dependencies:
-    ```bash
-    composer install
-    npm install
-    ```
-
-4. Set up the environment variables:
-    ```bash
-    cp .env.example .env
-    ```
-    Update the `.env` file with your database and other configuration settings.
-
-5. Run the migrations:
-    ```bash
-    php artisan migrate
-    ```
-
-6. Start the development server:
-    ```bash
-    php artisan serve
-    ```
-
-## Usage
-Once the server is running, you can access the application at `http://localhost:8000`. Log in with your admin credentials to start managing the application.
-
-## Folder Structure
 ```
 zellow_admin/
-├── app/
-├── bootstrap/
+├── actions/
+├── admins/
+├── ajax/
+├── assets/
+├── authentication/
+│   ├── login.php
+│   ├── logout.php
+│   └── register.php
 ├── config/
+│   ├── database.php
+│   └── config.production.php
+├── css/
+│   ├── bootstrap.min.css
+│   └── style.css
 ├── database/
-├── public/
-├── resources/
-├── routes/
-├── storage/
-├── tests/
-├── .env.example
-├── artisan
+│   └── schema.sql
+├── dispatch/
+├── includes/
+│   ├── config.php
+│   ├── connection.php
+│   ├── footer.php
+│   ├── header.php
+│   └── nav/
+│       └── navbar.php
+├── js/
+│   ├── bootstrap.bundle.min.js
+│   └── script.js
+├── .htaccess
+├── 404.php
+├── add_admin.php
+├── add_product.php
+├── add_services.php
+├── add_supplier.php
+├── admins.php
+├── categories.php
 ├── composer.json
-├── package.json
+├── composer.lock
+├── create_driver.php
+├── create_order.php
+├── customers.php
+├── dashboard.php
+├── delete_admin.php
+├── delete_product.php
+├── dispatch.php
+├── dispatch_order.php
+├── edit_admin.php
+├── edit_category.php
+├── edit_driver.php
+├── edit_product.php
+├── edit_services.php
+├── index.php
+├── inventory.php
+├── notifications.php
+├── orders.php
+├── products.php
+├── reports.php
+├── settings.php
 └── README.md
 ```
 
 ## Contributing
+
 If you would like to contribute to this project, please fork the repository and submit a pull request. We welcome all contributions!
 
 ## License
+
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## Contact
+
 For any questions or support, please contact [yourname@example.com](mailto:yourname@example.com).

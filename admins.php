@@ -98,17 +98,76 @@ exit();
 // Delete Admin
 if ($action === 'delete') {
     if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
-        echo "Invalid admin ID.";
+        $_SESSION['error'] = "Invalid admin ID.";
+        header('Location: admins.php');
         exit();
     }
     $id = (int)$_GET['id'];
 
-    $deleteQuery = "DELETE FROM users WHERE id = ?";
-    $stmt = $db->prepare($deleteQuery);
-    $stmt->execute([$id]);
+    try {
+        // Start transaction
+        $db->beginTransaction();
 
-    header('Location: admins.php');
-    exit();
+        // 1. Handle messages table constraints first
+        $messageQueries = [
+            "UPDATE messages SET recipient_id = NULL WHERE recipient_id = ?",
+            "UPDATE messages SET sender_id = NULL WHERE sender_id = ?",
+            "DELETE FROM messages WHERE sender_id IS NULL AND recipient_id IS NULL"
+        ];
+
+        foreach ($messageQueries as $query) {
+            $stmt = $db->prepare($query);
+            $stmt->execute([$id]);
+        }
+
+        // 2. Handle notifications
+        $notificationQueries = [
+            "UPDATE notifications SET sender_id = NULL WHERE sender_id = ?",
+            "UPDATE notifications SET recipient_id = NULL WHERE recipient_id = ?",
+            "DELETE FROM notifications WHERE sender_id IS NULL AND recipient_id IS NULL"
+        ];
+
+        foreach ($notificationQueries as $query) {
+            $stmt = $db->prepare($query);
+            $stmt->execute([$id]);
+        }
+
+        // 3. Delete from related tables
+        $relatedTables = [
+            'activity_logs' => 'user_id',
+            'user_sessions' => 'user_id',
+            'user_permissions' => 'user_id'
+        ];
+
+        foreach ($relatedTables as $table => $column) {
+            $query = "DELETE FROM {$table} WHERE {$column} = ?";
+            $stmt = $db->prepare($query);
+            $stmt->execute([$id]);
+        }
+
+        // 4. Finally delete the user
+        $deleteQuery = "DELETE FROM users WHERE id = ? AND role IN ('admin', 'finance_manager', 'supply_manager', 'inventory_manager', 'dispatch_manager', 'service_manager')";
+        $stmt = $db->prepare($deleteQuery);
+        $result = $stmt->execute([$id]);
+
+        if (!$result) {
+            throw new PDOException("Failed to delete user record");
+        }
+
+        // Commit transaction
+        $db->commit();
+        
+        $_SESSION['success'] = "Admin deleted successfully";
+        header('Location: admins.php');
+        exit();
+
+    } catch (PDOException $e) {
+        // Rollback transaction on error
+        $db->rollBack();
+        $_SESSION['error'] = "Error deleting admin: " . $e->getMessage();
+        header('Location: admins.php');
+        exit();
+    }
 }
 
 // Fetch only admin users
@@ -177,7 +236,11 @@ $drivers = $driverStmt->fetchAll(PDO::FETCH_ASSOC);
                     <td><?php echo htmlspecialchars($admin['created_at']); ?></td>
                     <td>
                         <a href="edit_admin.php?action=edit&id=<?php echo $admin['id']; ?>" class="btn btn-warning btn-sm">Edit</a>
-                        <a href="admins.php?action=delete&id=<?php echo $admin['id']; ?>" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this admin?');">Delete</a>
+                        <a href="delete_admin.php?id=<?php echo $admin['id']; ?>" 
+                           class="btn btn-danger btn-sm" 
+                           onclick="return confirm('Are you sure you want to delete this admin? This action cannot be undone.');">
+                            Delete
+                        </a>
                     </td>
                 </tr>
             <?php endforeach; ?>
