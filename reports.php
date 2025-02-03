@@ -305,39 +305,50 @@ function getActiveCustomers($pdo, $startDate = null, $endDate = null)
     if (!$pdo) return 0;
     try {
         $query = "SELECT 
-                COUNT(DISTINCT email) as total_customers,
-                COUNT(DISTINCT email) as current_month_customers,
+                COUNT(DISTINCT c.customer_id) as total_customers,
+                SUM(CASE 
+                    WHEN c.last_activity >= COALESCE(:current_start, DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH))
+                    THEN 1 ELSE 0 
+                END) as current_month_customers,
                 (
-                    SELECT COUNT(DISTINCT email)
-                    FROM orders
-                    WHERE order_date BETWEEN 
+                    SELECT COUNT(DISTINCT c2.customer_id)
+                    FROM customers c2
+                    WHERE c2.last_activity BETWEEN 
                         COALESCE(:prev_start, DATE_SUB(CURRENT_DATE, INTERVAL 2 MONTH))
                         AND COALESCE(:prev_end, DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH))
+                    AND c2.status = 'active'
                 ) as previous_month_customers
-            FROM orders
-            WHERE 1=1";
+            FROM customers c
+            WHERE c.status = 'active'
+            AND (
+                c.last_activity >= COALESCE(:start_date, DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH))
+                OR EXISTS (
+                    SELECT 1 FROM orders o 
+                    WHERE o.customer_id = c.customer_id
+                    AND o.order_date >= COALESCE(:start_date, DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH))
+                )
+                OR EXISTS (
+                    SELECT 1 FROM customer_activity ca 
+                    WHERE ca.customer_id = c.customer_id
+                    AND ca.activity_date >= COALESCE(:start_date, DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH))
+                )
+            )";
         
         $params = [
-            ':prev_start' => $startDate ? date('Y-m-d', strtotime($startDate . ' -1 month')) : null,
-            ':prev_end' => $startDate ? date('Y-m-d', strtotime($startDate . ' -1 day')) : null
+            ':current_start' => $startDate ?? date('Y-m-d', strtotime('-1 month')),
+            ':prev_start' => $startDate ? date('Y-m-d', strtotime($startDate . ' -1 month')) : date('Y-m-d', strtotime('-2 month')),
+            ':prev_end' => $startDate ? date('Y-m-d', strtotime($startDate . ' -1 day')) : date('Y-m-d', strtotime('-1 month')),
+            ':start_date' => $startDate ? $startDate . ' 00:00:00' : date('Y-m-d', strtotime('-1 month')),
         ];
-
-        if ($startDate) {
-            $query .= " AND order_date >= :start_date";
-            $params[':start_date'] = $startDate . ' 00:00:00';
-        }
-        if ($endDate) {
-            $query .= " AND order_date <= :end_date";
-            $params[':end_date'] = $endDate . ' 23:59:59';
-        }
 
         $stmt = $pdo->prepare($query);
         $stmt->execute($params);
-        $result = $stmt->fetch();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
         return [
-            'total' => $result['total_customers'],
-            'current' => $result['current_month_customers'],
-            'previous' => $result['previous_month_customers']
+            'total' => $result['total_customers'] ?? 0,
+            'current' => $result['current_month_customers'] ?? 0,
+            'previous' => $result['previous_month_customers'] ?? 0
         ];
     } catch (PDOException $e) {
         error_log("Error in getActiveCustomers: " . $e->getMessage());
@@ -949,6 +960,29 @@ $customerGrowth = $customerStats['previous'] != 0 ?
 
         // Add theme change listener
         document.addEventListener('themeChanged', updateChartsTheme);
+
+        // Add real-time customer activity updates
+        function updateActiveCustomers() {
+            fetch('ajax/get_active_customers.php')
+                .then(response => response.json())
+                .then(data => {
+                    const customerCard = document.querySelector('[data-metric="customers"]');
+                    const valueElement = customerCard.querySelector('.metric-value');
+                    const growthElement = customerCard.querySelector('.growth-indicator');
+                    
+                    valueElement.textContent = new Intl.NumberFormat().format(data.current);
+                    
+                    const growth = data.previous !== 0 ? 
+                        ((data.current - data.previous) / data.previous * 100) : 0;
+                    
+                    growthElement.className = `growth-indicator ${growth >= 0 ? 'growth-positive' : 'growth-negative'}`;
+                    growthElement.textContent = `${growth >= 0 ? '↑' : '↓'} ${Math.abs(growth.toFixed(1))}% from last month`;
+                })
+                .catch(error => console.error('Error updating active customers:', error));
+        }
+
+        // Update active customers count every 5 minutes
+        setInterval(updateActiveCustomers, 300000);
     </script>
 </body>
 
