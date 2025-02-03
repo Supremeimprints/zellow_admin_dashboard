@@ -224,11 +224,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                     </div>
 
-                    <div class="d-grid gap-2 mt-4">
+                    <div class="d-flex justify-content-between mt-4">
                         <button type="submit" class="btn btn-primary btn-lg">
                             <i class="bi bi-save"></i> Create Driver & Vehicle
                         </button>
-                        <a href="admins.php" class="btn btn-secondary btn-lg">
+                        <a href="admins.php" class="btn btn-danger btn-lg">
                             <i class="bi bi-arrow-left"></i> Back to Drivers
                         </a>
                     </div>

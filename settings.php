@@ -155,6 +155,56 @@ include 'includes/theme.php';
     <title>Admin Settings</title>
     <link rel="stylesheet" href="assets/css/settings.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .profile-photo-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .profile-photo {
+            width: 100px;  /* Changed from 150px */
+            height: 100px; /* Changed from 150px */
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--border-color);
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
+            background-color: var(--container-bg);
+        }
+
+        .upload-btn {
+            padding: 0.5rem 1rem;
+            background: var(--container-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-color);
+        }
+
+        .upload-btn:hover {
+            background: var(--feedback-bg);
+        }
+
+        .settings-container {
+            background-color: var(--container-bg);
+            color: var(--text-color);
+        }
+
+        .form-control, .form-select {
+            background-color: var(--input-bg);
+            border-color: var(--border-color);
+            color: var(--text-color);
+        }
+
+        .form-control:focus, .form-select:focus {
+            background-color: var(--input-bg);
+            border-color: var(--primary-accent);
+            color: var(--text-color);
+        }
+    </style>
 </head>
 
 <body>
@@ -173,25 +223,20 @@ include 'includes/theme.php';
 
             <!-- Profile Update Form -->
             <form method="POST" enctype="multipart/form-data">
-                <div class="mb-3 profile-photo-wrapper">
-                    <div class="profile-photo-preview">
-                        <img src="<?= $user['profile_photo'] ?>" alt="" class="profile-photo-preview">
-                    </div>
-
-                    <div class="photo-controls">
-                        <div class="profile-photo-upload">
-                            <label for="profile_photo">
-                                <i class="bi bi-upload"></i> <!-- Bootstrap icon example -->
-                                Upload Photo
-                            </label>
-                            <input type="file" id="profile_photo" name="profile_photo"
-                                accept="image/png, image/jpeg, image/gif">
-                            <button type="button" class="btn-delete-photo" onclick="confirmPhotoDelete()">
-                                <i class="bi bi-trash"></i> <!-- Bootstrap icon example -->
-                                Delete
-                            </button>
-                        </div>
-                    </div>
+                <div class="mb-3 profile-photo-container">
+                    <img src="<?= htmlspecialchars($user['profile_photo']) ?>" 
+                         alt="Profile Photo" 
+                         class="profile-photo" 
+                         id="profilePhotoPreview">
+                    <input type="file" 
+                           class="profile-photo-upload" 
+                           id="profile_photo" 
+                           name="profile_photo" 
+                           accept="image/*" 
+                           style="display: none;">
+                    <label for="profile_photo" class="upload-btn">
+                        <i class="bi bi-camera"></i> Upload Photo
+                    </label>
                 </div>
                 <div class="mb-3">
                     <label for="username" class="form-label">Full Name</label>
@@ -257,6 +302,17 @@ include 'includes/theme.php';
             window.location.href = '?delete_photo=1';
         }
     }
+
+    document.getElementById('profile_photo').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('profilePhotoPreview').src = e.target.result;
+            }
+            reader.readAsDataURL(file);
+        }
+    });
 </script>
 
 </html>

@@ -18,6 +18,17 @@ require_once 'config/database.php';
 $database = new Database();
 $db = $database->getConnection();
 
+// Add this after database connection
+$current_user_query = "SELECT profile_photo FROM users WHERE id = ?";
+$current_user_stmt = $db->prepare($current_user_query);
+$current_user_stmt->execute([$_SESSION['id']]);
+$current_user = $current_user_stmt->fetch(PDO::FETCH_ASSOC);
+
+// Store current user's profile photo in session if not already set
+if (!isset($_SESSION['profile_photo']) && $current_user) {
+    $_SESSION['profile_photo'] = $current_user['profile_photo'];
+}
+
 // Check if the admin ID is provided
 if (!isset($_GET['id'])) {
     echo "No admin ID specified.";
@@ -106,24 +117,122 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Edit Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        .container mt-5{
+        body {
             font-family: 'Montserrat', sans-serif;
+            background-color: var(--background);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
+
+        .container {
+            background-color: var(--background);
+            padding: 2rem;
+            margin-top: 2rem;
+            flex: 1;
+        }
+
         .form-section {
-            background: #f8f9fa;
+            background: var(--container-bg);
+            border: 1px solid var(--border-color);
             border-radius: 8px;
             padding: 20px;
             margin-bottom: 25px;
         }
-        h2, h4 {
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 600;
+
+        .form-control, .form-select {
+            background-color: var(--input-bg);
+            border-color: var(--border-color);
+            color: var(--text-color);
         }
+
+        .form-control:focus, .form-select:focus {
+            background-color: var(--input-bg);
+            border-color: var(--primary-accent);
+            color: var(--text-color);
+            box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.25);
+        }
+
+        .profile-photo-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .profile-photo {
+            width: 100px;  /* Changed from 150px */
+            height: 100px; /* Changed from 150px */
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--border-color);
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
+            background-color: var(--container-bg);
+        }
+
+        .profile-photo-upload {
+            display: none;
+        }
+
+        .upload-btn {
+            padding: 0.5rem 1rem;
+            background: var(--container-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-color);
+        }
+
+        .upload-btn:hover {
+            background: var(--feedback-bg);
+        }
+
         .form-label {
+            color: var(--text-color);
             font-weight: 500;
         }
-        .form-control, .form-select {
-            font-family: 'Montserrat', sans-serif;
+
+        .btn-primary {
+            background-color: var(--primary-accent);
+            border-color: var(--primary-accent);
+        }
+
+        .btn-danger {
+            background-color: var(--priority-high);
+            border-color: var(--priority-high);
+        }
+
+        .form-check-input:checked {
+            background-color: var(--primary-accent);
+            border-color: var(--primary-accent);
+        }
+
+        h2, h4 {
+            color: var(--text-color);
+            font-weight: 600;
+        }
+
+        /* Remove any footer specific margins/padding */
+        footer {
+            margin-top: auto;
+            background: var(--container-bg);
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Remove box shadows and adjust spacing */
+        .form-section + div:not(.form-section) {
+            background: transparent;
+            border: none;
+            padding: 0;
+            margin-top: 2rem;
+        }
+
+        /* Adjust main heading spacing */
+        h2 {
+            margin-bottom: 2rem;
         }
     </style>
     <link href="assets/css/admins.css" rel="stylesheet">
@@ -145,6 +254,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <form method="POST" action="" enctype="multipart/form-data">
                 <div class="form-section">
                     <h4 class="mb-3"><i class="bi bi-person-badge"></i> Admin Information</h4>
+                    
+                    <div class="profile-photo-container">
+                        <img src="<?= htmlspecialchars($admin['profile_photo'] ?: 'assets/images/default-profile.png') ?>" 
+                             alt="Profile Photo" 
+                             class="profile-photo" 
+                             id="profilePhotoPreview">
+                        <input type="file" 
+                               class="profile-photo-upload" 
+                               id="profile_photo" 
+                               name="profile_photo" 
+                               accept="image/*">
+                        <label for="profile_photo" class="upload-btn">
+                            <i class="bi bi-camera"></i> Upload Photo
+                        </label>
+                    </div>
+
                     <div class="mb-3">
                         <label for="username" class="form-label">Username</label>
                         <input type="text" class="form-control" id="username" name="username" value="<?php echo htmlspecialchars($admin['username']); ?>" required>
@@ -188,14 +313,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label for="password" class="form-label">Password (Leave blank to keep current)</label>
                         <input type="password" class="form-control" id="password" name="password">
                     </div>
-
-                    <div class="mb-3">
-                        <label for="profile_photo" class="form-label">Profile Photo</label>
-                        <input type="file" class="form-control" id="profile_photo" name="profile_photo">
-                        <?php if ($admin['profile_photo']): ?>
-                            <img src="<?php echo htmlspecialchars($admin['profile_photo']); ?>" alt="Profile Photo" class="img-thumbnail mt-2" width="150">
-                        <?php endif; ?>
-                    </div>
                 </div>
 
                 <div class="d-flex justify-content-between mt-4">
@@ -212,6 +329,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
+<script>
+    // Profile photo preview
+    document.getElementById('profile_photo').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('profilePhotoPreview').src = e.target.result;
+            }
+            reader.readAsDataURL(file);
+        }
+    });
+</script>
 <?php include 'includes/nav/footer.php'; ?>
+</body>
 </html>
