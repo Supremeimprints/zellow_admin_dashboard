@@ -701,6 +701,24 @@ $customerGrowth = $customerStats['previous'] != 0 ?
         [data-bs-theme="dark"] canvas {
             filter: none !important;
         }
+
+        .nav-text {
+            margin-left: 0.75rem;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            font-size: 0.875rem;
+            color: #a0aec0;
+            display: none;
+            text-decoration: none !important;  /* Add this line */
+        }
+
+        .sidebar a {
+            text-decoration: none !important;  /* Add this line */
+        }
+
+        .sidebar a:hover {
+            text-decoration: none !important;  /* Add this line */
+        }
     </style>
 </head>
 
@@ -738,7 +756,8 @@ $customerGrowth = $customerStats['previous'] != 0 ?
                     <h3 class="metric-title">Total Revenue</h3>
                     <p class="metric-value">Ksh.<?= number_format($currentMonthRevenue, 2) ?></p>
                     <p class="growth-indicator <?= $revenueGrowth >= 0 ? 'growth-positive' : 'growth-negative' ?>">
-                        <?= $revenueGrowth >= 0 ? '↑' : '↓' ?> <?= abs(round($revenueGrowth, 1)) ?>% from last month
+                        <?= $revenueGrowth >= 0 ? '↑' : '↓' ?> <?= abs(round($revenueGrowth, 1)) ?>% 
+                        <?= $startDate ? 'vs previous period' : 'from last month' ?>
                     </p>
                 </div>
             </div>
@@ -747,7 +766,8 @@ $customerGrowth = $customerStats['previous'] != 0 ?
                     <h3 class="metric-title">Total Orders</h3>
                     <p class="metric-value"><?= number_format($orderStats['current'] ?? 0) ?></p>
                     <p class="growth-indicator <?= $orderGrowth >= 0 ? 'growth-positive' : 'growth-negative' ?>">
-                        <?= $orderGrowth >= 0 ? '↑' : '↓' ?> <?= abs(round($orderGrowth, 1)) ?>% from last month
+                        <?= $orderGrowth >= 0 ? '↑' : '↓' ?> <?= abs(round($orderGrowth, 1)) ?>% 
+                        <?= $startDate ? 'vs previous period' : 'from last month' ?>
                     </p>
                 </div>
             </div>
@@ -756,7 +776,8 @@ $customerGrowth = $customerStats['previous'] != 0 ?
                     <h3 class="metric-title">Net Profit</h3>
                     <p class="metric-value">Ksh.<?= number_format($profitStats['current'] ?? 0, 2) ?></p>
                     <p class="growth-indicator <?= $profitGrowth >= 0 ? 'growth-positive' : 'growth-negative' ?>">
-                        <?= $profitGrowth >= 0 ? '↑' : '↓' ?> <?= abs(round($profitGrowth, 1)) ?>% from last month
+                        <?= $profitGrowth >= 0 ? '↑' : '↓' ?> <?= abs(round($profitGrowth, 1)) ?>% 
+                        <?= $startDate ? 'vs previous period' : 'from last month' ?>
                     </p>
                 </div>
             </div>
@@ -765,7 +786,8 @@ $customerGrowth = $customerStats['previous'] != 0 ?
                     <h3 class="metric-title">Active Customers</h3>
                     <p class="metric-value"><?= number_format($customerStats['current'] ?? 0) ?></p>
                     <p class="growth-indicator <?= $customerGrowth >= 0 ? 'growth-positive' : 'growth-negative' ?>">
-                        <?= $customerGrowth >= 0 ? '↑' : '↓' ?> <?= abs(round($customerGrowth, 1)) ?>% from last month
+                        <?= $customerGrowth >= 0 ? '↑' : '↓' ?> <?= abs(round($customerGrowth, 1)) ?>% 
+                        <?= $startDate ? 'vs previous period' : 'from last month' ?>
                     </p>
                 </div>
             </div>
