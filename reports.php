@@ -358,32 +358,31 @@ function getActiveCustomers($pdo, $startDate = null, $endDate = null)
     if (!$pdo) return 0;
     try {
         $query = "SELECT 
-                COUNT(DISTINCT c.customer_id) as total_customers,
+                COUNT(DISTINCT u.id) as total_customers,
                 SUM(CASE 
-                    WHEN c.last_activity >= COALESCE(:current_start, DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH))
+                    WHEN o.order_date >= COALESCE(:current_start, DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH))
                     THEN 1 ELSE 0 
                 END) as current_month_customers,
                 (
-                    SELECT COUNT(DISTINCT c2.customer_id)
-                    FROM customers c2
-                    WHERE c2.last_activity BETWEEN 
+                    SELECT COUNT(DISTINCT u2.id)
+                    FROM users u2
+                    JOIN orders o2 ON u2.id = o2.id
+                    WHERE o2.order_date BETWEEN 
                         COALESCE(:prev_start, DATE_SUB(CURRENT_DATE, INTERVAL 2 MONTH))
                         AND COALESCE(:prev_end, DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH))
-                    AND c2.status = 'active'
+                    AND u2.role = 'customer'
+                    AND u2.is_active = 1
                 ) as previous_month_customers
-            FROM customers c
-            WHERE c.status = 'active'
+            FROM users u
+            LEFT JOIN orders o ON u.id = o.id
+            WHERE u.role = 'customer'
+            AND u.is_active = 1
             AND (
-                c.last_activity >= COALESCE(:start_date, DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH))
+                o.order_date >= COALESCE(:start_date, DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH))
                 OR EXISTS (
-                    SELECT 1 FROM orders o 
-                    WHERE o.id = c.customer_id
-                    AND o.order_date >= COALESCE(:start_date, DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH))
-                )
-                OR EXISTS (
-                    SELECT 1 FROM customer_activity ca 
-                    WHERE ca.customer_id = c.customer_id
-                    AND ca.activity_date >= COALESCE(:start_date, DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH))
+                    SELECT 1 FROM orders o3 
+                    WHERE o3.id = u.id
+                    AND o3.order_date >= COALESCE(:start_date, DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH))
                 )
             )";
         
