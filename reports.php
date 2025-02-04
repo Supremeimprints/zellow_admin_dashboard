@@ -28,28 +28,46 @@ $endDate = $_GET['end_date'] ?? '';
 $reportData = [];
 
 // Helper functions for data retrieval
-function getRevenueData($pdo, $startDate = null, $endDate = null)
-{
+function getRevenueData($pdo, $startDate = null, $endDate = null) {
     $query = "SELECT 
-        DATE_FORMAT(o.order_date, '%Y-%m') as month,
-        SUM(o.total_amount) as revenue,
-        SUM(t.expenses) as expenses,
-        COUNT(DISTINCT o.order_id) as total_orders
-    FROM orders o
-    LEFT JOIN transactions t ON o.order_id = t.order_id
+        DATE_FORMAT(t.transaction_date, '%Y-%m') as month,
+        SUM(CASE 
+            WHEN t.transaction_type = 'Customer Payment' AND t.payment_status = 'completed' 
+            THEN t.total_amount 
+            ELSE 0 
+        END) as revenue,
+        SUM(CASE 
+            WHEN t.transaction_type IN ('Expense', 'Refund') 
+            THEN t.total_amount 
+            ELSE 0 
+        END) as expenses,
+        SUM(CASE 
+            WHEN t.transaction_type = 'Refund' 
+            THEN t.total_amount 
+            ELSE 0 
+        END) as refunds,
+        COUNT(DISTINCT CASE 
+            WHEN t.transaction_type = 'Customer Payment' 
+            THEN t.order_id 
+        END) as total_orders,
+        COUNT(DISTINCT CASE 
+            WHEN t.transaction_type = 'Refund' 
+            THEN t.order_id 
+        END) as refunded_orders
+    FROM transactions t
     WHERE 1=1";
     
     $params = [];
     if ($startDate) {
-        $query .= " AND o.order_date >= :start_date";
+        $query .= " AND t.transaction_date >= :start_date";
         $params[':start_date'] = $startDate . ' 00:00:00';
     }
     if ($endDate) {
-        $query .= " AND o.order_date <= :end_date";
+        $query .= " AND t.transaction_date <= :end_date";
         $params[':end_date'] = $endDate . ' 23:59:59';
     }
     
-    $query .= " GROUP BY DATE_FORMAT(o.order_date, '%Y-%m')
+    $query .= " GROUP BY DATE_FORMAT(t.transaction_date, '%Y-%m')
                 ORDER BY month DESC LIMIT 6";
 
     $stmt = $pdo->prepare($query);
@@ -87,62 +105,56 @@ function getTopProducts($pdo, $startDate = null, $endDate = null)
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function getRecentTransactions($pdo) {
+function getRecentTransactions($pdo, $search = '', $startDate = null, $endDate = null) {
     try {
-        $search = $_GET['search'] ?? '';
-        $startDate = $_GET['start_date'] ?? '';
-        $endDate = $_GET['end_date'] ?? '';
-        
         $query = "
-            SELECT * FROM (
-                SELECT 
-                    reference_id,
-                    total_amount,
-                    'IN' as transaction_type,
-                    payment_status,
-                    transaction_date
-                FROM transactions 
-                WHERE payment_status = 'completed'
-                    AND transaction_type = 'Customer Payment'
-                
-                UNION ALL
-                
-                SELECT 
-                    reference_id,
-                    total_amount,
-                    transaction_type,
-                    payment_status,
-                    transaction_date
-                FROM transactions
-                WHERE transaction_type = 'OUT'
-            ) AS combined_transactions 
+            SELECT 
+                t.reference_id,
+                t.total_amount,
+                t.order_id,
+                t.transaction_type,
+                t.payment_status,
+                t.transaction_date,
+                t.payment_method,
+                o.total_amount as original_amount,
+                CASE 
+                    WHEN t.transaction_type = 'Customer Payment' 
+                         AND t.payment_status = 'completed' THEN 'IN'
+                    WHEN t.transaction_type = 'Refund' THEN 'REFUND'
+                    ELSE 'OUT'
+                END as flow_type,
+                CASE 
+                    WHEN t.transaction_type = 'Customer Payment' 
+                         AND t.payment_status = 'completed' THEN 'text-success'
+                    WHEN t.transaction_type = 'Refund' THEN 'text-warning'
+                    ELSE 'text-danger'
+                END as amount_class
+            FROM transactions t
+            LEFT JOIN orders o ON t.order_id = o.order_id
             WHERE 1=1";
         
         $params = [];
         
-        // Add search condition
         if ($search) {
-            $query .= " AND reference_id LIKE :search";
+            $query .= " AND (t.reference_id LIKE :search OR t.payment_method LIKE :search)";
             $params[':search'] = "%$search%";
         }
         
-        // Add date range conditions
         if ($startDate) {
-            $query .= " AND transaction_date >= :start_date";
+            $query .= " AND t.transaction_date >= :start_date";
             $params[':start_date'] = $startDate . ' 00:00:00';
         }
+        
         if ($endDate) {
-            $query .= " AND transaction_date <= :end_date";
+            $query .= " AND t.transaction_date <= :end_date";
             $params[':end_date'] = $endDate . ' 23:59:59';
         }
         
-        $query .= " ORDER BY transaction_date DESC LIMIT 10";
+        $query .= " ORDER BY t.transaction_date DESC LIMIT 10";
 
         $stmt = $pdo->prepare($query);
         $stmt->execute($params);
-        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        return $results;
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
         error_log("Error in getRecentTransactions: " . $e->getMessage());
         return [];
@@ -195,11 +207,11 @@ function getOrdersPerCustomer($pdo, $startDate = null, $endDate = null) {
         $params = [];
         if ($startDate) {
             $query .= " AND o.order_date >= :start_date";
-            $params[':start_date'] = $startDate . ' 00:00:00';
+            $params[':start_date'] = $startDate;
         }
         if ($endDate) {
             $query .= " AND o.order_date <= :end_date";
-            $params[':end_date'] = $endDate . ' 23:59:59';
+            $params[':end_date'] = $endDate;
         }
         
         $query .= " GROUP BY o.id
@@ -240,7 +252,7 @@ function getOrdersPerCustomer($pdo, $startDate = null, $endDate = null) {
 // Get data for the dashboard
 $revenueData = getRevenueData($db, $startDate, $endDate);
 $topProducts = getTopProducts($db, $startDate, $endDate);
-$recentTransactions = getRecentTransactions($db); // This already has date filtering
+$recentTransactions = getRecentTransactions($db, $search, $startDate, $endDate); // This already has date filtering
 $salesByCategory = getSalesByCategory($db, $startDate, $endDate);
 $ordersPerCustomer = getOrdersPerCustomer($db, $startDate, $endDate);
 
@@ -296,67 +308,110 @@ function getTotalOrders($pdo, $startDate = null, $endDate = null)
 }
 
 function getNetProfit($pdo, $startDate = null, $endDate = null) {
-    if (!$pdo) return ['current' => 0, 'previous' => 0, 'total' => 0];
     try {
-        $query = "SELECT 
-                SUM(o.total_amount) as total_revenue,
-                SUM(t.expenses) as total_expenses,
-                SUM(CASE 
-                    WHEN o.order_date >= DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH) 
-                    THEN o.total_amount ELSE 0 
-                END) as current_month_revenue,
-                SUM(CASE 
-                    WHEN o.order_date >= DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH) 
-                    THEN COALESCE(t.expenses, 0) ELSE 0 
-                END) as current_month_expenses
+        // Get current period data
+        $currentQuery = "WITH OrderStats AS (
+            SELECT 
+                o.order_id,
+                o.total_amount as original_amount,
+                COALESCE(SUM(CASE 
+                    WHEN t.transaction_type = 'Refund' 
+                    THEN t.total_amount 
+                    ELSE 0 
+                END), 0) as refunded_amount
             FROM orders o
             LEFT JOIN transactions t ON o.order_id = t.order_id
-            WHERE 1=1";
+            WHERE 1=1 ";
         
-        $params = [];
         if ($startDate) {
-            $query .= " AND o.order_date >= :start_date";
-            $params[':start_date'] = $startDate . ' 00:00:00';
+            $currentQuery .= " AND o.order_date >= :start_date";
         }
         if ($endDate) {
-            $query .= " AND o.order_date <= :end_date";
-            $params[':end_date'] = $endDate . ' 23:59:59';
+            $currentQuery .= " AND o.order_date <= :end_date";
         }
-
-        $stmt = $pdo->prepare($query);
-        $stmt->execute($params);
-        $result = $stmt->fetch();
-
-        // Get previous period data for comparison
-        $prevStartDate = $startDate ? date('Y-m-d', strtotime($startDate . ' -1 month')) : date('Y-m-d', strtotime('-2 month'));
-        $prevEndDate = $startDate ? date('Y-m-d', strtotime($startDate . ' -1 day')) : date('Y-m-d', strtotime('-1 month'));
         
-        $prevQuery = "SELECT 
-                SUM(o.total_amount) as prev_revenue,
-                SUM(t.expenses) as prev_expenses
-            FROM orders o
-            LEFT JOIN transactions t ON o.order_id = t.order_id
-            WHERE o.order_date BETWEEN :prev_start AND :prev_end";
+        $currentQuery .= " GROUP BY o.order_id
+        )
+        SELECT 
+            SUM(CASE 
+                WHEN refunded_amount = 0 THEN original_amount
+                ELSE original_amount - refunded_amount
+            END) as net_revenue,
+            SUM(refunded_amount) as total_refunds
+        FROM OrderStats";
+
+        $stmt = $pdo->prepare($currentQuery);
+        if ($startDate) {
+            $stmt->bindValue(':start_date', $startDate . ' 00:00:00');
+        }
+        if ($endDate) {
+            $stmt->bindValue(':end_date', $endDate . ' 23:59:59');
+        }
+        $stmt->execute();
+        $currentResult = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Get previous period data
+        $prevStartDate = $startDate ? 
+            date('Y-m-d', strtotime($startDate . ' -1 month')) : 
+            date('Y-m-d', strtotime('-2 month'));
+        $prevEndDate = $startDate ? 
+            date('Y-m-d', strtotime($startDate . ' -1 day')) : 
+            date('Y-m-d', strtotime('-1 month'));
+
+        $prevQuery = str_replace([':start_date', ':end_date'], 
+            ['"' . $prevStartDate . ' 00:00:00"', '"' . $prevEndDate . ' 23:59:59"'], 
+            $currentQuery);
         
-        $prevStmt = $pdo->prepare($prevQuery);
-        $prevStmt->execute([
+        $prevStmt = $pdo->query($prevQuery);
+        $prevResult = $prevStmt->fetch(PDO::FETCH_ASSOC);
+
+        // Get expenses
+        $expenseQuery = "SELECT 
+            SUM(CASE 
+                WHEN transaction_type = 'Expense' 
+                THEN total_amount 
+                ELSE 0 
+            END) as current_expenses,
+            SUM(CASE 
+                WHEN transaction_type = 'Expense' 
+                AND transaction_date BETWEEN :prev_start AND :prev_end
+                THEN total_amount 
+                ELSE 0 
+            END) as previous_expenses
+        FROM transactions
+        WHERE transaction_date <= :end_date";
+
+        $expenseStmt = $pdo->prepare($expenseQuery);
+        $expenseStmt->execute([
             ':prev_start' => $prevStartDate . ' 00:00:00',
-            ':prev_end' => $prevEndDate . ' 23:59:59'
+            ':prev_end' => $prevEndDate . ' 23:59:59',
+            ':end_date' => ($endDate ?? date('Y-m-d')) . ' 23:59:59'
         ]);
-        $prevResult = $prevStmt->fetch();
+        $expenseResult = $expenseStmt->fetch(PDO::FETCH_ASSOC);
 
-        $currentProfit = $result['current_month_revenue'] - $result['current_month_expenses'];
-        $previousProfit = $prevResult['prev_revenue'] - $prevResult['prev_expenses'];
-        $totalProfit = $result['total_revenue'] - $result['total_expenses'];
+        // Calculate final results
+        $currentNetProfit = ($currentResult['net_revenue'] ?? 0) - ($expenseResult['current_expenses'] ?? 0);
+        $previousNetProfit = ($prevResult['net_revenue'] ?? 0) - ($expenseResult['previous_expenses'] ?? 0);
 
         return [
-            'current' => $currentProfit,
-            'previous' => $previousProfit,
-            'total' => $totalProfit
+            'current' => $currentNetProfit,
+            'previous' => $previousNetProfit,
+            'net_revenue' => $currentResult['net_revenue'] ?? 0,
+            'expenses' => $expenseResult['current_expenses'] ?? 0,
+            'refunds' => $currentResult['total_refunds'] ?? 0,
+            'growth' => $previousNetProfit != 0 ? 
+                (($currentNetProfit - $previousNetProfit) / $previousNetProfit * 100) : 0
         ];
     } catch (PDOException $e) {
         error_log("Error in getNetProfit: " . $e->getMessage());
-        return ['current' => 0, 'previous' => 0, 'total' => 0];
+        return [
+            'current' => 0,
+            'previous' => 0,
+            'net_revenue' => 0,
+            'expenses' => 0,
+            'refunds' => 0,
+            'growth' => 0
+        ];
     }
 }
 
@@ -416,17 +471,85 @@ function getActiveCustomers($pdo, $startDate = null, $endDate = null)
     }
 }
 
+function getOrderDistribution($pdo, $startDate = null, $endDate = null) {
+    try {
+        $query = "WITH OrderCounts AS (
+            SELECT 
+                o.order_id,
+                COUNT(oi.id) as items_count,
+                SUM(oi.quantity) as total_quantity,
+                o.total_amount,
+                COALESCE(r.refunded_amount, 0) as refunded_amount
+            FROM orders o
+            JOIN order_items oi ON o.order_id = oi.order_id
+            LEFT JOIN (
+                SELECT order_id, SUM(total_amount) as refunded_amount
+                FROM transactions 
+                WHERE transaction_type = 'Refund'
+                GROUP BY order_id
+            ) r ON o.order_id = r.order_id
+            WHERE 1=1";
+
+        if ($startDate) {
+            $query .= " AND o.order_date >= :start_date";
+            $params[':start_date'] = $startDate . ' 00:00:00';
+        }
+        if ($endDate) {
+            $query .= " AND o.order_date <= :end_date";
+            $params[':end_date'] = $endDate . ' 23:59:59';
+        }
+
+        $query .= " GROUP BY o.order_id
+        )
+        SELECT 
+            CASE 
+                WHEN refunded_amount > 0 THEN 'Refunded Orders'
+                WHEN items_count = 1 THEN 'Single Item'
+                WHEN items_count <= 3 THEN '2-3 Items'
+                WHEN items_count <= 5 THEN '4-5 Items'
+                ELSE '6+ Items'
+            END as category,
+            COUNT(*) as count,
+            AVG(total_quantity) as avg_quantity,
+            AVG(total_amount) as avg_amount,
+            SUM(total_amount) as total_amount
+        FROM OrderCounts
+        GROUP BY CASE 
+            WHEN refunded_amount > 0 THEN 'Refunded Orders'
+            WHEN items_count = 1 THEN 'Single Item'
+            WHEN items_count <= 3 THEN '2-3 Items'
+            WHEN items_count <= 5 THEN '4-5 Items'
+            ELSE '6+ Items'
+        END
+        ORDER BY 
+            CASE category
+                WHEN 'Refunded Orders' THEN 1
+                WHEN 'Single Item' THEN 2
+                WHEN '2-3 Items' THEN 3
+                WHEN '4-5 Items' THEN 4
+                ELSE 5
+            END";
+
+        $stmt = $pdo->prepare($query);
+        $stmt->execute($params ?? []);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log("Error in getOrderDistribution: " . $e->getMessage());
+        return [];
+    }
+}
+
 // Get data for all cards
 $orderStats = getTotalOrders($db, $startDate, $endDate);
 $profitStats = getNetProfit($db, $startDate, $endDate);
 $customerStats = getActiveCustomers($db, $startDate, $endDate);
+$orderDistribution = getOrderDistribution($db, $startDate, $endDate);
 
 // Calculate growth percentages
 $orderGrowth = $orderStats['previous'] != 0 ?
     (($orderStats['current'] - $orderStats['previous']) / $orderStats['previous'] * 100) : 0;
 
-$profitGrowth = $profitStats['previous'] != 0 ?
-    (($profitStats['current'] - $profitStats['previous']) / $profitStats['previous'] * 100) : 0;
+$profitGrowth = $profitStats['growth'] ?? 0;
 
 $customerGrowth = $customerStats['previous'] != 0 ?
     (($customerStats['current'] - $customerStats['previous']) / $customerStats['previous'] * 100) : 0;
@@ -719,6 +842,32 @@ $customerGrowth = $customerStats['previous'] != 0 ?
         .sidebar a:hover {
             text-decoration: none !important;  /* Add this line */
         }
+
+        /* Add to existing styles */
+        .text-success {
+            color: #10B981 !important;
+        }
+        
+        .text-danger {
+            color: #EF4444 !important;
+        }
+        
+        .text-warning {
+            color: #F59E0B !important;
+        }
+        
+        .bg-warning-soft {
+            background-color: rgba(245, 158, 11, 0.1);
+        }
+        
+        .numeric-cell {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+        }
+        
+        .numeric-cell span {
+            font-weight: 500;
+        }
     </style>
 </head>
 
@@ -774,7 +923,7 @@ $customerGrowth = $customerStats['previous'] != 0 ?
             <div class="card metric-card" data-metric="profit">
                 <div>
                     <h3 class="metric-title">Net Profit</h3>
-                    <p class="metric-value">Ksh.<?= number_format($profitStats['current'] ?? 0, 2) ?></p>
+                    <p class="metric-value">Ksh.<?= number_format($profitStats['net_profit'] ?? 0, 2) ?></p>
                     <p class="growth-indicator <?= $profitGrowth >= 0 ? 'growth-positive' : 'growth-negative' ?>">
                         <?= $profitGrowth >= 0 ? '↑' : '↓' ?> <?= abs(round($profitGrowth, 1)) ?>% 
                         <?= $startDate ? 'vs previous period' : 'from last month' ?>
@@ -899,19 +1048,55 @@ $customerGrowth = $customerStats['previous'] != 0 ?
                                 <?php else: ?>
                                     <?php foreach ($recentTransactions as $transaction): ?>
                                         <tr>
-                                            <td><?= htmlspecialchars($transaction['reference_id'] ?? 'N/A') ?></td>
-                                            <td class="numeric-cell <?= ($transaction['transaction_type'] ?? '') === 'IN' ? 'text-green-600' : '' ?>">
-                                                <?= ($transaction['transaction_type'] ?? '') === 'IN' ? number_format($transaction['total_amount'] ?? 0, 2) : '-' ?>
+                                            <td class="px-6 py-4">
+                                                <div class="flex items-center">
+                                                    <span class="font-medium"><?= htmlspecialchars($transaction['reference_id']) ?></span>
+                                                    <?php if ($transaction['transaction_type'] === 'Refund'): ?>
+                                                        <span class="ml-2 px-2 py-1 text-xs font-medium bg-warning-soft text-warning rounded-full">
+                                                            Refund
+                                                        </span>
+                                                    <?php endif; ?>
+                                                </div>
                                             </td>
-                                            <td class="numeric-cell <?= ($transaction['transaction_type'] ?? '') === 'OUT' ? 'text-red-600' : '' ?>">
-                                                <?= ($transaction['transaction_type'] ?? '') === 'OUT' ? number_format($transaction['total_amount'] ?? 0, 2) : '-' ?>
+                                            <!-- Money In Column -->
+                                            <td class="numeric-cell">
+                                                <?php if ($transaction['flow_type'] === 'IN'): ?>
+                                                    <span class="text-success">
+                                                        +Ksh. <?= number_format($transaction['total_amount'], 2) ?>
+                                                    </span>
+                                                <?php else: ?>
+                                                    -
+                                                <?php endif; ?>
+                                            </td>
+                                            <!-- Money Out Column -->
+                                            <td class="numeric-cell">
+                                                <?php if ($transaction['flow_type'] === 'OUT'): ?>
+                                                    <span class="text-danger">
+                                                        -Ksh. <?= number_format($transaction['total_amount'], 2) ?>
+                                                    </span>
+                                                <?php elseif ($transaction['flow_type'] === 'REFUND'): ?>
+                                                    <span class="text-warning">
+                                                        <?php
+                                                        $refundPercent = 0;
+                                                        if (!empty($transaction['original_amount']) && $transaction['original_amount'] > 0) {
+                                                            $refundPercent = ($transaction['total_amount'] / $transaction['original_amount']) * 100;
+                                                            echo "-Ksh. " . number_format($transaction['total_amount'], 2);
+                                                            echo " <small>(" . number_format($refundPercent, 1) . "%)</small>";
+                                                        } else {
+                                                            echo "-Ksh. " . number_format($transaction['total_amount'], 2);
+                                                        }
+                                                        ?>
+                                                    </span>
+                                                <?php else: ?>
+                                                    -
+                                                <?php endif; ?>
                                             </td>
                                             <td>
-                                                <span class="status-badge status-<?= strtolower($transaction['payment_status'] ?? 'pending') ?>">
-                                                    <?= htmlspecialchars($transaction['payment_status'] ?? 'Pending') ?>
+                                                <span class="status-badge status-<?= strtolower($transaction['payment_status']) ?>">
+                                                    <?= htmlspecialchars($transaction['payment_status']) ?>
                                                 </span>
                                             </td>
-                                            <td><?= $transaction['transaction_date'] ? date('M d, Y', strtotime($transaction['transaction_date'])) : 'N/A' ?></td>
+                                            <td><?= date('M d, Y', strtotime($transaction['transaction_date'])) ?></td>
                                         </tr>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
@@ -1069,8 +1254,7 @@ $customerGrowth = $customerStats['previous'] != 0 ?
         const chartOptions = {
             responsive: true,
             plugins: {
-                legend: {
-                    position: 'top',
+                legend: {                    position: 'top',
                     labels: {
                         color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text'),
                         font: {
@@ -1144,6 +1328,17 @@ $customerGrowth = $customerStats['previous'] != 0 ?
 
         // Update active customers count every 5 minutes
         setInterval(updateActiveCustomers, 300000);
+
+        // Update chart colors for better visualization
+        const chartColors = {
+            revenue: '#10B981',  // Green for revenue
+            expenses: '#EF4444', // Red for expenses
+            refunds: '#F59E0B'   // Orange for refunds
+        };
+
+        // Update revenue chart options
+        revenueChart.data.datasets[0].borderColor = chartColors.revenue;
+        revenueChart.data.datasets[1].borderColor = chartColors.expenses;
     </script>
 </body>
 

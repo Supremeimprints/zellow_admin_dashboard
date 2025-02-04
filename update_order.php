@@ -55,6 +55,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $db->beginTransaction();
 
+        $oldStatus = $order['status'];
+        $newStatus = $_POST['status'];
+        $paymentStatus = $_POST['payment_status'];
+
+        // If order is being cancelled or refunded
+        if (($newStatus === 'Cancelled' || $paymentStatus === 'Refunded') && $oldStatus !== 'Cancelled') {
+            // Restore inventory quantities
+            foreach ($orderItems as $item) {
+                $updateInventoryQuery = "
+                    UPDATE inventory 
+                    SET stock_quantity = stock_quantity + :quantity
+                    WHERE product_id = :product_id";
+                $inventoryStmt = $db->prepare($updateInventoryQuery);
+                $inventoryStmt->execute([
+                    ':quantity' => $item['quantity'],
+                    ':product_id' => $item['product_id']
+                ]);
+            }
+
+            // Record refund transaction if payment was completed
+            if ($order['payment_status'] === 'Paid' && $paymentStatus === 'Refunded') {
+                $refundQuery = "
+                    INSERT INTO transactions (
+                        reference_id, 
+                        order_id, 
+                        transaction_type, 
+                        total_amount, 
+                        payment_status,
+                        payment_method
+                    ) VALUES (
+                        :reference_id,
+                        :order_id,
+                        'Refund',
+                        :total_amount,
+                        'completed',
+                        :payment_method
+                    )";
+                $refundStmt = $db->prepare($refundQuery);
+                $refundStmt->execute([
+                    ':reference_id' => 'REF-' . $orderId . '-' . time(),
+                    ':order_id' => $orderId,
+                    ':total_amount' => $order['total_amount'],
+                    ':payment_method' => $order['payment_method']
+                ]);
+            }
+        }
+
         // Get all form values
         $status = $_POST['status'];
         $paymentStatus = $_POST['payment_status'];
