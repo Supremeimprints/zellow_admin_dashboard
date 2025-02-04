@@ -56,49 +56,109 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $db->beginTransaction();
 
         $oldStatus = $order['status'];
+        $oldPaymentStatus = $order['payment_status'];
         $newStatus = $_POST['status'];
-        $paymentStatus = $_POST['payment_status'];
+        $newPaymentStatus = $_POST['payment_status'];
 
-        // If order is being cancelled or refunded
-        if (($newStatus === 'Cancelled' || $paymentStatus === 'Refunded') && $oldStatus !== 'Cancelled') {
+        // Handle refund scenarios
+        if ($oldPaymentStatus !== 'Refunded' && $newPaymentStatus === 'Refunded') {
+            // Create refund transaction
+            $refundQuery = "INSERT INTO transactions (
+                reference_id,
+                order_id,
+                transaction_type,
+                total_amount,
+                payment_status,
+                payment_method,
+                transaction_date
+            ) VALUES (
+                :reference_id,
+                :order_id,
+                'Refund',
+                :total_amount,
+                'completed',
+                :payment_method,
+                CURRENT_TIMESTAMP
+            )";
+            
+            $refundStmt = $db->prepare($refundQuery);
+            $refundStmt->execute([
+                ':reference_id' => 'REF-' . $orderId . '-' . time(),
+                ':order_id' => $orderId,
+                ':total_amount' => $order['total_amount'],
+                ':payment_method' => $order['payment_method']
+            ]);
+
             // Restore inventory quantities
             foreach ($orderItems as $item) {
-                $updateInventoryQuery = "
-                    UPDATE inventory 
-                    SET stock_quantity = stock_quantity + :quantity
-                    WHERE product_id = :product_id";
-                $inventoryStmt = $db->prepare($updateInventoryQuery);
-                $inventoryStmt->execute([
+                $updateStockQuery = "UPDATE inventory 
+                                   SET stock_quantity = stock_quantity + :quantity
+                                   WHERE product_id = :product_id";
+                $stockStmt = $db->prepare($updateStockQuery);
+                $stockStmt->execute([
                     ':quantity' => $item['quantity'],
                     ':product_id' => $item['product_id']
                 ]);
             }
-
-            // Record refund transaction if payment was completed
-            if ($order['payment_status'] === 'Paid' && $paymentStatus === 'Refunded') {
-                $refundQuery = "
-                    INSERT INTO transactions (
-                        reference_id, 
-                        order_id, 
-                        transaction_type, 
-                        total_amount, 
+        }
+        // Handle payment status changes
+        else if ($oldPaymentStatus !== $newPaymentStatus) {
+            // If changing from 'completed' to something else, rollback the payment transaction
+            if ($oldPaymentStatus === 'completed' && $newPaymentStatus !== 'completed') {
+                $rollbackQuery = "UPDATE transactions 
+                                SET payment_status = :new_status,
+                                    updated_at = CURRENT_TIMESTAMP
+                                WHERE order_id = :order_id 
+                                AND transaction_type = 'Customer Payment'";
+                $rollbackStmt = $db->prepare($rollbackQuery);
+                $rollbackStmt->execute([
+                    ':new_status' => $newPaymentStatus,
+                    ':order_id' => $orderId
+                ]);
+            }
+            // If changing to 'completed', create or update payment transaction
+            else if ($newPaymentStatus === 'completed') {
+                $checkTransactionQuery = "SELECT transaction_id FROM transactions 
+                                        WHERE order_id = ? AND transaction_type = 'Customer Payment'";
+                $checkStmt = $db->prepare($checkTransactionQuery);
+                $checkStmt->execute([$orderId]);
+                
+                if ($checkStmt->fetch()) {
+                    // Update existing transaction
+                    $updateQuery = "UPDATE transactions 
+                                  SET payment_status = 'completed',
+                                      updated_at = CURRENT_TIMESTAMP
+                                  WHERE order_id = ? AND transaction_type = 'Customer Payment'";
+                    $updateStmt = $db->prepare($updateQuery);
+                    $updateStmt->execute([$orderId]);
+                } else {
+                    // Create new payment transaction
+                    $createQuery = "INSERT INTO transactions (
+                        reference_id,
+                        order_id,
+                        transaction_type,
+                        total_amount,
                         payment_status,
-                        payment_method
+                        payment_method,
+                        transaction_date
                     ) VALUES (
                         :reference_id,
                         :order_id,
-                        'Refund',
+                        'Customer Payment',
                         :total_amount,
                         'completed',
-                        :payment_method
+                        :payment_method,
+                        CURRENT_TIMESTAMP
                     )";
-                $refundStmt = $db->prepare($refundQuery);
-                $refundStmt->execute([
-                    ':reference_id' => 'REF-' . $orderId . '-' . time(),
-                    ':order_id' => $orderId,
-                    ':total_amount' => $order['total_amount'],
-                    ':payment_method' => $order['payment_method']
-                ]);
+                    
+                    $createStmt = $db->prepare($createQuery);
+                    $createStmt->execute([
+                        ':reference_id' => 'PAY-' . $orderId . '-' . time(),
+                        ':order_id' => $orderId,
+                        ':total_amount' => $_POST['total_amount'],
+                        ':payment_method' => $_POST['payment_method']
+                    ]);
+                }
             }
         }
 

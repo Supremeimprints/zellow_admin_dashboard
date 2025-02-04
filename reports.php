@@ -3,13 +3,14 @@ session_start();
 require_once 'config/database.php';
 require_once 'includes/nav/collapsed.php'; // Include collapsed.php for the header
 require_once 'includes/theme.php'; // Include themes
+require_once 'includes/functions/transaction_functions.php'; // Add this line
+require_once 'includes/functions/chart_functions.php'; // Add near the top after other requires
 
 // Authentication check
 if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
     header('Location: login.php');
     exit();
 }
-
 $database = new Database();
 $db = $database->getConnection();
 
@@ -29,49 +30,55 @@ $reportData = [];
 
 // Helper functions for data retrieval
 function getRevenueData($pdo, $startDate = null, $endDate = null) {
-    $query = "SELECT 
-        DATE_FORMAT(t.transaction_date, '%Y-%m') as month,
-        SUM(CASE 
-            WHEN t.transaction_type = 'Customer Payment' AND t.payment_status = 'completed' 
-            THEN t.total_amount 
-            ELSE 0 
-        END) as revenue,
-        SUM(CASE 
-            WHEN t.transaction_type IN ('Expense', 'Refund') 
-            THEN t.total_amount 
-            ELSE 0 
-        END) as expenses,
-        SUM(CASE 
-            WHEN t.transaction_type = 'Refund' 
-            THEN t.total_amount 
-            ELSE 0 
-        END) as refunds,
-        COUNT(DISTINCT CASE 
-            WHEN t.transaction_type = 'Customer Payment' 
-            THEN t.order_id 
-        END) as total_orders,
-        COUNT(DISTINCT CASE 
-            WHEN t.transaction_type = 'Refund' 
-            THEN t.order_id 
-        END) as refunded_orders
-    FROM transactions t
-    WHERE 1=1";
-    
-    $params = [];
+    $query = "WITH monthly_stats AS (
+        SELECT 
+            DATE_FORMAT(o.order_date, '%Y-%m') as month,
+            SUM(o.total_amount) as total_revenue,
+            COALESCE(SUM(r.refund_amount), 0) as refunds,
+            COALESCE(SUM(e.expense_amount), 0) as expenses
+        FROM orders o
+        LEFT JOIN (
+            SELECT order_id, SUM(total_amount) as refund_amount, transaction_date
+            FROM transactions 
+            WHERE transaction_type = 'Refund'
+            GROUP BY order_id
+        ) r ON o.order_id = r.order_id
+        LEFT JOIN (
+            SELECT DATE_FORMAT(transaction_date, '%Y-%m') as exp_month, 
+                   SUM(total_amount) as expense_amount
+            FROM transactions
+            WHERE transaction_type = 'Expense'
+            GROUP BY DATE_FORMAT(transaction_date, '%Y-%m')
+        ) e ON DATE_FORMAT(o.order_date, '%Y-%m') = e.exp_month
+        WHERE 1=1";
+
     if ($startDate) {
-        $query .= " AND t.transaction_date >= :start_date";
-        $params[':start_date'] = $startDate . ' 00:00:00';
+        $query .= " AND o.order_date >= :start_date";
     }
     if ($endDate) {
-        $query .= " AND t.transaction_date <= :end_date";
-        $params[':end_date'] = $endDate . ' 23:59:59';
+        $query .= " AND o.order_date <= :end_date";
     }
     
-    $query .= " GROUP BY DATE_FORMAT(t.transaction_date, '%Y-%m')
-                ORDER BY month DESC LIMIT 6";
+    $query .= " GROUP BY DATE_FORMAT(o.order_date, '%Y-%m')
+                ORDER BY month DESC
+                LIMIT 6)
+                SELECT 
+                    month,
+                    total_revenue as revenue,
+                    refunds,
+                    expenses,
+                    (total_revenue - refunds - expenses) as net_profit
+                FROM monthly_stats
+                ORDER BY month ASC";
 
     $stmt = $pdo->prepare($query);
-    $stmt->execute($params);
+    if ($startDate) {
+        $stmt->bindValue(':start_date', $startDate . ' 00:00:00');
+    }
+    if ($endDate) {
+        $stmt->bindValue(':end_date', $endDate . ' 23:59:59');
+    }
+    $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
@@ -105,61 +112,7 @@ function getTopProducts($pdo, $startDate = null, $endDate = null)
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function getRecentTransactions($pdo, $search = '', $startDate = null, $endDate = null) {
-    try {
-        $query = "
-            SELECT 
-                t.reference_id,
-                t.total_amount,
-                t.order_id,
-                t.transaction_type,
-                t.payment_status,
-                t.transaction_date,
-                t.payment_method,
-                o.total_amount as original_amount,
-                CASE 
-                    WHEN t.transaction_type = 'Customer Payment' 
-                         AND t.payment_status = 'completed' THEN 'IN'
-                    WHEN t.transaction_type = 'Refund' THEN 'REFUND'
-                    ELSE 'OUT'
-                END as flow_type,
-                CASE 
-                    WHEN t.transaction_type = 'Customer Payment' 
-                         AND t.payment_status = 'completed' THEN 'text-success'
-                    WHEN t.transaction_type = 'Refund' THEN 'text-warning'
-                    ELSE 'text-danger'
-                END as amount_class
-            FROM transactions t
-            LEFT JOIN orders o ON t.order_id = o.order_id
-            WHERE 1=1";
-        
-        $params = [];
-        
-        if ($search) {
-            $query .= " AND (t.reference_id LIKE :search OR t.payment_method LIKE :search)";
-            $params[':search'] = "%$search%";
-        }
-        
-        if ($startDate) {
-            $query .= " AND t.transaction_date >= :start_date";
-            $params[':start_date'] = $startDate . ' 00:00:00';
-        }
-        
-        if ($endDate) {
-            $query .= " AND t.transaction_date <= :end_date";
-            $params[':end_date'] = $endDate . ' 23:59:59';
-        }
-        
-        $query .= " ORDER BY t.transaction_date DESC LIMIT 10";
-
-        $stmt = $pdo->prepare($query);
-        $stmt->execute($params);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        error_log("Error in getRecentTransactions: " . $e->getMessage());
-        return [];
-    }
-}
+// Remove the getRecentTransactions() function definition since it's now in transaction_functions.php
 
 function getSalesByCategory($pdo, $startDate = null, $endDate = null)
 {
@@ -333,11 +286,9 @@ function getNetProfit($pdo, $startDate = null, $endDate = null) {
         $currentQuery .= " GROUP BY o.order_id
         )
         SELECT 
-            SUM(CASE 
-                WHEN refunded_amount = 0 THEN original_amount
-                ELSE original_amount - refunded_amount
-            END) as net_revenue,
-            SUM(refunded_amount) as total_refunds
+            SUM(original_amount) as total_revenue,
+            SUM(refunded_amount) as total_refunds,
+            SUM(original_amount - refunded_amount) as net_revenue
         FROM OrderStats";
 
         $stmt = $pdo->prepare($currentQuery);
@@ -350,67 +301,54 @@ function getNetProfit($pdo, $startDate = null, $endDate = null) {
         $stmt->execute();
         $currentResult = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Get previous period data
-        $prevStartDate = $startDate ? 
-            date('Y-m-d', strtotime($startDate . ' -1 month')) : 
-            date('Y-m-d', strtotime('-2 month'));
-        $prevEndDate = $startDate ? 
-            date('Y-m-d', strtotime($startDate . ' -1 day')) : 
-            date('Y-m-d', strtotime('-1 month'));
-
-        $prevQuery = str_replace([':start_date', ':end_date'], 
-            ['"' . $prevStartDate . ' 00:00:00"', '"' . $prevEndDate . ' 23:59:59"'], 
-            $currentQuery);
-        
-        $prevStmt = $pdo->query($prevQuery);
-        $prevResult = $prevStmt->fetch(PDO::FETCH_ASSOC);
-
         // Get expenses
         $expenseQuery = "SELECT 
             SUM(CASE 
                 WHEN transaction_type = 'Expense' 
                 THEN total_amount 
                 ELSE 0 
-            END) as current_expenses,
-            SUM(CASE 
-                WHEN transaction_type = 'Expense' 
-                AND transaction_date BETWEEN :prev_start AND :prev_end
-                THEN total_amount 
-                ELSE 0 
-            END) as previous_expenses
+            END) as current_expenses
         FROM transactions
-        WHERE transaction_date <= :end_date";
+        WHERE 1=1";
+
+        if ($startDate) {
+            $expenseQuery .= " AND transaction_date >= :start_date";
+        }
+        if ($endDate) {
+            $expenseQuery .= " AND transaction_date <= :end_date";
+        }
 
         $expenseStmt = $pdo->prepare($expenseQuery);
-        $expenseStmt->execute([
-            ':prev_start' => $prevStartDate . ' 00:00:00',
-            ':prev_end' => $prevEndDate . ' 23:59:59',
-            ':end_date' => ($endDate ?? date('Y-m-d')) . ' 23:59:59'
-        ]);
+        if ($startDate) {
+            $expenseStmt->bindValue(':start_date', $startDate . ' 00:00:00');
+        }
+        if ($endDate) {
+            $expenseStmt->bindValue(':end_date', $endDate . ' 23:59:59');
+        }
+        $expenseStmt->execute();
         $expenseResult = $expenseStmt->fetch(PDO::FETCH_ASSOC);
 
-        // Calculate final results
-        $currentNetProfit = ($currentResult['net_revenue'] ?? 0) - ($expenseResult['current_expenses'] ?? 0);
-        $previousNetProfit = ($prevResult['net_revenue'] ?? 0) - ($expenseResult['previous_expenses'] ?? 0);
+        // Calculate final net profit
+        $totalRevenue = $currentResult['total_revenue'] ?? 0;
+        $totalRefunds = $currentResult['total_refunds'] ?? 0;
+        $totalExpenses = $expenseResult['current_expenses'] ?? 0;
+        $netProfit = $currentResult['net_revenue'] - $totalExpenses;
 
         return [
-            'current' => $currentNetProfit,
-            'previous' => $previousNetProfit,
-            'net_revenue' => $currentResult['net_revenue'] ?? 0,
-            'expenses' => $expenseResult['current_expenses'] ?? 0,
-            'refunds' => $currentResult['total_refunds'] ?? 0,
-            'growth' => $previousNetProfit != 0 ? 
-                (($currentNetProfit - $previousNetProfit) / $previousNetProfit * 100) : 0
+            'total_revenue' => $totalRevenue,
+            'refunds' => $totalRefunds,
+            'expenses' => $totalExpenses,
+            'net_profit' => $netProfit,
+            'net_revenue' => $currentResult['net_revenue'] ?? 0
         ];
     } catch (PDOException $e) {
         error_log("Error in getNetProfit: " . $e->getMessage());
         return [
-            'current' => 0,
-            'previous' => 0,
-            'net_revenue' => 0,
-            'expenses' => 0,
+            'total_revenue' => 0,
             'refunds' => 0,
-            'growth' => 0
+            'expenses' => 0,
+            'net_profit' => 0,
+            'net_revenue' => 0
         ];
     }
 }
@@ -546,10 +484,15 @@ $customerStats = getActiveCustomers($db, $startDate, $endDate);  // Add this lin
 
 // Calculate total revenue (all income before deductions)
 $revenueStats = [
-    'current' => $profitStats['net_revenue'] ?? 0,
-    'previous' => 0,
+    'current' => $profitStats['total_revenue'] ?? 0,  // Changed from net_revenue to total_revenue
+    'previous' => $profitStats['previous'] ?? 0,
     'growth' => 0
 ];
+
+// Calculate revenue growth
+if ($revenueStats['previous'] != 0) {
+    $revenueStats['growth'] = (($revenueStats['current'] - $revenueStats['previous']) / $revenueStats['previous']) * 100;
+}
 
 // Calculate growth percentages
 $orderGrowth = $orderStats['previous'] != 0 ?
@@ -569,7 +512,7 @@ $customerGrowth = ($customerStats && $customerStats['previous'] != 0) ?
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Financial Dashboard</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-    <link href="assets/css/reports.css" rel="stylesheet"> <!-- Link to reports.css -->
+    <link href="reports.css" rel="stylesheet"> <!-- Link to reports.css -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Link to Montserrat font -->
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet"> <!-- Link to Bootstrap -->
@@ -873,6 +816,35 @@ $customerGrowth = ($customerStats && $customerStats['previous'] != 0) ?
         .numeric-cell span {
             font-weight: 500;
         }
+
+        /* Add to the existing styles section */
+        .bg-success-soft { background-color: rgba(16, 185, 129, 0.1); }
+        .bg-warning-soft { background-color: rgba(245, 158, 11, 0.1); }
+        .bg-danger-soft { background-color: rgba(239, 68, 68, 0.1); }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-completed { 
+            background-color: var(--priority-low); 
+            color: white;
+        }
+
+        .status-pending {
+            background-color: var(--priority-medium);
+            color: black;
+        }
+
+        .status-failed {
+            background-color: var(--priority-high);
+            color: white;
+        }
     </style>
 </head>
 
@@ -909,9 +881,14 @@ $customerGrowth = ($customerStats && $customerStats['previous'] != 0) ?
                 <div>
                     <h3 class="metric-title">Total Revenue</h3>
                     <p class="metric-value">Ksh.<?= number_format($revenueStats['current'], 2) ?></p>
-                    <small class="text-muted">Before deductions & refunds</small>
-                    <p class="growth-indicator <?= $profitStats['growth'] >= 0 ? 'growth-positive' : 'growth-negative' ?>">
-                        <?= $profitStats['growth'] >= 0 ? '↑' : '↓' ?> <?= abs(round($profitStats['growth'], 1)) ?>% 
+                    <small class="text-muted">Gross revenue before any deductions</small>
+                    <div class="mt-2">
+                        <small class="d-block text-muted">
+                            Total Sales: Ksh.<?= number_format($profitStats['total_revenue'], 2) ?>
+                        </small>
+                    </div>
+                    <p class="growth-indicator <?= $revenueStats['growth'] >= 0 ? 'growth-positive' : 'growth-negative' ?>">
+                        <?= $revenueStats['growth'] >= 0 ? '↑' : '↓' ?> <?= abs(round($revenueStats['growth'], 1)) ?>% 
                         <?= $startDate ? 'vs previous period' : 'from last month' ?>
                     </p>
                 </div>
@@ -930,14 +907,21 @@ $customerGrowth = ($customerStats && $customerStats['previous'] != 0) ?
             <div class="card metric-card" data-metric="profit">
                 <div>
                     <h3 class="metric-title">Net Profit</h3>
-                    <p class="metric-value">Ksh.<?= number_format($profitStats['current'], 2) ?></p>
+                    <p class="metric-value">Ksh.<?= number_format($profitStats['net_profit'], 2) ?></p>
                     <small class="text-muted">After expenses & refunds</small>
                     <div class="mt-2">
                         <small class="d-block text-muted">
-                            Expenses: Ksh.<?= number_format($profitStats['expenses'], 2) ?>
+                            Revenue: Ksh.<?= number_format($profitStats['total_revenue'], 2) ?>
                         </small>
-                        <small class="d-block text-muted">
-                            Refunds: Ksh.<?= number_format($profitStats['refunds'], 2) ?>
+                        <small class="d-block text-danger">
+                            - Refunds: Ksh.<?= number_format($profitStats['refunds'], 2) ?>
+                        </small>
+                        <small class="d-block text-danger">
+                            - Expenses: Ksh.<?= number_format($profitStats['expenses'], 2) ?>
+                        </small>
+                        <hr class="my-1">
+                        <small class="d-block text-success fw-bold">
+                            = Net Profit: Ksh.<?= number_format($profitStats['net_profit'], 2) ?>
                         </small>
                     </div>
                 </div>
@@ -1053,6 +1037,7 @@ $customerGrowth = ($customerStats && $customerStats['previous'] != 0) ?
                                     <th class="w-1/4">Date</th>
                                 </tr>
                             </thead>
+                            <!-- In the transactions table section -->
                             <tbody class="divide-y divide-[var(--border-color)]">
                                 <?php if (empty($recentTransactions)): ?>
                                     <tr>
@@ -1062,50 +1047,45 @@ $customerGrowth = ($customerStats && $customerStats['previous'] != 0) ?
                                     <?php foreach ($recentTransactions as $transaction): ?>
                                         <tr>
                                             <td class="px-6 py-4">
-                                                <div class="flex items-center">
-                                                    <span class="font-medium"><?= htmlspecialchars($transaction['reference_id']) ?></span>
-                                                    <?php if ($transaction['transaction_type'] === 'Refund'): ?>
-                                                        <span class="ml-2 px-2 py-1 text-xs font-medium bg-warning-soft text-warning rounded-full">
-                                                            Refund
-                                                        </span>
-                                                    <?php endif; ?>
+                                                <div class="flex flex-col">
+                                                    <span class="font-medium mb-1"><?= htmlspecialchars($transaction['reference_id']) ?></span>
+                                                    <span class="text-xs font-medium <?= $transaction['badge_class'] ?> rounded-full px-2 py-1 self-start">
+                                                        <?= htmlspecialchars($transaction['transaction_type']) ?>
+                                                    </span>
                                                 </div>
                                             </td>
-                                            <!-- Money In Column -->
-                                            <td class="numeric-cell">
-                                                <?php if ($transaction['flow_type'] === 'IN'): ?>
+                                            <td class="px-6 py-4 numeric-cell">
+                                                <?php if ($transaction['money_in'] > 0): ?>
                                                     <span class="text-success">
-                                                        +Ksh. <?= number_format($transaction['total_amount'], 2) ?>
+                                                        +Ksh. <?= number_format($transaction['money_in'], 2) ?>
                                                     </span>
                                                 <?php else: ?>
                                                     -
                                                 <?php endif; ?>
                                             </td>
-                                            <!-- Money Out Column -->
-                                            <td class="numeric-cell">
-                                                <?php if ($transaction['flow_type'] === 'OUT'): ?>
-                                                    <span class="text-danger">
-                                                        -Ksh. <?= number_format($transaction['total_amount'], 2) ?>
-                                                    </span>
-                                                <?php elseif ($transaction['flow_type'] === 'REFUND'): ?>
-                                                    <span class="text-warning">
-                                                        <?php
-                                                        $refundPercent = 0;
-                                                        if (!empty($transaction['original_amount']) && $transaction['original_amount'] > 0) {
-                                                            $refundPercent = ($transaction['total_amount'] / $transaction['original_amount']) * 100;
-                                                            echo "-Ksh. " . number_format($transaction['total_amount'], 2);
-                                                            echo " <small>(" . number_format($refundPercent, 1) . "%)</small>";
-                                                        } else {
-                                                            echo "-Ksh. " . number_format($transaction['total_amount'], 2);
-                                                        }
-                                                        ?>
-                                                    </span>
+                                            <td class="px-6 py-4 numeric-cell">
+                                                <?php if ($transaction['money_out'] > 0): ?>
+                                                    <div class="flex flex-col items-end">
+                                                        <div class="flex flex-col">
+                                                            <span class="<?= $transaction['transaction_type'] === 'Refund' ? 'text-warning' : 'text-danger' ?>">
+                                                                -Ksh. <?= number_format($transaction['money_out'], 2) ?>
+                                                            </span>
+                                                            <?php if ($transaction['transaction_type'] === 'Refund' && $transaction['original_amount']): ?>
+                                                                <span class="text-xs font-medium <?= $transaction['badge_class'] ?> rounded-full px-2 py-1 self-start mt-1">
+                                                                    <?php
+                                                                    $refundPercentage = ($transaction['money_out'] / $transaction['original_amount']) * 100;
+                                                                    echo $refundPercentage >= 99 ? 'Full Refund' : 'Partial Refund';
+                                                                    ?>
+                                                                </span>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    </div>
                                                 <?php else: ?>
                                                     -
                                                 <?php endif; ?>
                                             </td>
                                             <td>
-                                                <span class="status-badge status-<?= strtolower($transaction['payment_status']) ?>">
+                                                <span class="status-badge <?= strtolower($transaction['payment_status']) ?>">
                                                     <?= htmlspecialchars($transaction['payment_status']) ?>
                                                 </span>
                                             </td>
@@ -1148,24 +1128,67 @@ $customerGrowth = ($customerStats && $customerStats['previous'] != 0) ?
                     labels: revenueData.map(d => d.month),
                     datasets: [
                         {
-                            label: 'Revenue',
+                            label: 'Gross Revenue',
                             data: revenueData.map(d => d.revenue),
-                            borderColor: '#4F46E5',
+                            borderColor: chartColors.revenue,
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
                             tension: 0.1
                         },
                         {
-                            label: 'Expenses',
-                            data: revenueData.map(d => d.expenses),
-                            borderColor: '#EF4444',
+                            label: 'Expenses & Refunds',
+                            data: revenueData.map(d => d.expenses + d.refunds),
+                            borderColor: chartColors.expenses,
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            fill: true,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Net Profit',
+                            data: revenueData.map(d => d.net_profit),
+                            borderColor: '#4F46E5',
+                            borderDash: [5, 5],
+                            fill: false,
                             tension: 0.1
                         }
                     ]
                 },
                 options: {
                     responsive: true,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
                     plugins: {
                         legend: {
                             position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': Ksh.';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += context.parsed.y.toLocaleString('en-KE', {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2
+                                        });
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return 'Ksh.' + value.toLocaleString('en-KE');
+                                }
+                            }
                         }
                     }
                 }
@@ -1353,6 +1376,43 @@ $customerGrowth = ($customerStats && $customerStats['previous'] != 0) ?
         revenueChart.data.datasets[0].borderColor = chartColors.revenue;
         revenueChart.data.datasets[1].borderColor = chartColors.expenses;
     </script>
+
+    <!-- In the script section, before chart initialization -->
+    <script>
+        // Define chart colors
+        const chartColors = {
+            revenue: '#10B981',  // Green
+            expenses: '#EF4444', // Red
+            refunds: '#F59E0B',  // Orange
+            profit: '#4F46E5'    // Indigo
+        };
+
+        // Prepare formatted data for charts
+        const chartData = {
+            revenueData: <?= json_encode(array_map(function($month) {
+                return [
+                    'month' => date('M Y', strtotime($month['month'] . '-01')),
+                    'revenue' => $month['revenue'],
+                    'expenses' => $month['expenses'],
+                    'refunds' => $month['refunds'],
+                    'net_profit' => $month['net_profit']
+                ];
+            }, array_reverse($revenueData))) ?>,
+            categoriesData: <?= json_encode(array_map(function($cat) {
+                return [
+                    'category' => $cat['category'],
+                    'revenue' => $cat['total_revenue']
+                ];
+            }, $salesByCategory)) ?>,
+            ordersData: <?= json_encode($ordersPerCustomer) ?>
+        };
+
+        // Initialize charts with the data
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts(chartData);
+        });
+    </script>
+
 </body>
 
 </html>

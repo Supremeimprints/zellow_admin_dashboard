@@ -1,0 +1,103 @@
+.bg-success-soft { background-color: rgba(16, 185, 129, 0.1); }
+.bg-warning-soft { background-color: rgba(245, 158, 11, 0.1); }
+.bg-danger-soft { background-color: rgba(239, 68, 68, 0.1); }
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.status-badge.completed {
+    background-color: var(--priority-low);
+    color: white;
+}
+
+.status-badge.pending {
+    background-color: var(--priority-medium);
+    color: black;
+}
+
+.status-badge.failed {
+    background-color: var(--priority-high);
+    color: white;
+}
+
+.numeric-cell {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    text-align: right;
+}
+
+.text-success { color: #10B981 !important; }
+.text-danger { color: #EF4444 !important; }
+.text-warning { color: #F59E0B !important; }
+
+/* Chart styles */
+.chart-container {
+    position: relative;
+    margin: auto;
+    height: 300px;
+}
+
+.chart-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--text-color);
+}
+
+/* Dark mode chart adjustments */
+[data-bs-theme="dark"] .chart-container {
+    background-color: var(--container-bg);
+}
+
+[data-bs-theme="dark"] .chart-title {
+    color: var(--text-color);
+}
+
+/* Transaction reference styles */
+.flex-col {
+    display: flex;
+    flex-direction: column;
+}
+
+.mb-1 {
+    margin-bottom: 0.25rem;
+}
+
+.self-start {
+    align-self: flex-start;
+}
+
+/* Badge adjustments for stacked layout */
+.text-xs {
+    font-size: 0.75rem;
+    line-height: 1rem;
+}
+
+/* Refund amount styling */
+.numeric-cell .text-xs {
+    font-size: 0.75rem;
+    line-height: 1rem;
+    display: inline-block;
+    white-space: nowrap;
+    margin-top: 0.25rem;
+}
+
+.flex-col .rounded-full {
+    padding: 0.25rem 0.75rem;
+    font-weight: 500;
+}
+
+/* Ensure consistent spacing */
+.mt-1 {
+    margin-top: 0.25rem;
+}
+
+.items-end {
+    align-items: flex-end;
+}
