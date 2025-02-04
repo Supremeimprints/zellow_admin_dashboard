@@ -542,16 +542,21 @@ function getOrderDistribution($pdo, $startDate = null, $endDate = null) {
 // Get data for all cards
 $orderStats = getTotalOrders($db, $startDate, $endDate);
 $profitStats = getNetProfit($db, $startDate, $endDate);
-$customerStats = getActiveCustomers($db, $startDate, $endDate);
-$orderDistribution = getOrderDistribution($db, $startDate, $endDate);
+$customerStats = getActiveCustomers($db, $startDate, $endDate);  // Add this line
+
+// Calculate total revenue (all income before deductions)
+$revenueStats = [
+    'current' => $profitStats['net_revenue'] ?? 0,
+    'previous' => 0,
+    'growth' => 0
+];
 
 // Calculate growth percentages
 $orderGrowth = $orderStats['previous'] != 0 ?
     (($orderStats['current'] - $orderStats['previous']) / $orderStats['previous'] * 100) : 0;
 
-$profitGrowth = $profitStats['growth'] ?? 0;
-
-$customerGrowth = $customerStats['previous'] != 0 ?
+// Add null check for customerStats
+$customerGrowth = ($customerStats && $customerStats['previous'] != 0) ?
     (($customerStats['current'] - $customerStats['previous']) / $customerStats['previous'] * 100) : 0;
 
 ?>
@@ -903,9 +908,10 @@ $customerGrowth = $customerStats['previous'] != 0 ?
             <div class="card metric-card" data-metric="revenue">
                 <div>
                     <h3 class="metric-title">Total Revenue</h3>
-                    <p class="metric-value">Ksh.<?= number_format($currentMonthRevenue, 2) ?></p>
-                    <p class="growth-indicator <?= $revenueGrowth >= 0 ? 'growth-positive' : 'growth-negative' ?>">
-                        <?= $revenueGrowth >= 0 ? '↑' : '↓' ?> <?= abs(round($revenueGrowth, 1)) ?>% 
+                    <p class="metric-value">Ksh.<?= number_format($revenueStats['current'], 2) ?></p>
+                    <small class="text-muted">Before deductions & refunds</small>
+                    <p class="growth-indicator <?= $profitStats['growth'] >= 0 ? 'growth-positive' : 'growth-negative' ?>">
+                        <?= $profitStats['growth'] >= 0 ? '↑' : '↓' ?> <?= abs(round($profitStats['growth'], 1)) ?>% 
                         <?= $startDate ? 'vs previous period' : 'from last month' ?>
                     </p>
                 </div>
@@ -914,6 +920,7 @@ $customerGrowth = $customerStats['previous'] != 0 ?
                 <div>
                     <h3 class="metric-title">Total Orders</h3>
                     <p class="metric-value"><?= number_format($orderStats['current'] ?? 0) ?></p>
+                    <small class="text-muted">Including cancelled orders</small>
                     <p class="growth-indicator <?= $orderGrowth >= 0 ? 'growth-positive' : 'growth-negative' ?>">
                         <?= $orderGrowth >= 0 ? '↑' : '↓' ?> <?= abs(round($orderGrowth, 1)) ?>% 
                         <?= $startDate ? 'vs previous period' : 'from last month' ?>
@@ -923,17 +930,23 @@ $customerGrowth = $customerStats['previous'] != 0 ?
             <div class="card metric-card" data-metric="profit">
                 <div>
                     <h3 class="metric-title">Net Profit</h3>
-                    <p class="metric-value">Ksh.<?= number_format($profitStats['net_profit'] ?? 0, 2) ?></p>
-                    <p class="growth-indicator <?= $profitGrowth >= 0 ? 'growth-positive' : 'growth-negative' ?>">
-                        <?= $profitGrowth >= 0 ? '↑' : '↓' ?> <?= abs(round($profitGrowth, 1)) ?>% 
-                        <?= $startDate ? 'vs previous period' : 'from last month' ?>
-                    </p>
+                    <p class="metric-value">Ksh.<?= number_format($profitStats['current'], 2) ?></p>
+                    <small class="text-muted">After expenses & refunds</small>
+                    <div class="mt-2">
+                        <small class="d-block text-muted">
+                            Expenses: Ksh.<?= number_format($profitStats['expenses'], 2) ?>
+                        </small>
+                        <small class="d-block text-muted">
+                            Refunds: Ksh.<?= number_format($profitStats['refunds'], 2) ?>
+                        </small>
+                    </div>
                 </div>
             </div>
             <div class="card metric-card" data-metric="customers">
                 <div>
                     <h3 class="metric-title">Active Customers</h3>
                     <p class="metric-value"><?= number_format($customerStats['current'] ?? 0) ?></p>
+                    <small class="text-muted">Last 30 days activity</small>
                     <p class="growth-indicator <?= $customerGrowth >= 0 ? 'growth-positive' : 'growth-negative' ?>">
                         <?= $customerGrowth >= 0 ? '↑' : '↓' ?> <?= abs(round($customerGrowth, 1)) ?>% 
                         <?= $startDate ? 'vs previous period' : 'from last month' ?>
