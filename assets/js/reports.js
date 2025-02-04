@@ -1,4 +1,12 @@
 document.addEventListener("DOMContentLoaded", function () {
+    // Chart color definitions
+    const chartColors = {
+        revenue: '#10B981',  // Green
+        expenses: '#EF4444', // Red
+        refunds: '#F59E0B',  // Orange
+        profit: '#4F46E5'    // Indigo
+    };
+
     // Initialize date range picker with a single input
     $('#dateRange').daterangepicker({
         startDate: moment().startOf('month'),
@@ -183,13 +191,6 @@ function initializeDataTables() {
 }
 
 function initializeCharts(data) {
-    const chartColors = {
-        revenue: '#10B981',
-        expenses: '#EF4444',
-        refunds: '#F59E0B',
-        profit: '#4F46E5'
-    };
-
     // Revenue vs Expenses Chart
     const revenueChart = new Chart(
         document.getElementById('revenueChart'),

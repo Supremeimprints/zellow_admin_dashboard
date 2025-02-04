@@ -1102,7 +1102,7 @@ $customerGrowth = ($customerStats && $customerStats['previous'] != 0) ?
     </div> <!-- closing container div -->
 
     <script>
-        // Add this before the existing chart initialization code
+        // Form handlers
         document.getElementById('dateFilterForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const startDate = document.getElementById('start_date').value;
@@ -1114,299 +1114,27 @@ $customerGrowth = ($customerStats && $customerStats['previous'] != 0) ?
             window.location.href = 'reports.php';
         });
 
-        // Prepare data for charts
-        const revenueData = <?= json_encode($revenueData) ?>;
-        const salesByCategoryData = <?= json_encode($salesByCategory) ?>;
-
-        // Revenue vs Expenses Chart
-        const revenueChart = new Chart(
-            document.getElementById('revenueChart'),
-            {
-                type: 'line',
-                data: {
-                    labels: revenueData.map(d => d.month),
-                    datasets: [
-                        {
-                            label: 'Gross Revenue',
-                            data: revenueData.map(d => d.revenue),
-                            borderColor: chartColors.revenue,
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            fill: true,
-                            tension: 0.1
-                        },
-                        {
-                            label: 'Expenses & Refunds',
-                            data: revenueData.map(d => d.expenses + d.refunds),
-                            borderColor: chartColors.expenses,
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                            fill: true,
-                            tension: 0.1
-                        },
-                        {
-                            label: 'Net Profit',
-                            data: revenueData.map(d => d.net_profit),
-                            borderColor: '#4F46E5',
-                            borderDash: [5, 5],
-                            fill: false,
-                            tension: 0.1
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    interaction: {
-                        intersect: false,
-                        mode: 'index'
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) {
-                                        label += ': Ksh.';
-                                    }
-                                    if (context.parsed.y !== null) {
-                                        label += context.parsed.y.toLocaleString('en-KE', {
-                                            minimumFractionDigits: 2,
-                                            maximumFractionDigits: 2
-                                        });
-                                    }
-                                    return label;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return 'Ksh.' + value.toLocaleString('en-KE');
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        );
-
-        // Sales by Category Chart
-        const categoryChart = new Chart(
-            document.getElementById('categoryChart'),
-            {
-                type: 'bar',
-                data: {
-                    labels: salesByCategoryData.map(d => d.category),
-                    datasets: [
-                        {
-                            label: 'Revenue',
-                            data: salesByCategoryData.map(d => d.total_revenue),
-                            backgroundColor: '#4F46E5'
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        }
-                    }
-                }
-            }
-        );
-
-        // Add this after your existing chart initializations
-        const ordersPerCustomerData = <?= json_encode($ordersPerCustomer) ?>;
-        
-        // Orders per Customer Pie Chart
-        const ordersPerCustomerChart = new Chart(
-            document.getElementById('ordersPerCustomerChart'),
-            {
-                type: 'doughnut',
-                data: {
-                    labels: ordersPerCustomerData.map(d => d.order_group),
-                    datasets: [{
-                        data: ordersPerCustomerData.map(d => d.customer_count),
-                        backgroundColor: [
-                            '#4F46E5', // Indigo
-                            '#10B981', // Green
-                            '#F59E0B', // Yellow
-                            '#EF4444', // Red
-                            '#8B5CF6'  // Purple
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '60%',
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                font: {
-                                    family: "'Montserrat', sans-serif",
-                                    size: 11
-                                },
-                                padding: 10
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const label = context.label || '';
-                                    const value = context.parsed || 0;
-                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    const percentage = ((value * 100) / total).toFixed(1);
-                                    const avgItems = ordersPerCustomerData[context.dataIndex].avg_items;
-                                    return [
-                                        `${label}: ${value} orders`,
-                                        `${percentage}% of total`,
-                                        `Avg items: ${avgItems}`
-                                    ];
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        );
-
-        // Toggle dark mode
-        function toggleDarkMode() {
-            const body = document.body;
-            body.classList.toggle('dark-mode');
-            body.classList.toggle('light-mode');
-        }
-
-        // Update chart options for better visibility
-        const chartOptions = {
-            responsive: true,
-            plugins: {
-                legend: {                    position: 'top',
-                    labels: {
-                        color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text'),
-                        font: {
-                            family: "'Montserrat', sans-serif",
-                            weight: '500'
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    grid: {
-                        color: getComputedStyle(document.documentElement).getPropertyValue('--chart-grid')
-                    },
-                    ticks: {
-                        color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text'),
-                        font: {
-                            family: "'Montserrat', sans-serif"
-                        }
-                    }
-                },
-                y: {
-                    grid: {
-                        color: getComputedStyle(document.documentElement).getPropertyValue('--chart-grid')
-                    },
-                    ticks: {
-                        color: getComputedStyle(document.documentElement).getPropertyValue('--chart-text'),
-                        font: {
-                            family: "'Montserrat', sans-serif"
-                        }
-                    }
-                }
-            }
-        };
-
-        // Apply options to both charts
-        revenueChart.options = { ...revenueChart.options, ...chartOptions };
-        categoryChart.options = { ...categoryChart.options, ...chartOptions };
-
-        // Update charts when theme changes
-        const updateChartsTheme = () => {
-            const isDark = document.body.classList.contains('dark-mode');
-            document.documentElement.setAttribute('data-bs-theme', isDark ? 'dark' : 'light');
-            revenueChart.update();
-            categoryChart.update();
-            ordersPerCustomerChart.update();
-        };
-
-        // Add theme change listener
-        document.addEventListener('themeChanged', updateChartsTheme);
-
-        // Add real-time customer activity updates
-        function updateActiveCustomers() {
-            fetch('ajax/get_active_customers.php')
-                .then(response => response.json())
-                .then(data => {
-                    const customerCard = document.querySelector('[data-metric="customers"]');
-                    const valueElement = customerCard.querySelector('.metric-value');
-                    const growthElement = customerCard.querySelector('.growth-indicator');
-                    
-                    valueElement.textContent = new Intl.NumberFormat().format(data.current);
-                    
-                    const growth = data.previous !== 0 ? 
-                        ((data.current - data.previous) / data.previous * 100) : 0;
-                    
-                    growthElement.className = `growth-indicator ${growth >= 0 ? 'growth-positive' : 'growth-negative'}`;
-                    growthElement.textContent = `${growth >= 0 ? '↑' : '↓'} ${Math.abs(growth.toFixed(1))}% from last month`;
-                })
-                .catch(error => console.error('Error updating active customers:', error));
-        }
-
-        // Update active customers count every 5 minutes
-        setInterval(updateActiveCustomers, 300000);
-
-        // Update chart colors for better visualization
-        const chartColors = {
-            revenue: '#10B981',  // Green for revenue
-            expenses: '#EF4444', // Red for expenses
-            refunds: '#F59E0B'   // Orange for refunds
-        };
-
-        // Update revenue chart options
-        revenueChart.data.datasets[0].borderColor = chartColors.revenue;
-        revenueChart.data.datasets[1].borderColor = chartColors.expenses;
-    </script>
-
-    <!-- In the script section, before chart initialization -->
-    <script>
-        // Define chart colors
-        const chartColors = {
-            revenue: '#10B981',  // Green
-            expenses: '#EF4444', // Red
-            refunds: '#F59E0B',  // Orange
-            profit: '#4F46E5'    // Indigo
-        };
-
         // Prepare formatted data for charts
         const chartData = {
             revenueData: <?= json_encode(array_map(function($month) {
                 return [
                     'month' => date('M Y', strtotime($month['month'] . '-01')),
-                    'revenue' => $month['revenue'],
-                    'expenses' => $month['expenses'],
-                    'refunds' => $month['refunds'],
-                    'net_profit' => $month['net_profit']
+                    'revenue' => floatval($month['revenue']),
+                    'expenses' => floatval($month['expenses']),
+                    'refunds' => floatval($month['refunds']),
+                    'net_profit' => floatval($month['net_profit'])
                 ];
             }, array_reverse($revenueData))) ?>,
             categoriesData: <?= json_encode(array_map(function($cat) {
                 return [
                     'category' => $cat['category'],
-                    'revenue' => $cat['total_revenue']
+                    'revenue' => floatval($cat['total_revenue'])
                 ];
             }, $salesByCategory)) ?>,
             ordersData: <?= json_encode($ordersPerCustomer) ?>
         };
 
-        // Initialize charts with the data
+        // Initialize charts when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
             initializeCharts(chartData);
         });
