@@ -17,26 +17,34 @@ $db = $database->getConnection();
 function getTransactionsForExport($pdo) {
     try {
         $query = "
-            SELECT * FROM (
-                SELECT 
-                    reference_id,
-                    CASE 
-                        WHEN transaction_type = 'Customer Payment' AND payment_status = 'completed' 
-                        THEN total_amount 
-                        ELSE 0 
-                    END as money_in,
-                    CASE 
-                        WHEN transaction_type = 'OUT' 
-                        THEN total_amount 
-                        ELSE 0 
-                    END as money_out,
-                    payment_status,
-                    transaction_date
-                FROM transactions
-                WHERE (transaction_type = 'Customer Payment' AND payment_status = 'completed')
-                   OR transaction_type = 'OUT'
-            ) AS combined_transactions 
-            ORDER BY transaction_date DESC";
+            SELECT 
+                t.reference_id,
+                t.transaction_type,
+                t.total_amount,
+                t.order_id,
+                t.payment_status,
+                t.transaction_date,
+                t.payment_method,
+                o.total_amount as original_amount,
+                CASE 
+                    WHEN t.transaction_type = 'Customer Payment' 
+                         AND t.payment_status = 'completed' THEN t.total_amount
+                    ELSE 0 
+                END as money_in,
+                CASE 
+                    WHEN t.transaction_type IN ('Expense', 'Refund') 
+                    THEN t.total_amount
+                    ELSE 0 
+                END as money_out,
+                CASE 
+                    WHEN t.transaction_type = 'Customer Payment' 
+                         AND t.payment_status = 'completed' THEN 'IN'
+                    WHEN t.transaction_type = 'Refund' THEN 'REFUND'
+                    ELSE 'OUT'
+                END as flow_type
+            FROM transactions t
+            LEFT JOIN orders o ON t.order_id = o.order_id
+            ORDER BY t.transaction_date DESC";
 
         $stmt = $pdo->prepare($query);
         $stmt->execute();
@@ -65,16 +73,21 @@ if ($table === 'recentTransactionsTable') {
             $output = fopen('php://output', 'w');
             
             // Add headers
-            fputcsv($output, ['Reference ID', 'Money In (KES)', 'Money Out (KES)', 'Status', 'Date']);
+            fputcsv($output, ['Reference ID', 'Money In (KES)', 'Money Out (KES)', 'Type', 'Status', 'Payment Method', 'Date']);
             
             // Add data
             foreach ($data as $row) {
+                $moneyIn = $row['flow_type'] === 'IN' ? $row['total_amount'] : 0;
+                $moneyOut = $row['flow_type'] === 'OUT' || $row['flow_type'] === 'REFUND' ? $row['total_amount'] : 0;
+                
                 fputcsv($output, [
                     $row['reference_id'],
-                    number_format($row['money_in'], 2),
-                    number_format($row['money_out'], 2),
+                    number_format($moneyIn, 2),
+                    number_format($moneyOut, 2),
+                    $row['transaction_type'],
                     $row['payment_status'],
-                    date('Y-m-d', strtotime($row['transaction_date']))
+                    $row['payment_method'],
+                    date('Y-m-d H:i', strtotime($row['transaction_date']))
                 ]);
             }
             
@@ -82,27 +95,48 @@ if ($table === 'recentTransactionsTable') {
             break;
 
         case 'excel':
-            require 'vendor/autoload.php'; // Make sure PHPSpreadsheet is installed
+            require 'vendor/autoload.php';
             
             $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
             
-            // Add headers
-            $sheet->setCellValue('A1', 'Reference ID');
-            $sheet->setCellValue('B1', 'Money In (KES)');
-            $sheet->setCellValue('C1', 'Money Out (KES)');
-            $sheet->setCellValue('D1', 'Status');
-            $sheet->setCellValue('E1', 'Date');
+            // Style for headers
+            $headerStyle = [
+                'font' => ['bold' => true],
+                'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'color' => ['rgb' => 'E5E7EB']]
+            ];
+            
+            // Add headers with styling
+            $headers = ['Reference ID', 'Money In (KES)', 'Money Out (KES)', 'Type', 'Status', 'Payment Method', 'Date'];
+            foreach (range('A', 'G') as $i => $col) {
+                $sheet->setCellValue($col . '1', $headers[$i]);
+                $sheet->getStyle($col . '1')->applyFromArray($headerStyle);
+            }
             
             // Add data
             $row = 2;
             foreach ($data as $item) {
+                $moneyIn = $item['flow_type'] === 'IN' ? $item['total_amount'] : 0;
+                $moneyOut = $item['flow_type'] === 'OUT' || $item['flow_type'] === 'REFUND' ? $item['total_amount'] : 0;
+                
                 $sheet->setCellValue('A' . $row, $item['reference_id']);
-                $sheet->setCellValue('B' . $row, number_format($item['money_in'], 2));
-                $sheet->setCellValue('C' . $row, number_format($item['money_out'], 2));
-                $sheet->setCellValue('D' . $row, $item['payment_status']);
-                $sheet->setCellValue('E' . $row, date('Y-m-d', strtotime($item['transaction_date'])));
+                $sheet->setCellValue('B' . $row, $moneyIn);
+                $sheet->setCellValue('C' . $row, $moneyOut);
+                $sheet->setCellValue('D' . $row, $item['transaction_type']);
+                $sheet->setCellValue('E' . $row, $item['payment_status']);
+                $sheet->setCellValue('F' . $row, $item['payment_method']);
+                $sheet->setCellValue('G' . $row, date('Y-m-d H:i', strtotime($item['transaction_date'])));
+                
+                // Format currency columns
+                $sheet->getStyle('B' . $row)->getNumberFormat()->setFormatCode('#,##0.00');
+                $sheet->getStyle('C' . $row)->getNumberFormat()->setFormatCode('#,##0.00');
+                
                 $row++;
+            }
+            
+            // Auto-size columns
+            foreach (range('A', 'G') as $col) {
+                $sheet->getColumnDimension($col)->setAutoSize(true);
             }
             
             header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -118,30 +152,36 @@ if ($table === 'recentTransactionsTable') {
             $pdf = new \TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
             $pdf->SetCreator('Your System');
             $pdf->SetTitle('Transactions Report');
-            $pdf->AddPage();
+            $pdf->AddPage('L'); // Landscape orientation for better fit
             
             // Add title
             $pdf->SetFont('helvetica', 'B', 16);
             $pdf->Cell(0, 10, 'Transactions Report', 0, 1, 'C');
-            $pdf->Ln(10);
+            $pdf->Ln(5);
             
             // Add table headers
-            $pdf->SetFont('helvetica', 'B', 12);
-            $pdf->Cell(50, 7, 'Reference ID', 1);
-            $pdf->Cell(35, 7, 'Money In', 1);
-            $pdf->Cell(35, 7, 'Money Out', 1);
-            $pdf->Cell(35, 7, 'Status', 1);
-            $pdf->Cell(35, 7, 'Date', 1);
+            $pdf->SetFont('helvetica', 'B', 10);
+            $headers = ['Reference ID', 'Money In (KES)', 'Money Out (KES)', 'Type', 'Status', 'Payment Method', 'Date'];
+            $widths = [40, 30, 30, 35, 25, 35, 35];
+            
+            foreach ($headers as $i => $header) {
+                $pdf->Cell($widths[$i], 7, $header, 1, 0, 'C');
+            }
             $pdf->Ln();
             
             // Add data
-            $pdf->SetFont('helvetica', '', 12);
+            $pdf->SetFont('helvetica', '', 9);
             foreach ($data as $row) {
-                $pdf->Cell(50, 6, $row['reference_id'], 1);
-                $pdf->Cell(35, 6, number_format($row['money_in'], 2), 1);
-                $pdf->Cell(35, 6, number_format($row['money_out'], 2), 1);
-                $pdf->Cell(35, 6, $row['payment_status'], 1);
-                $pdf->Cell(35, 6, date('Y-m-d', strtotime($row['transaction_date'])), 1);
+                $moneyIn = $row['flow_type'] === 'IN' ? $row['total_amount'] : 0;
+                $moneyOut = $row['flow_type'] === 'OUT' || $row['flow_type'] === 'REFUND' ? $row['total_amount'] : 0;
+                
+                $pdf->Cell($widths[0], 6, $row['reference_id'], 1);
+                $pdf->Cell($widths[1], 6, number_format($moneyIn, 2), 1, 0, 'R');
+                $pdf->Cell($widths[2], 6, number_format($moneyOut, 2), 1, 0, 'R');
+                $pdf->Cell($widths[3], 6, $row['transaction_type'], 1);
+                $pdf->Cell($widths[4], 6, $row['payment_status'], 1);
+                $pdf->Cell($widths[5], 6, $row['payment_method'], 1);
+                $pdf->Cell($widths[6], 6, date('Y-m-d H:i', strtotime($row['transaction_date'])), 1);
                 $pdf->Ln();
             }
             

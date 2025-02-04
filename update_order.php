@@ -243,118 +243,162 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <form method="POST">
-            <div class="form-section">
-                <h4 class="mb-3">Order Information</h4>
-                <div class="row g-3">
-                    <!-- Order Status -->
-                    <div class="col-md-4">
-                        <label class="form-label">Order Status</label>
-                        <select name="status" class="form-select" required>
-                            <option value="Pending" <?= $order['status'] === 'Pending' ? 'selected' : '' ?>>Pending</option>
-                            <option value="Processing" <?= $order['status'] === 'Processing' ? 'selected' : '' ?>>Processing</option>
-                            <option value="Shipped" <?= $order['status'] === 'Shipped' ? 'selected' : '' ?>>Shipped</option>
-                            <option value="Delivered" <?= $order['status'] === 'Delivered' ? 'selected' : '' ?>>Delivered</option>
-                            <option value="Cancelled" <?= $order['status'] === 'Cancelled' ? 'selected' : '' ?>>Cancelled</option>
-                        </select>
-                    </div>
-
-                    <!-- Payment Status -->
-                    <div class="col-md-4">
-                        <label class="form-label">Payment Status</label>
-                        <select name="payment_status" class="form-select" required>
-                            <option value="Pending" <?= $order['payment_status'] === 'Pending' ? 'selected' : '' ?>>Pending</option>
-                            <option value="Paid" <?= $order['payment_status'] === 'Paid' ? 'selected' : '' ?>>Paid</option>
-                            <option value="Failed" <?= $order['payment_status'] === 'Failed' ? 'selected' : '' ?>>Failed</option>
-                            <option value="Refunded" <?= $order['payment_status'] === 'Refunded' ? 'selected' : '' ?>>Refunded</option>
-                        </select>
-                    </div>
-
-                    <!-- Payment Method -->
-                    <div class="col-md-4">
-                        <label class="form-label">Payment Method</label>
-                        <select name="payment_method" class="form-select" required>
-                            <option value="Mpesa" <?= $order['payment_method'] === 'Mpesa' ? 'selected' : '' ?>>Mpesa</option>
-                            <option value="Airtel Money" <?= $order['payment_method'] === 'Airtel Money' ? 'selected' : '' ?>>Airtel Money</option>
-                            <option value="Bank" <?= $order['payment_method'] === 'Bank' ? 'selected' : '' ?>>Bank</option>
-                        </select>
-                    </div>
-
-                    <!-- Tracking Info -->
-                    <div class="col-md-6">
-                        <label class="form-label">Tracking Number</label>
-                        <input type="text" name="tracking_number" class="form-control" value="<?= htmlspecialchars($order['tracking_number']) ?>">
-                    </div>
-
-                    <div class="col-md-6">
-                        <label class="form-label">Delivery Date</label>
-                        <input type="date" name="delivery_date" class="form-control" value="<?= htmlspecialchars($order['delivery_date']) ?>">
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <h4 class="mb-3">Shipping Details</h4>
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label">Shipping Method</label>
-                        <select name="shipping_method" class="form-select" required>
-                            <option value="Standard" <?= $order['shipping_method'] === 'Standard' ? 'selected' : '' ?>>Standard</option>
-                            <option value="Express" <?= $order['shipping_method'] === 'Express' ? 'selected' : '' ?>>Express</option>
-                            <option value="Next Day" <?= $order['shipping_method'] === 'Next Day' ? 'selected' : '' ?>>Next Day</option>
-                        </select>
-                    </div>
-
-                    <div class="col-md-6">
-                        <label class="form-label">Shipping Address</label>
-                        <textarea name="shipping_address" class="form-control" rows="2" required><?= htmlspecialchars($order['shipping_address']) ?></textarea>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <h4 class="mb-3">Order Details</h4>
-                <div id="products-container">
-                    <?php foreach ($orderItems as $index => $item): ?>
-                        <div class="row g-3 product-item">
-                            <div class="col-md-6">
-                                <label for="product_id" class="form-label">Product</label>
-                                <select name="products[<?= $index ?>][product_id]" class="form-select product-select" required>
-                                    <option value="">Select Product</option>
-                                    <?php foreach ($products as $product): ?>
-                                        <option value="<?= htmlspecialchars($product['product_id']) ?>" 
-                                                data-price="<?= htmlspecialchars($product['price']) ?>"
-                                                <?= $product['product_id'] == $item['product_id'] ? 'selected' : '' ?>>
-                                            <?= htmlspecialchars($product['product_name']) ?> - 
-                                            Ksh. <?= number_format($product['price'], 2) ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="quantity" class="form-label">Quantity</label>
-                                <input type="number" name="products[<?= $index ?>][quantity]" class="form-control quantity-input" min="1" value="<?= htmlspecialchars($item['quantity']) ?>" required>
-                            </div>
-                            <div class="col-md-3">
-                                <label for="unit_price" class="form-label">Price per Unit</label>
-                                <input type="number" name="products[<?= $index ?>][unit_price]" class="form-control unit-price-input" step="0.01" value="<?= htmlspecialchars($item['unit_price']) ?>" required>
-                            </div>
-                            <div class="col-md-12 text-end">
-                                <button type="button" class="btn btn-danger remove-product">Remove</button>
-                            </div>
+            <div class="grid-container">
+                <div class="form-section">
+                    <h4 class="mb-3">Customer Information</h4>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($order['email']) ?>" required>
                         </div>
-                    <?php endforeach; ?>
+                        <div class="col-md-6">
+                            <label class="form-label">Username</label>
+                            <input type="text" name="username" class="form-control" value="<?= htmlspecialchars($order['username']) ?>" required>
+                        </div>
+                    </div>
                 </div>
-                <button type="button" id="add-product" class="btn btn-secondary mt-3">Add Another Product</button>
 
-                <div class="col-md-4 mt-3">
-                    <label class="form-label">Total Amount</label>
-                    <input type="text" id="total_amount" class="form-control" value="<?= htmlspecialchars($order['total_amount']) ?>" readonly>
+                <div class="form-section">
+                    <h4 class="mb-3">Order Information</h4>
+                    <div class="row g-3">
+                        <!-- Order Status -->
+                        <div class="col-md-4">
+                            <label class="form-label">Order Status</label>
+                            <select name="status" class="form-select" required>
+                                <?php
+                                $statuses = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+                                foreach ($statuses as $status) {
+                                    $selected = ($order['status'] === $status) ? 'selected' : '';
+                                    echo "<option value=\"$status\" $selected>$status</option>";
+                                }
+                                ?>
+                            </select>
+                        </div>
+
+                        <!-- Payment Status -->
+                        <div class="col-md-4">
+                            <label class="form-label">Payment Status</label>
+                            <select name="payment_status" class="form-select" required>
+                                <?php
+                                $paymentStatuses = ['Pending', 'Paid', 'Failed', 'Refunded'];
+                                foreach ($paymentStatuses as $status) {
+                                    $selected = ($order['payment_status'] === $status) ? 'selected' : '';
+                                    echo "<option value=\"$status\" $selected>$status</option>";
+                                }
+                                ?>
+                            </select>
+                        </div>
+
+                        <!-- Payment Method -->
+                        <div class="col-md-4">
+                            <label class="form-label">Payment Method</label>
+                            <select name="payment_method" class="form-select" required>
+                                <?php
+                                $paymentMethods = ['Mpesa', 'Airtel Money', 'Credit Card', 'Cash On Delivery'];
+                                foreach ($paymentMethods as $method) {
+                                    $selected = ($order['payment_method'] === $method) ? 'selected' : '';
+                                    echo "<option value=\"$method\" $selected>$method</option>";
+                                }
+                                ?>
+                            </select>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            <div class="d-flex justify-content-between mt-4">
-                <button type="submit" class="btn btn-primary">Update Order</button>
-                <button type="button" onclick="window.history.back()" class="btn btn-danger">Cancel</button>
+                <div class="form-section">
+                    <h4 class="mb-3">Shipping Details</h4>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Shipping Method</label>
+                            <select name="shipping_method" class="form-select" required>
+                                <?php
+                                $shippingMethods = [
+                                    'Standard' => 'Standard (3-5 days)',
+                                    'Express' => 'Express (2 days)',
+                                    'Next Day' => 'Next Day'
+                                ];
+                                foreach ($shippingMethods as $value => $label) {
+                                    $selected = ($order['shipping_method'] === $value) ? 'selected' : '';
+                                    echo "<option value=\"$value\" $selected>$label</option>";
+                                }
+                                ?>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">Tracking Number</label>
+                            <input type="text" name="tracking_number" class="form-control" 
+                                   value="<?= htmlspecialchars($order['tracking_number']) ?>">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">Delivery Date</label>
+                            <input type="date" name="delivery_date" class="form-control" 
+                                   value="<?= htmlspecialchars($order['delivery_date']) ?>">
+                        </div>
+
+                        <div class="col-md-12">
+                            <label class="form-label">Shipping Address</label>
+                            <textarea name="shipping_address" class="form-control" rows="3" required><?= htmlspecialchars($order['shipping_address']) ?></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Order Items Section -->
+                <div class="form-section">
+                    <h4 class="mb-3">Order Items</h4>
+                    <div id="products-container">
+                        <?php foreach ($orderItems as $index => $item): ?>
+                            <div class="row g-3 product-item mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Product</label>
+                                    <select name="products[<?= $index ?>][product_id]" class="form-select product-select" required>
+                                        <option value="">Select Product</option>
+                                        <?php foreach ($products as $product): ?>
+                                            <option value="<?= $product['product_id'] ?>" 
+                                                    data-price="<?= $product['price'] ?>"
+                                                    <?= ($product['product_id'] == $item['product_id']) ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars($product['product_name']) ?> - 
+                                                Ksh. <?= number_format($product['price'], 2) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Quantity</label>
+                                    <input type="number" name="products[<?= $index ?>][quantity]" 
+                                           class="form-control quantity-input" min="1" 
+                                           value="<?= htmlspecialchars($item['quantity']) ?>" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Price per Unit</label>
+                                    <input type="number" name="products[<?= $index ?>][unit_price]" 
+                                           class="form-control unit-price-input" step="0.01" 
+                                           value="<?= htmlspecialchars($item['unit_price']) ?>" required>
+                                </div>
+                                <div class="col-12 text-end">
+                                    <button type="button" class="btn btn-danger remove-product">Remove</button>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <button type="button" id="add-product" class="btn btn-secondary mt-3">Add Another Product</button>
+                </div>
+
+                <div class="form-section">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label class="form-label">Total Amount</label>
+                            <input type="text" id="total_amount" class="form-control" 
+                                   value="<?= number_format($order['total_amount'], 2) ?>" readonly>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="submit" class="btn btn-primary">Update Order</button>
+                    <a href="orders.php" class="btn btn-danger">Cancel</a>
+                </div>
             </div>
         </form>
     </div>
