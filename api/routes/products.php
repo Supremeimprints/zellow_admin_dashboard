@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../utils/response.php';
-require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../config/database.php';
 
 $database = new Database();
 $db = $database->getConnection();
@@ -47,4 +47,15 @@ switch ($_SERVER['REQUEST_METHOD']) {
             ApiResponse::success($products);
         }
         break;
+
+    case 'POST':
+        // Add a new product
+        $data = json_decode(file_get_contents('php://input'), true);
+        $stmt = $db->prepare("INSERT INTO products (name, price, category_id) VALUES (?, ?, ?)");
+        $stmt->execute([$data['name'], $data['price'], $data['category_id']]);
+        
+        ApiResponse::success(null, 'Product added successfully');
+        break;
+
+    // ...other methods (PUT, DELETE) if needed...
 }
