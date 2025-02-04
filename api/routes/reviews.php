@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../utils/response.php';
-require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . 'config/database.php';
 
 $database = new Database();
 $db = $database->getConnection();
@@ -12,7 +12,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
 
         // Add review
         $stmt = $db->prepare("
-            INSERT INTO reviews (user_id, product_id, rating, comment) 
+            INSERT INTO reviews (id, product_id, rating, comment) 
             VALUES (?, ?, ?, ?)
         ");
         $stmt->execute([
@@ -31,7 +31,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
             $stmt = $db->prepare("
                 SELECT r.*, u.username 
                 FROM reviews r
-                JOIN users u ON r.user_id = u.id
+                JOIN users u ON r.id = u.id
                 WHERE r.product_id = ?
             ");
             $stmt->execute([$_GET['product_id']]);

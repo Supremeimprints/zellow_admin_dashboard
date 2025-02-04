@@ -1,6 +1,10 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 require_once __DIR__ . '/../utils/response.php';
-require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../config/database.php';
 
 $database = new Database();
 $db = $database->getConnection();
@@ -9,7 +13,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
     case 'GET':
         $userId = $_REQUEST['user']->id;
 
-        if ($_SERVER['REQUEST_URI'] === '/api/user/orders') {
+        if (strpos($_SERVER['REQUEST_URI'], '/api/user/orders') !== false) {
             // Get user's orders
             $stmt = $db->prepare("
                 SELECT o.*, 
@@ -27,7 +31,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
             ApiResponse::success($orders);
         }
 
-        if ($_SERVER['REQUEST_URI'] === '/api/user/profile') {
+        if (strpos($_SERVER['REQUEST_URI'], '/api/user/profile') !== false) {
             $stmt = $db->prepare("SELECT id, username, email, created_at FROM users WHERE id = ?");
             $stmt->execute([$userId]);
             $profile = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -40,7 +44,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
         $data = json_decode(file_get_contents('php://input'), true);
         $userId = $_REQUEST['user']->id;
 
-        if ($_SERVER['REQUEST_URI'] === '/api/user/profile') {
+        if (strpos($_SERVER['REQUEST_URI'], '/api/user/profile') !== false) {
             // Update user profile
             $stmt = $db->prepare("
                 UPDATE users 

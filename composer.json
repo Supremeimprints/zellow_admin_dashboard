@@ -10,5 +10,8 @@
         "phpoffice/phpspreadsheet": "^3.9",
         "tecnickcom/tcpdf": "*",
         "mpdf/mpdf": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "11"
     }
 }

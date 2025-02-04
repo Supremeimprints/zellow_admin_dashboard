@@ -9,3 +9,8 @@ RewriteCond %{REQUEST_FILENAME} !-d
 
 # Redirect to 404 page
 RewriteRule ^ 404.php [L]
+
+# Route API requests to the appropriate PHP files
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^api/(.*)$ api/routes/$1.php [L,QSA]
