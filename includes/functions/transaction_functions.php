@@ -62,28 +62,73 @@ if (!function_exists('getRecentTransactions')) {
 }
 
 function createTransaction($db, $data) {
+    // First check if a transaction already exists for this order
+    if (isset($data['order_id'])) {
+        $checkQuery = "SELECT id FROM transactions 
+                      WHERE order_id = ? AND transaction_type = ?";
+        $checkStmt = $db->prepare($checkQuery);
+        $checkStmt->execute([$data['order_id'], $data['type']]);
+        
+        if ($checkStmt->fetch()) {
+            // Transaction already exists for this order, don't create a duplicate
+            return true;
+        }
+    }
+
+    // Generate a unique reference ID
+    $reference = generateTransactionRef();
+    
     $sql = "INSERT INTO transactions (
         reference_id, 
         transaction_type,
+        order_id,
         total_amount,
         payment_method,
         payment_status,
         user,
-        order_id,
-        remarks
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        remarks,
+        transaction_date
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)";
 
     $stmt = $db->prepare($sql);
     return $stmt->execute([
-        generateTransactionRef(),
+        $reference,
         $data['type'],
+        $data['order_id'] ?? null,
         $data['amount'],
         $data['payment_method'],
-        $data['payment_status'] ?? 'completed',
+        $data['payment_status'] ?? 'pending',
         $data['user_id'] ?? null,
-        $data['order_id'] ?? null,
         $data['remarks'] ?? null
     ]);
+}
+
+function updateTransaction($db, $orderId, $data) {
+    $sql = "UPDATE transactions 
+            SET payment_status = ?,
+                total_amount = ?,
+                payment_method = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE order_id = ? AND transaction_type = ?";
+
+    $stmt = $db->prepare($sql);
+    return $stmt->execute([
+        $data['payment_status'],
+        $data['amount'],
+        $data['payment_method'],
+        $orderId,
+        $data['type']
+    ]);
+}
+
+function getTransactionByOrderId($db, $orderId, $type = 'Customer Payment') {
+    $sql = "SELECT * FROM transactions 
+            WHERE order_id = ? AND transaction_type = ? 
+            ORDER BY transaction_date DESC LIMIT 1";
+    
+    $stmt = $db->prepare($sql);
+    $stmt->execute([$orderId, $type]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
 function generateTransactionRef() {

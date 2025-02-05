@@ -7,6 +7,8 @@ if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
 }
 
 require_once 'config/database.php';
+require_once 'includes/functions/transaction_functions.php'; // Add this line to include transaction functions
+
 $database = new Database();
 $db = $database->getConnection();
 
@@ -59,106 +61,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $oldPaymentStatus = $order['payment_status'];
         $newStatus = $_POST['status'];
         $newPaymentStatus = $_POST['payment_status'];
-
-        // Handle refund scenarios
-        if ($oldPaymentStatus !== 'Refunded' && $newPaymentStatus === 'Refunded') {
-            // Create refund transaction
-            $refundQuery = "INSERT INTO transactions (
-                reference_id,
-                order_id,
-                transaction_type,
-                total_amount,
-                payment_status,
-                payment_method,
-                transaction_date
-            ) VALUES (
-                :reference_id,
-                :order_id,
-                'Refund',
-                :total_amount,
-                'completed',
-                :payment_method,
-                CURRENT_TIMESTAMP
-            )";
+        
+        // Handle payment status changes
+        if ($oldPaymentStatus !== $newPaymentStatus) {
+            $existingTransaction = getTransactionByOrderId($db, $orderId);
             
-            $refundStmt = $db->prepare($refundQuery);
-            $refundStmt->execute([
-                ':reference_id' => 'REF-' . $orderId . '-' . time(),
-                ':order_id' => $orderId,
-                ':total_amount' => $order['total_amount'],
-                ':payment_method' => $order['payment_method']
-            ]);
-
-            // Restore inventory quantities
-            foreach ($orderItems as $item) {
-                $updateStockQuery = "UPDATE inventory 
-                                   SET stock_quantity = stock_quantity + :quantity
-                                   WHERE product_id = :product_id";
-                $stockStmt = $db->prepare($updateStockQuery);
-                $stockStmt->execute([
-                    ':quantity' => $item['quantity'],
-                    ':product_id' => $item['product_id']
+            if ($existingTransaction) {
+                // Update existing transaction
+                updateTransaction($db, $orderId, [
+                    'payment_status' => $newPaymentStatus,
+                    'amount' => $_POST['total_amount'],
+                    'payment_method' => $_POST['payment_method'],
+                    'type' => 'Customer Payment'
+                ]);
+            } else {
+                // Create new transaction only if one doesn't exist
+                createTransaction($db, [
+                    'type' => 'Customer Payment',
+                    'amount' => $_POST['total_amount'],
+                    'payment_method' => $_POST['payment_method'],
+                    'payment_status' => $newPaymentStatus,
+                    'user_id' => $_SESSION['id'],
+                    'order_id' => $orderId,
+                    'remarks' => 'Order payment'
                 ]);
             }
         }
-        // Handle payment status changes
-        else if ($oldPaymentStatus !== $newPaymentStatus) {
-            // If changing from 'completed' to something else, rollback the payment transaction
-            if ($oldPaymentStatus === 'completed' && $newPaymentStatus !== 'completed') {
-                $rollbackQuery = "UPDATE transactions 
-                                SET payment_status = :new_status,
-                                    updated_at = CURRENT_TIMESTAMP
-                                WHERE order_id = :order_id 
-                                AND transaction_type = 'Customer Payment'";
-                $rollbackStmt = $db->prepare($rollbackQuery);
-                $rollbackStmt->execute([
-                    ':new_status' => $newPaymentStatus,
-                    ':order_id' => $orderId
+
+        // Handle refund scenarios
+        if ($oldPaymentStatus !== 'Refunded' && $newPaymentStatus === 'Refunded') {
+            // Check if refund transaction already exists
+            $existingRefund = getTransactionByOrderId($db, $orderId, 'Refund');
+            
+            if (!$existingRefund) {
+                createTransaction($db, [
+                    'type' => 'Refund',
+                    'amount' => -abs($_POST['total_amount']),
+                    'payment_method' => $_POST['payment_method'],
+                    'payment_status' => 'completed',
+                    'user_id' => $_SESSION['id'],
+                    'order_id' => $orderId,
+                    'remarks' => 'Order refund'
                 ]);
-            }
-            // If changing to 'completed', create or update payment transaction
-            else if ($newPaymentStatus === 'completed') {
-                $checkTransactionQuery = "SELECT transaction_id FROM transactions 
-                                        WHERE order_id = ? AND transaction_type = 'Customer Payment'";
-                $checkStmt = $db->prepare($checkTransactionQuery);
-                $checkStmt->execute([$orderId]);
-                
-                if ($checkStmt->fetch()) {
-                    // Update existing transaction
-                    $updateQuery = "UPDATE transactions 
-                                  SET payment_status = 'completed',
-                                      updated_at = CURRENT_TIMESTAMP
-                                  WHERE order_id = ? AND transaction_type = 'Customer Payment'";
-                    $updateStmt = $db->prepare($updateQuery);
-                    $updateStmt->execute([$orderId]);
-                } else {
-                    // Create new payment transaction
-                    $createQuery = "INSERT INTO transactions (
-                        reference_id,
-                        order_id,
-                        transaction_type,
-                        total_amount,
-                        payment_status,
-                        payment_method,
-                        transaction_date
-                    ) VALUES (
-                        :reference_id,
-                        :order_id,
-                        'Customer Payment',
-                        :total_amount,
-                        'completed',
-                        :payment_method,
-                        CURRENT_TIMESTAMP
-                    )";
-                    
-                    $createStmt = $db->prepare($createQuery);
-                    $createStmt->execute([
-                        ':reference_id' => 'PAY-' . $orderId . '-' . time(),
-                        ':order_id' => $orderId,
-                        ':total_amount' => $_POST['total_amount'],
-                        ':payment_method' => $_POST['payment_method']
-                    ]);
-                }
             }
         }
 
@@ -285,7 +229,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 const quantity = parseInt(item.querySelector('.quantity-input').value) || 0;
                 totalAmount += pricePerUnit * quantity;
             });
+            // Update both display and hidden field
             document.getElementById('total_amount').value = totalAmount.toFixed(2);
+            document.getElementById('total_amount_hidden').value = totalAmount.toFixed(2);
         }
     </script>
 </head>
@@ -449,6 +395,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="row">
                         <div class="col-md-4">
                             <label class="form-label">Total Amount</label>
+                            <input type="hidden" name="total_amount" id="total_amount_hidden">
                             <input type="text" id="total_amount" class="form-control" 
                                    value="<?= number_format($order['total_amount'], 2) ?>" readonly>
                         </div>
@@ -474,7 +421,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 const quantity = parseInt(item.querySelector('.quantity-input').value) || 0;
                 totalAmount += pricePerUnit * quantity;
             });
+            // Update both display and hidden field
             document.getElementById('total_amount').value = totalAmount.toFixed(2);
+            document.getElementById('total_amount_hidden').value = totalAmount.toFixed(2);
         }
 
         // Add new product row
