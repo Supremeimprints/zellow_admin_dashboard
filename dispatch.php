@@ -1,6 +1,7 @@
 <?php
 session_start();
 
+// Authentication check
 if (!isset($_SESSION['id'])) {
     header('Location: login.php');
     exit();
@@ -8,11 +9,14 @@ if (!isset($_SESSION['id'])) {
 
 $allowed_roles = ['admin', 'dispatch_manager'];
 if (!in_array($_SESSION['role'], $allowed_roles)) {
-    echo "You do not have permission to view this page.";
+    header('Location: login.php');
     exit();
 }
 
 require_once 'config/database.php';
+require_once 'includes/functions/transaction_functions.php';
+
+// Initialize database after auth checks
 $database = new Database();
 $db = $database->getConnection();
 
@@ -29,16 +33,18 @@ $endDate = $_GET['end_date'] ?? '';
 $errorMessage = '';
 $successMessage = '';
 
-// Build query with enhanced filters for dispatch page
-$query = "SELECT o.order_id, u.username, o.status, o.payment_status, o.payment_method, 
-          o.shipping_method, o.tracking_number, o.shipping_address, o.order_date, 
-          GROUP_CONCAT(CONCAT(p.product_name, ' (', oi.quantity, ' x ', oi.unit_price, ')') SEPARATOR ', ') AS products, 
-          SUM(oi.subtotal) AS total_amount 
-          FROM orders o 
-          JOIN users u ON o.id = u.id 
-          JOIN order_items oi ON o.order_id = oi.order_id 
-          JOIN products p ON oi.product_id = p.product_id 
-          WHERE (o.status = 'Pending' OR o.status = 'Processing') 
+// Get order statistics for dispatch
+$orderStats = getOrderStatistics($db, 'dispatch');
+
+// Modify the main query to correctly show relevant orders and include proper joins
+$query = "SELECT o.*, u.username, 
+          GROUP_CONCAT(DISTINCT CONCAT(p.product_name, ' (', oi.quantity, ')') SEPARATOR ', ') as products,
+          SUM(oi.quantity * oi.unit_price) as total_amount
+          FROM orders o
+          LEFT JOIN users u ON o.id = u.id
+          LEFT JOIN order_items oi ON o.order_id = oi.order_id
+          LEFT JOIN products p ON oi.product_id = p.product_id
+          WHERE o.status IN ('Pending', 'Processing')
           AND (o.payment_status = 'Paid' OR o.payment_status = 'Pending')";
 
 // Add filters to query
@@ -106,6 +112,12 @@ try {
     $orders = [];
 }
 
+// Update badge classes in the table
+foreach ($orders as &$order) {
+    $order['status_badge'] = getStatusBadgeClass($order['status'], 'status');
+    $order['payment_badge'] = getStatusBadgeClass($order['payment_status'], 'payment');
+}
+
 // Get driver data with vehicle information (updated query)
 $driverQuery = "SELECT d.*, 
                 v.vehicle_id,
@@ -124,13 +136,22 @@ $drivers = $driverStmt->fetchAll(PDO::FETCH_ASSOC);
 // Get order counts
 $orderCounts = [];
 $statuses = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+$statusCountQuery = "SELECT status, COUNT(*) as count 
+                    FROM orders 
+                    GROUP BY status";
+$statusStmt = $db->prepare($statusCountQuery);
+$statusStmt->execute();
+$statusResults = $statusStmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Initialize all statuses with 0
 foreach ($statuses as $status) {
-    try {
-        $countStmt = $db->prepare("SELECT COUNT(*) AS count FROM orders WHERE status = ?");
-        $countStmt->execute([$status]);
-        $orderCounts[$status] = $countStmt->fetchColumn();
-    } catch (Exception $e) {
-        $orderCounts[$status] = 0;
+    $orderCounts[$status] = 0;
+}
+
+// Update counts from database results
+foreach ($statusResults as $result) {
+    if (isset($orderCounts[$result['status']])) {
+        $orderCounts[$result['status']] = (int)$result['count'];
     }
 }
 ?>
@@ -156,21 +177,21 @@ foreach ($statuses as $status) {
         <!-- Keep existing summary stats and orders table -->
         <h2>Dispatch & Logistics Summary</h2>
         <div class="row row-cols-1 row-cols-md-6 g-4 mb-4">
-            <?php foreach ($statuses as $status):
+            <?php foreach ($orderStats as $status => $stat): 
                 $color = match ($status) {
                     'Pending' => 'warning',
                     'Processing' => 'info',
-                    'Shipped' => 'success',
-                    'Delivered' => 'dark',
+                    'Shipped' => 'primary',
+                    'Delivered' => 'success',
                     'Cancelled' => 'danger',
-                    default => 'primary'
+                    default => 'secondary'
                 };
-                ?>
+            ?>
                 <div class="col">
                     <div class="card text-white bg-<?= $color ?>">
                         <div class="card-body">
                             <h6 class="card-title"><?= $status ?></h6>
-                            <h3 class="card-text"><?= $orderCounts[$status] ?></h3>
+                            <h3 class="card-text"><?= $stat['count'] ?></h3>
                         </div>
                     </div>
                 </div>
@@ -287,16 +308,16 @@ foreach ($statuses as $status) {
                                 <td><?php echo htmlspecialchars($order['products']); ?></td>
                                 <td>Ksh.<?php echo htmlspecialchars(number_format($order['total_amount'], 2)); ?></td>
                                 <td>
-                                    <span class="badge bg-<?php echo getStatusColor($order['status']); ?>">
-                                        <?php echo htmlspecialchars($order['status']); ?>
+                                    <span class="badge <?= getStatusBadgeClass($order['status']) ?>">
+                                        <?= htmlspecialchars($order['status']) ?>
                                     </span>
                                 </td>
                                 <td>
-                                    <span class="badge bg-<?php echo getPaymentStatusColor($order['payment_status']); ?>">
-                                        <?php echo htmlspecialchars($order['payment_status']); ?>
+                                    <span class="badge <?= getStatusBadgeClass($order['payment_status'], 'payment') ?>">
+                                        <?= htmlspecialchars($order['payment_status']) ?>
                                     </span>
                                 </td>
-                                <td><?php echo htmlspecialchars($order['tracking_number'] ?? 'N/A'); ?></td>
+                                <td><?= htmlspecialchars($order['tracking_number'] ?? 'N/A') ?></td>
                                 <td><?php echo htmlspecialchars($order['shipping_address']); ?></td>
                                 <td><?php echo htmlspecialchars(date('Y-m-d H:i', strtotime($order['order_date']))); ?></td>
                                 <td>

@@ -34,6 +34,23 @@ body {
     transform: translateY(-5px);
 }
 
+.card {
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.card .bi {
+    opacity: 0.7;
+}
+
+.card:hover .bi {
+    opacity: 1;
+}
+
 /* Card content styling */
 .container.mt-5 .card-body {
     padding: 20px;
@@ -52,6 +69,36 @@ body {
     color: white !important;
     font-size: 1.8rem;
     margin-bottom: 0;
+}
+
+.status-badge {
+    font-size: 0.875rem;
+    padding: 0.5em 0.75em;
+    border-radius: 30px;
+}
+
+.order-stats-card {
+    border-left: 5px solid;
+}
+
+.order-stats-card.pending {
+    border-left-color: var(--bs-warning);
+}
+
+.order-stats-card.processing {
+    border-left-color: var(--bs-info);
+}
+
+.order-stats-card.shipped {
+    border-left-color: var(--bs-primary);
+}
+
+.order-stats-card.delivered {
+    border-left-color: var(--bs-success);
+}
+
+.order-stats-card.cancelled {
+    border-left-color: var(--bs-danger);
 }
 
 /* Color overrides - Enhanced vibrancy */
@@ -120,6 +167,67 @@ body {
     letter-spacing: -0.5px; /* Optional: improves number spacing */
 }
 
+/* Tracking Number Styling */
+.tracking-number {
+    font-family: 'Courier New', monospace;
+    padding: 0.25em 0.5em;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+    font-size: 0.9em;
+    letter-spacing: 0.5px;
+}
+
+.badge-tracking {
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.5px;
+    font-size: 0.85em;
+    font-weight: normal;
+}
+
 [data-bs-theme="dark"] .container.mt-5 h2{
     color: var(--text-main);
+}
+
+/* Status Badge Styling */
+.badge {
+    font-weight: 500;
+    padding: 0.5em 0.75em;
+    font-size: 0.85em;
+}
+
+.badge.bg-warning.text-dark {
+    background-color: #ffeeba !important;
+    color: #856404 !important;
+}
+
+.badge.bg-info {
+    background-color: #17a2b8 !important;
+}
+
+.badge.bg-success {
+    background-color: #28a745 !important;
+}
+
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+.badge.bg-primary {
+    background-color: #007bff !important;
+}
+
+/* Status Card Styling */
+.card[class*="bg-"] {
+    border: none;
+}
+
+.card .bi {
+    font-size: 2rem;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.card:hover .bi {
+    opacity: 1;
 }

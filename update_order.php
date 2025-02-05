@@ -8,6 +8,7 @@ if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
 
 require_once 'config/database.php';
 require_once 'includes/functions/transaction_functions.php'; // Add this line to include transaction functions
+require_once 'includes/functions/order_functions.php'; // Add this line
 
 $database = new Database();
 $db = $database->getConnection();
@@ -62,6 +63,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $newStatus = $_POST['status'];
         $newPaymentStatus = $_POST['payment_status'];
         
+        // Update order status first
+        $query = "UPDATE orders 
+                 SET status = :status,
+                     payment_status = :payment_status
+                 WHERE order_id = :order_id";
+        
+        $stmt = $db->prepare($query);
+        $stmt->execute([
+            ':status' => $newStatus,
+            ':payment_status' => $newPaymentStatus,
+            ':order_id' => $orderId
+        ]);
+
+        // Then handle any payment/refund transactions
         // Handle payment status changes
         if ($oldPaymentStatus !== $newPaymentStatus) {
             $existingTransaction = getTransactionByOrderId($db, $orderId);
@@ -106,6 +121,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        // Handle refund scenario
+        if ($oldPaymentStatus !== 'Refunded' && $newPaymentStatus === 'Refunded') {
+            // Update inventory levels
+            updateInventoryOnRefund($db, $orderId);
+            
+            // Create refund transaction
+            createTransaction($db, [
+                'type' => 'Refund',
+                'amount' => -abs($_POST['total_amount']),
+                'payment_method' => $_POST['payment_method'],
+                'payment_status' => 'completed',
+                'user_id' => $_SESSION['id'],
+                'order_id' => $orderId,
+                'remarks' => 'Order refund'
+            ]);
+        }
+
         // Get all form values
         $status = $_POST['status'];
         $paymentStatus = $_POST['payment_status'];
@@ -114,6 +146,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $shippingMethod = $_POST['shipping_method'];
         $shippingAddress = $_POST['shipping_address'];
         $paymentMethod = $_POST['payment_method'];
+
+        // Validate tracking number if provided
+        if (!empty($trackingNumber) && !validateTrackingNumber($trackingNumber)) {
+            // If invalid format, generate new one
+            $trackingNumber = generateTrackingNumber();
+        }
 
         // Update order query
         $query = "UPDATE orders SET 

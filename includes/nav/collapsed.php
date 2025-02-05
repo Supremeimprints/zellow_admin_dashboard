@@ -1,27 +1,25 @@
 <?php
-// Check if session has already started
-if (session_status() == PHP_SESSION_NONE) {
-    session_start();
+// Do not start session here - it should be started in the main page
+if (!isset($_SESSION['id'])) {
+    return; // Simply return instead of redirecting
 }
 
-// Initialize Database connection if $admin is not set
-if (!isset($admin)) {
-    require_once 'config/database.php';
-    $database = new Database();
-    $db = $database->getConnection();
+// Get admin info without redirecting
+require_once __DIR__ . '/../../config/database.php';
+$database = new Database();
+$db = $database->getConnection();
 
-    // Get admin info
-    $query = "SELECT username, profile_photo FROM users WHERE id = ? AND role = 'admin'";
-    $stmt = $db->prepare($query);
-    $stmt->execute([$_SESSION['id']]);
-    $admin = $stmt->fetch(PDO::FETCH_ASSOC);
+$query = "SELECT username, profile_photo FROM users WHERE id = ? AND role = 'admin'";
+$stmt = $db->prepare($query);
+$stmt->execute([$_SESSION['id']]);
+$admin = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // If admin not found, logout
-    if (!$admin) {
-        session_destroy();
-        header('Location: login.php');
-        exit();
-    }
+// Set default values if admin not found
+if (!$admin) {
+    $admin = [
+        'username' => 'Unknown',
+        'profile_photo' => ''
+    ];
 }
 
 // Generate profile display
@@ -34,8 +32,9 @@ if (!empty($admin['profile_photo'])) {
     $profile_display = "<div class=\"rounded-circle d-flex align-items-center justify-content-center bg-secondary text-white\" 
                             style=\"width: 40px; height: 40px; font-size: 20px;\">{$first_initial}</div>";
 }
-?>
 
+// Start HTML output only after all logic is complete
+?>
 <!DOCTYPE html>
 <html>
 <head>

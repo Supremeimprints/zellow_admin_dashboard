@@ -1,17 +1,32 @@
 ErrorDocument 404 /zellow_admin/404.php
 
-RewriteEngine On
-RewriteBase /zellow_admin/
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /zellow_admin/
 
-# Allow direct access to assets
-RewriteCond %{REQUEST_URI} !^/zellow_admin/assets/
-RewriteCond %{REQUEST_URI} !^/zellow_admin/public/
+    # Allow direct access to assets
+    RewriteCond %{REQUEST_URI} !^/zellow_admin/assets/
+    RewriteCond %{REQUEST_URI} !^/zellow_admin/public/
 
-# Route API requests to api/index.php
-RewriteCond %{REQUEST_URI} ^/zellow_admin/api/
-RewriteRule ^api/(.*)$ api/index.php [L,QSA]
+    # Route API requests to api/index.php
+    RewriteCond %{REQUEST_URI} ^/zellow_admin/api/
+    RewriteRule ^api/(.*)$ api/index.php [L,QSA]
 
-# Route everything else to public/index.php
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ public/index.php [L,QSA]
+    # Handle Live Server requests (typically on port 5500)
+    RewriteCond %{SERVER_PORT} ^5500$ [OR]
+    RewriteCond %{REQUEST_URI} ^/zellow_admin/Live%20Server/
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule . 404.php [L]
+
+    # If the file/directory doesn't exist, show 404 page
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule . 404.php [L]
+</IfModule>
+
+# For Live Server direct 404 handling
+<Files 404.php>
+    Order Allow,Deny
+    Allow from all
+</Files>

@@ -134,9 +134,9 @@ if ($action === 'delete') {
 
         // 3. Delete from related tables
         $relatedTables = [
-            'activity_logs' => 'user_id',
-            'user_sessions' => 'user_id',
-            'user_permissions' => 'user_id'
+            'activity_logs' => 'id',
+            'user_sessions' => 'id',
+            'user_permissions' => 'id'
         ];
 
         foreach ($relatedTables as $table => $column) {
@@ -235,12 +235,9 @@ $drivers = $driverStmt->fetchAll(PDO::FETCH_ASSOC);
                     <td><?php echo $admin['is_active'] ? 'Active' : 'Inactive'; ?></td>
                     <td><?php echo htmlspecialchars($admin['created_at']); ?></td>
                     <td>
-                        <a href="edit_admin.php?action=edit&id=<?php echo $admin['id']; ?>" class="btn btn-warning btn-sm">Edit</a>
-                        <a href="delete_admin.php?id=<?php echo $admin['id']; ?>" 
-                           class="btn btn-danger btn-sm" 
-                           onclick="return confirm('Are you sure you want to delete this admin? This action cannot be undone.');">
-                            Delete
-                        </a>
+                        <a href="edit_admin.php?id=<?php echo htmlspecialchars($admin['id']); ?>" 
+                           class="btn btn-warning btn-sm">Edit</a>
+                        <a href="delete_admin.php?action=delete&id=<?php echo $admin['id']; ?>" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this admin?');">Delete</a>
                     </td>
                 </tr>
             <?php endforeach; ?>

@@ -159,3 +159,99 @@ function recordPayment($db, $orderId, $amount, $paymentMethod, $userId) {
         'remarks' => 'Order payment'
     ]);
 }
+
+function getOrderStatistics($db, $type = 'all') {
+    try {
+        $query = "SELECT 
+                    COALESCE(status, 'Unknown') as status,
+                    COUNT(*) as count,
+                    COALESCE(SUM(total_amount), 0) as total_amount
+                FROM orders";
+
+        // Only add WHERE clause for dispatch view
+        if ($type === 'dispatch') {
+            $query .= " WHERE (status = 'Pending' OR status = 'Processing')
+                       AND (payment_status = 'Paid' OR payment_status = 'Pending')";
+        }
+        
+        $query .= " GROUP BY status";
+        
+        $stmt = $db->prepare($query);
+        $stmt->execute();
+        
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $allStatuses = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+        
+        // Initialize counts array
+        $formatted = array_fill_keys($allStatuses, [
+            'status' => '',
+            'count' => 0,
+            'total_amount' => 0
+        ]);
+        
+        // Fill in actual values
+        foreach ($results as $result) {
+            if (isset($formatted[$result['status']])) {
+                $formatted[$result['status']] = $result;
+            }
+        }
+        
+        return $formatted;
+    } catch (PDOException $e) {
+        error_log("Error in getOrderStatistics: " . $e->getMessage());
+        return [];
+    }
+}
+
+function updateInventoryOnRefund($db, $orderId) {
+    try {
+        $db->beginTransaction();
+        
+        // Get order items
+        $stmt = $db->prepare("SELECT product_id, quantity FROM order_items WHERE order_id = ?");
+        $stmt->execute([$orderId]);
+        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Update inventory for each item
+        foreach ($items as $item) {
+            $updateStmt = $db->prepare("UPDATE inventory 
+                                      SET stock_quantity = stock_quantity + :quantity 
+                                      WHERE product_id = :product_id");
+            $updateStmt->execute([
+                ':quantity' => $item['quantity'],
+                ':product_id' => $item['product_id']
+            ]);
+        }
+        
+        $db->commit();
+        return true;
+    } catch (PDOException $e) {
+        $db->rollBack();
+        error_log("Error in updateInventoryOnRefund: " . $e->getMessage());
+        return false;
+    }
+}
+
+function getStatusBadgeClass($status, $type = 'status') {
+    if ($type === 'status') {
+        return match ($status) {
+            'Pending' => 'bg-warning text-dark',
+            'Processing' => 'bg-info text-white',
+            'Shipped' => 'bg-primary text-white',
+            'Delivered' => 'bg-success text-white',
+            'Cancelled' => 'bg-danger text-white',
+            'Refunded' => 'bg-secondary text-white',
+            default => 'bg-secondary text-white'
+        };
+    }
+    
+    if ($type === 'payment') {
+        return match ($status) {
+            'Paid' => 'bg-success text-white',
+            'Pending' => 'bg-warning text-dark',
+            'Failed' => 'bg-danger text-white',
+            'Refunded' => 'bg-info text-white',
+            default => 'bg-secondary text-white'
+        };
+    }
+}

@@ -12,13 +12,7 @@ $db = $database->getConnection();
 
 $error = null;
 
-// Generate unique tracking number
-function generateTrackingNumber() {
-    $prefix = '#';
-    $datePart = date('YmdHis');
-    $randomPart = bin2hex(random_bytes(3));
-    return $prefix . '-' . $datePart . '-' . strtoupper($randomPart);
-}
+require_once 'includes/functions/order_functions.php';
 
 // Fetch products for dropdown
 try {
@@ -56,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $shippingAddress = filter_var($_POST['shipping_address'], FILTER_SANITIZE_STRING);
         if (empty($shippingAddress)) throw new Exception("Shipping address is required");
 
-        // Generate tracking number
+        // Generate tracking number using the standardized function
         $trackingNumber = generateTrackingNumber();
 
         // Check/create customer

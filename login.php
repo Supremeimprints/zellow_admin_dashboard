@@ -1,5 +1,12 @@
 <?php
 session_start();
+
+// If already logged in, redirect to appropriate page
+if (isset($_SESSION['id']) && $_SESSION['role'] === 'admin') {
+    header('Location: index.php');
+    exit();
+}
+
 require_once 'config/database.php';
 $error = '';
 $success = '';
