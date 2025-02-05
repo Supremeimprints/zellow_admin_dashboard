@@ -3,14 +3,15 @@ ErrorDocument 404 /zellow_admin/404.php
 RewriteEngine On
 RewriteBase /zellow_admin/
 
-# If the request is not for a valid file or directory
+# Allow direct access to assets
+RewriteCond %{REQUEST_URI} !^/zellow_admin/assets/
+RewriteCond %{REQUEST_URI} !^/zellow_admin/public/
+
+# Route API requests to api/index.php
+RewriteCond %{REQUEST_URI} ^/zellow_admin/api/
+RewriteRule ^api/(.*)$ api/index.php [L,QSA]
+
+# Route everything else to public/index.php
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-
-# Redirect to 404 page
-RewriteRule ^ 404.php [L]
-
-# Route API requests to the appropriate PHP files
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^api/(.*)$ api/routes/$1.php [L,QSA]
+RewriteRule ^(.*)$ public/index.php [L,QSA]

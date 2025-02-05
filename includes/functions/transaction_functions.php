@@ -60,3 +60,57 @@ if (!function_exists('getRecentTransactions')) {
         }
     }
 }
+
+function createTransaction($db, $data) {
+    $sql = "INSERT INTO transactions (
+        reference_id, 
+        transaction_type,
+        total_amount,
+        payment_method,
+        payment_status,
+        user,
+        order_id,
+        remarks
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+    $stmt = $db->prepare($sql);
+    return $stmt->execute([
+        generateTransactionRef(),
+        $data['type'],
+        $data['amount'],
+        $data['payment_method'],
+        $data['payment_status'] ?? 'completed',
+        $data['user_id'] ?? null,
+        $data['order_id'] ?? null,
+        $data['remarks'] ?? null
+    ]);
+}
+
+function generateTransactionRef() {
+    return 'TRX-' . date('YmdHis') . '-' . substr(uniqid(), -4);
+}
+
+function createRefundTransaction($db, $orderId, $amount, $userId) {
+    return createTransaction($db, [
+        'type' => 'Refund',
+        'amount' => -abs($amount), // Make sure refund amount is negative
+        'payment_method' => 'Mpesa', // Or get from original order
+        'payment_status' => 'completed',
+        'user_id' => $userId,
+        'order_id' => $orderId,
+        'remarks' => 'Order refund'
+    ]);
+}
+
+// Add this to your existing code
+function recordPayment($db, $orderId, $amount, $paymentMethod, $userId) {
+    return createTransaction($db, [
+        'type' => 'Customer Payment',
+        'amount' => $amount,
+        'payment_method' => $paymentMethod,
+        'payment_status' => 'completed',
+        'user_id' => $userId,
+        'order_id' => $orderId,
+        'remarks' => 'Order payment'
+    ]);
+}
