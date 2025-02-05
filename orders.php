@@ -12,10 +12,17 @@ if ($_SESSION['role'] !== 'admin') {
 }
 
 require_once 'config/database.php';
+require_once 'includes/functions/transaction_functions.php'; // Include this first
+require_once 'includes/functions/order_functions.php';
+
+// Initialize database connection first
 $database = new Database();
 $db = $database->getConnection();
 
-require_once 'includes/functions/order_functions.php';
+// Verify database connection
+if (!$db) {
+    die("Database connection failed");
+}
 
 // Initialize all filter parameters
 $search = $_GET['search'] ?? '';
@@ -34,7 +41,7 @@ $offset = ($page - 1) * $limit;
 // Build query with enhanced filters
 $query = "SELECT o.order_id, u.username, o.status, o.payment_status, o.payment_method, 
           o.shipping_method, o.tracking_number, o.shipping_address, o.order_date, 
-          GROUP_CONCAT(CONCAT(p.product_name, ' (', oi.quantity, ' x ', oi.unit_price, ')') SEPARATOR ', ') AS products, 
+          GROUP_CONCAT(CONCAT(p.product_name, ' (', oi.quantity, ')') SEPARATOR ', ') AS products, 
           SUM(oi.subtotal) AS total_amount 
           FROM orders o 
           JOIN users u ON o.id = u.id 
@@ -121,7 +128,7 @@ foreach ($orders as $order) {
             $insertTransactionStmt->bindParam(':reference_id', $reference_id);
             $insertTransactionStmt->bindParam(':total_amount', $order['total_amount']);
             $insertTransactionStmt->bindParam(':payment_method', $order['payment_method']);
-            $insertTransactionStmt->bindParam(':user', $order['user_id']);
+            $insertTransactionStmt->bindParam(':user', $order['id']);
             $insertTransactionStmt->bindParam(':order_id', $order['order_id']);
             $insertTransactionStmt->execute();
         } catch (Exception $e) {

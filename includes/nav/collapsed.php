@@ -1,7 +1,13 @@
 <?php
-// Do not start session here - it should be started in the main page
+// Remove any whitespace or newlines before <?php
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Check authentication here instead of in individual pages
 if (!isset($_SESSION['id'])) {
-    return; // Simply return instead of redirecting
+    header('Location: /zellow_admin/login.php');
+    exit();
 }
 
 // Get admin info without redirecting

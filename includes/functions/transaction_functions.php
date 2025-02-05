@@ -85,7 +85,7 @@ function createTransaction($db, $data) {
         total_amount,
         payment_method,
         payment_status,
-        user,
+        id,  /* Changed from user_id to id to match users table */
         remarks,
         transaction_date
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)";
@@ -98,7 +98,7 @@ function createTransaction($db, $data) {
         $data['amount'],
         $data['payment_method'],
         $data['payment_status'] ?? 'pending',
-        $data['user_id'] ?? null,
+        $data['id'] ?? null,  // Changed from user_id to id
         $data['remarks'] ?? null
     ]);
 }
@@ -158,49 +158,6 @@ function recordPayment($db, $orderId, $amount, $paymentMethod, $userId) {
         'order_id' => $orderId,
         'remarks' => 'Order payment'
     ]);
-}
-
-function getOrderStatistics($db, $type = 'all') {
-    try {
-        $query = "SELECT 
-                    COALESCE(status, 'Unknown') as status,
-                    COUNT(*) as count,
-                    COALESCE(SUM(total_amount), 0) as total_amount
-                FROM orders";
-
-        // Only add WHERE clause for dispatch view
-        if ($type === 'dispatch') {
-            $query .= " WHERE (status = 'Pending' OR status = 'Processing')
-                       AND (payment_status = 'Paid' OR payment_status = 'Pending')";
-        }
-        
-        $query .= " GROUP BY status";
-        
-        $stmt = $db->prepare($query);
-        $stmt->execute();
-        
-        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $allStatuses = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
-        
-        // Initialize counts array
-        $formatted = array_fill_keys($allStatuses, [
-            'status' => '',
-            'count' => 0,
-            'total_amount' => 0
-        ]);
-        
-        // Fill in actual values
-        foreach ($results as $result) {
-            if (isset($formatted[$result['status']])) {
-                $formatted[$result['status']] = $result;
-            }
-        }
-        
-        return $formatted;
-    } catch (PDOException $e) {
-        error_log("Error in getOrderStatistics: " . $e->getMessage());
-        return [];
-    }
 }
 
 function updateInventoryOnRefund($db, $orderId) {

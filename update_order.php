@@ -57,12 +57,19 @@ $error = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $db->beginTransaction();
+        
+        // Check if transaction already exists for this order
+        $existingTransactionQuery = "SELECT id FROM transactions 
+                                   WHERE order_id = ? AND transaction_type = 'Customer Payment'";
+        $transactionStmt = $db->prepare($existingTransactionQuery);
+        $transactionStmt->execute([$orderId]);
+        $existingTransaction = $transactionStmt->fetch();
 
         $oldStatus = $order['status'];
         $oldPaymentStatus = $order['payment_status'];
         $newStatus = $_POST['status'];
         $newPaymentStatus = $_POST['payment_status'];
-        
+
         // Update order status first
         $query = "UPDATE orders 
                  SET status = :status,
@@ -76,30 +83,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':order_id' => $orderId
         ]);
 
-        // Then handle any payment/refund transactions
         // Handle payment status changes
         if ($oldPaymentStatus !== $newPaymentStatus) {
-            $existingTransaction = getTransactionByOrderId($db, $orderId);
-            
-            if ($existingTransaction) {
-                // Update existing transaction
-                updateTransaction($db, $orderId, [
-                    'payment_status' => $newPaymentStatus,
-                    'amount' => $_POST['total_amount'],
-                    'payment_method' => $_POST['payment_method'],
-                    'type' => 'Customer Payment'
-                ]);
-            } else {
-                // Create new transaction only if one doesn't exist
-                createTransaction($db, [
-                    'type' => 'Customer Payment',
-                    'amount' => $_POST['total_amount'],
-                    'payment_method' => $_POST['payment_method'],
-                    'payment_status' => $newPaymentStatus,
-                    'user_id' => $_SESSION['id'],
-                    'order_id' => $orderId,
-                    'remarks' => 'Order payment'
-                ]);
+            try {
+                if ($newPaymentStatus === 'Refunded') {
+                    // Create refund transaction
+                    createTransaction($db, [
+                        'type' => 'Refund',
+                        'order_id' => $orderId,
+                        'amount' => -abs($_POST['total_amount']),
+                        'payment_method' => $_POST['payment_method'],
+                        'payment_status' => 'completed',
+                        'id' => $_SESSION['id'],
+                        'remarks' => 'Order refund'
+                    ]);
+
+                    // Update inventory if needed
+                    updateInventoryOnRefund($db, $orderId);
+                } else {
+                    // Update or create payment transaction
+                    createTransaction($db, [
+                        'type' => 'Customer Payment',
+                        'order_id' => $orderId,
+                        'amount' => $_POST['total_amount'],
+                        'payment_method' => $_POST['payment_method'],
+                        'payment_status' => $newPaymentStatus,
+                        'id' => $_SESSION['id'],
+                        'remarks' => 'Payment status update'
+                    ]);
+                }
+            } catch (Exception $e) {
+                throw new Exception("Error updating transaction: " . $e->getMessage());
             }
         }
 
@@ -114,7 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'amount' => -abs($_POST['total_amount']),
                     'payment_method' => $_POST['payment_method'],
                     'payment_status' => 'completed',
-                    'user_id' => $_SESSION['id'],
+                    'id' => $_SESSION['id'], // Changed from id to id
                     'order_id' => $orderId,
                     'remarks' => 'Order refund'
                 ]);
@@ -132,7 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'amount' => -abs($_POST['total_amount']),
                 'payment_method' => $_POST['payment_method'],
                 'payment_status' => 'completed',
-                'user_id' => $_SESSION['id'],
+                'id' => $_SESSION['id'], // Changed from id to id
                 'order_id' => $orderId,
                 'remarks' => 'Order refund'
             ]);
@@ -141,17 +155,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Get all form values
         $status = $_POST['status'];
         $paymentStatus = $_POST['payment_status'];
-        $trackingNumber = $_POST['tracking_number'];
+        $trackingNumber = $order['tracking_number'];
         $deliveryDate = $_POST['delivery_date'];
         $shippingMethod = $_POST['shipping_method'];
         $shippingAddress = $_POST['shipping_address'];
         $paymentMethod = $_POST['payment_method'];
-
-        // Validate tracking number if provided
-        if (!empty($trackingNumber) && !validateTrackingNumber($trackingNumber)) {
-            // If invalid format, generate new one
-            $trackingNumber = generateTrackingNumber();
-        }
 
         // Update order query
         $query = "UPDATE orders SET 
@@ -167,7 +175,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute([
             $status,
             $paymentStatus,
-            $trackingNumber,
+            $trackingNumber, // Updated tracking number
             $deliveryDate,
             $shippingMethod,
             $shippingAddress,
@@ -372,7 +380,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="col-md-4">
                             <label class="form-label">Tracking Number</label>
                             <input type="text" name="tracking_number" class="form-control" 
-                                   value="<?= htmlspecialchars($order['tracking_number']) ?>">
+                                   value="<?= htmlspecialchars($order['tracking_number']) ?>"
+                                   readonly>
+                            <small class="text-muted">Tracking numbers cannot be modified</small>
                         </div>
 
                         <div class="col-md-4">
@@ -527,5 +537,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         updateTotalAmount();
     </script>
 </body>
+</body>
 <?php include 'includes/nav/footer.php'; ?>
 </html>
+

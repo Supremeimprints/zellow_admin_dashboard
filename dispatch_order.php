@@ -119,7 +119,7 @@ $stmt = $db->prepare("
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $driver_id = $_POST['driver_id'] ?? '';
-    $tracking_number = '#' . date('Ymd') . rand(1000, 9999);
+    $tracking_number = $_POST['tracking_number'] ?? '';
 
     if (empty($driver_id)) {
         $error = "Please select a driver";
@@ -244,6 +244,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Tracking Number</label>
+                        <input type="text" class="form-control" 
+                               value="<?= htmlspecialchars($tracking_number) ?>"
+                               readonly>
+                        <small class="text-muted">Generated automatically</small>
                     </div>
                     <button type="submit" class="btn btn-primary">Dispatch Order</button>
                 <?php endif; ?>

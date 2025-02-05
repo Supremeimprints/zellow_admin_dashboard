@@ -443,10 +443,10 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
                                                 <?php if (!$notification['is_read']): ?>
                                                     <span class="badge bg-primary ms-2">New</span>
                                                 <?php endif; ?>
-                                            </div>
-                                            <div class="text-muted small">
-                                                <?= htmlspecialchars($notification['message']) ?>
-                                            </div>
+                                                <?= htmlspecialchars($notification['sender_name']) ?>
+                                                <?php if (!$notification['is_read']): ?>
+                                                    <span class="badge bg-primary ms-2">New</span>
+                                                <?php endif; ?>
                                             <small class="text-muted d-block mt-2">
                                                 <i class="fas fa-clock me-1"></i>
                                                 <?= time_elapsed_string($notification['created_at']) ?>
@@ -460,8 +460,12 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
                                                         class="btn btn-sm btn-outline-secondary">
                                                         <i class="fas fa-check"></i>
                                                     </button>
-                                                </form>
-                                                <form method="POST" action="notifications.php" class="d-inline">
+                                                    <button type="submit" name="mark_read"
+                                                        class="btn btn-sm btn-outline-secondary">
+                                                    <input type="hidden" name="message_id" value="<?= $notification['id'] ?>">
+                                                    <button type="submit" name="delete" class="btn btn-sm btn-outline-danger">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
                                                     <input type="hidden" name="message_id" value="<?= $notification['id'] ?>">
                                                     <button type="submit" name="delete" class="btn btn-sm btn-outline-danger">
                                                         <i class="fas fa-trash"></i>
@@ -504,7 +508,7 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
                     <div class="card-body p-2">
                         <?php if (!empty($recentOrders)): ?>
                             <?php foreach ($recentOrders as $order): ?>
-                                <?php
+                            <?php
                                 $statusColor = match ($order['status']) {
                                     'Pending' => 'warning',
                                     'Shipped' => 'primary',
@@ -623,6 +627,10 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
         }
         ?>
 
+        <?php include 'includes/nav/footer.php'; ?>
+</body>
+
+</html>
         <?php include 'includes/nav/footer.php'; ?>
 </body>
 

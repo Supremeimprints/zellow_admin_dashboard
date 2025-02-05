@@ -1,5 +1,8 @@
 <?php
 session_start();
+require_once 'config/database.php';
+require_once 'includes/functions/transaction_functions.php';
+require_once 'includes/functions/order_functions.php';
 
 // Authentication check
 if (!isset($_SESSION['id'])) {
@@ -13,8 +16,6 @@ if (!in_array($_SESSION['role'], $allowed_roles)) {
     exit();
 }
 
-require_once 'config/database.php';
-require_once 'includes/functions/transaction_functions.php';
 
 // Initialize database after auth checks
 $database = new Database();
@@ -36,14 +37,15 @@ $successMessage = '';
 // Get order statistics for dispatch
 $orderStats = getOrderStatistics($db, 'dispatch');
 
-// Modify the main query to correctly show relevant orders and include proper joins
-$query = "SELECT o.*, u.username, 
-          GROUP_CONCAT(DISTINCT CONCAT(p.product_name, ' (', oi.quantity, ')') SEPARATOR ', ') as products,
-          SUM(oi.quantity * oi.unit_price) as total_amount
-          FROM orders o
-          LEFT JOIN users u ON o.id = u.id
-          LEFT JOIN order_items oi ON o.order_id = oi.order_id
-          LEFT JOIN products p ON oi.product_id = p.product_id
+// Modify the main query to prevent duplicates
+$query = "SELECT DISTINCT o.order_id, u.username, o.status, o.payment_status, o.payment_method, 
+          o.shipping_method, o.tracking_number, o.shipping_address, o.order_date, 
+          GROUP_CONCAT(DISTINCT p.product_name, ' (', oi.quantity, ')' SEPARATOR ', ') AS products,
+          o.total_amount
+          FROM orders o 
+          JOIN users u ON o.id = u.id 
+          JOIN order_items oi ON o.order_id = oi.order_id 
+          JOIN products p ON oi.product_id = p.product_id 
           WHERE o.status IN ('Pending', 'Processing')
           AND (o.payment_status = 'Paid' OR o.payment_status = 'Pending')";
 
@@ -75,7 +77,10 @@ if ($search) {
               OR o.tracking_number LIKE :search)";
 }
 
-$query .= " GROUP BY o.order_id ORDER BY o.order_date DESC";
+// Add GROUP BY to prevent duplicates
+$query .= " GROUP BY o.order_id, u.username, o.status, o.payment_status, o.payment_method, 
+            o.shipping_method, o.tracking_number, o.shipping_address, o.order_date, o.total_amount 
+            ORDER BY o.order_date DESC";
 
 
 try {
