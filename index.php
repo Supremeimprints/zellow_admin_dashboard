@@ -1,5 +1,6 @@
 <?php
 session_start();
+ob_start(); // Add output buffering
 
 // Redirect if not logged in as admin
 if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
@@ -128,11 +129,7 @@ $activeCustomers = $customerStats['count'];
 $totalStock = $inventoryStats['total_stock'];
 $uniqueItems = $inventoryStats['unique_items'];
 
-// CSRF check before processing any actions
-if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_URL_HOST) !== $_SERVER['HTTP_HOST']) {
-    header("Location: index.php");
-    exit();
-}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
