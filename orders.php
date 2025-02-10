@@ -12,8 +12,7 @@ if ($_SESSION['role'] !== 'admin') {
 }
 
 require_once 'config/database.php';
-require_once 'includes/functions/transaction_functions.php'; // Include this first
-require_once 'includes/functions/order_functions.php';
+require_once 'includes/functions/badge_functions.php';
 
 // Initialize database connection first
 $database = new Database();
@@ -113,6 +112,42 @@ try {
     $orders = [];
 }
 
+// Update the stats query to correctly calculate totals
+$statsQuery = "SELECT o.status,
+    COUNT(DISTINCT o.order_id) as count,
+    COALESCE(SUM(
+        CASE 
+            WHEN o.status = 'Cancelled' THEN 0
+            ELSE oi.quantity * oi.unit_price
+        END
+    ), 0) as total_amount
+    FROM orders o
+    LEFT JOIN order_items oi ON o.order_id = oi.order_id
+    GROUP BY o.status";
+
+$statsStmt = $db->prepare($statsQuery);
+$statsStmt->execute();
+$orderStats = $statsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Initialize stats array with default values for all statuses
+$stats = [
+    'Pending' => ['count' => 0, 'amount' => 0],
+    'Processing' => ['count' => 0, 'amount' => 0],
+    'Shipped' => ['count' => 0, 'amount' => 0],
+    'Delivered' => ['count' => 0, 'amount' => 0],
+    'Cancelled' => ['count' => 0, 'amount' => 0]
+];
+
+// Update stats with actual values
+foreach ($orderStats as $stat) {
+    if (isset($stats[$stat['status']])) {
+        $stats[$stat['status']] = [
+            'count' => (int)$stat['count'],
+            'amount' => (float)$stat['total_amount']
+        ];
+    }
+}
+
 foreach ($orders as $order) {
     if ($order['payment_status'] === 'Paid') {
         try {
@@ -162,8 +197,7 @@ foreach ($orders as $order) {
 }
 
 
-// Get order counts
-$orderStats = getOrderStatistics($db);
+
 ?>
 
 <!DOCTYPE html>
@@ -174,43 +208,46 @@ $orderStats = getOrderStatistics($db);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>View Orders</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
     <link href="assets/css/orders.css" rel="stylesheet">
+    <link href="assets/css/badges.css" rel="stylesheet">
 </head>
 
 <body>
     <?php include 'includes/nav/collapsed.php'; ?>
     <?php include 'includes/theme.php' ?>
 
-    <div class="container mt-5">
+   
         <!-- Summary Stats Cards -->
         <div class="container mt-5">
             <h2 class="mb-4">Order Statistics</h2>
-            <div class="row g-4 mb-4">
-                <?php 
-                $orderStats = getOrderStatistics($db);
-                $statusIcons = [
-                    'Pending' => 'hourglass-split',
-                    'Processing' => 'gear-fill',
-                    'Shipped' => 'truck',
-                    'Delivered' => 'check-circle-fill',
-                    'Cancelled' => 'x-circle-fill'
+            
+             <!-- Add this HTML just before the orders table -->
+            <div class="row g-3 mb-4">
+                <?php
+                $statusColors = [
+                    'Pending' => 'pending',
+                    'Processing' => 'processing',
+                    'Shipped' => 'shipped',
+                    'Delivered' => 'delivered',
+                    'Cancelled' => 'cancelled'
                 ];
-                
-                foreach ($orderStats as $status => $data): ?>
-                    <div class="col-md-4 col-lg-2">
-                        <div class="card h-100 <?= getStatusCardClass($status) ?>">
+
+                foreach ($statusColors as $status => $colorClass): 
+                    $count = $stats[$status]['count'] ?? 0;
+                    $amount = $stats[$status]['amount'] ?? 0;
+                ?>
+                    <div class="col-md">
+                        <div class="card stats-card <?= $colorClass ?> h-100">
                             <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <h6 class="card-title mb-2"><?= $status ?></h6>
-                                        <h3 class="card-text mb-0"><?= $data['count'] ?></h3>
-                                        <small class="text-nowrap">
-                                            Ksh. <?= number_format($data['amount'], 2) ?>
-                                        </small>
+                                <h6 class="card-title mb-3">
+                                    <?= $status ?> Orders
+                                </h6>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="display-6 fw-bold mb-0">
+                                        <?= number_format($count) ?>
                                     </div>
-                                    <div class="fs-1 opacity-50">
-                                        <i class="bi bi-<?= $statusIcons[$status] ?? 'question-circle' ?>"></i>
+                                    <div class="fs-6">
+                                        Ksh. <?= number_format($amount, 2) ?>
                                     </div>
                                 </div>
                             </div>
@@ -218,7 +255,8 @@ $orderStats = getOrderStatistics($db);
                     </div>
                 <?php endforeach; ?>
             </div>
-        </div>
+
+          
         <div class="container mt-5">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h2>View Orders</h2>
@@ -307,6 +345,7 @@ $orderStats = getOrderStatistics($db);
                 </div>
             </form>
 
+            
             <!-- Orders Table -->
             <div class="table-responsive">
                 <table class="table table-striped table-hover">
@@ -337,14 +376,10 @@ $orderStats = getOrderStatistics($db);
                                     <td><?php echo htmlspecialchars($order['products']); ?></td>
                                     <td>Ksh.<?php echo htmlspecialchars(number_format($order['total_amount'], 2)); ?></td>
                                     <td>
-                                        <span class="badge <?= getStatusBadgeClass($order['status']) ?>">
-                                            <?= htmlspecialchars($order['status']) ?>
-                                        </span>
+                                        <?= renderStatusBadge($order['status'], 'order', 'md') ?>
                                     </td>
                                     <td>
-                                        <span class="badge <?= getStatusBadgeClass($order['payment_status'], 'payment') ?>">
-                                            <?= htmlspecialchars($order['payment_status']) ?>
-                                        </span>
+                                        <?= renderStatusBadge($order['payment_status'], 'payment', 'md') ?>
                                     </td>
                                     <td><?= htmlspecialchars($order['tracking_number'] ?? 'N/A') ?></td>
                                     <td><?php echo htmlspecialchars($order['shipping_address']); ?></td>

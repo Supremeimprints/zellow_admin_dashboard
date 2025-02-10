@@ -9,6 +9,7 @@ if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
 require_once 'config/database.php';
 require_once 'includes/functions/transaction_functions.php'; // Add this line to include transaction functions
 require_once 'includes/functions/order_functions.php'; // Add this line
+require_once 'includes/functions/badge_functions.php'; // Add this line
 
 $database = new Database();
 $db = $database->getConnection();
@@ -58,174 +59,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $db->beginTransaction();
         
-        // Check if transaction already exists for this order
-        $existingTransactionQuery = "SELECT id FROM transactions 
-                                   WHERE order_id = ? AND transaction_type = 'Customer Payment'";
-        $transactionStmt = $db->prepare($existingTransactionQuery);
-        $transactionStmt->execute([$orderId]);
-        $existingTransaction = $transactionStmt->fetch();
-
         $oldStatus = $order['status'];
-        $oldPaymentStatus = $order['payment_status'];
         $newStatus = $_POST['status'];
-        $newPaymentStatus = $_POST['payment_status'];
+        $oldDriverId = $order['driver_id'] ?? null;
 
-        // Update order status first
-        $query = "UPDATE orders 
-                 SET status = :status,
-                     payment_status = :payment_status
-                 WHERE order_id = :order_id";
+        // Update order without updated_at field
+        $updateOrderQuery = "UPDATE orders 
+                           SET status = :status,
+                               payment_status = :payment_status,
+                               payment_method = :payment_method,
+                               shipping_method = :shipping_method,
+                               shipping_address = :shipping_address,
+                               delivery_date = :delivery_date,
+                               total_amount = :total_amount
+                           WHERE order_id = :order_id";
         
-        $stmt = $db->prepare($query);
+        $stmt = $db->prepare($updateOrderQuery);
         $stmt->execute([
             ':status' => $newStatus,
-            ':payment_status' => $newPaymentStatus,
+            ':payment_status' => $_POST['payment_status'],
+            ':payment_method' => $_POST['payment_method'],
+            ':shipping_method' => $_POST['shipping_method'],
+            ':shipping_address' => $_POST['shipping_address'],
+            ':delivery_date' => $_POST['delivery_date'],
+            ':total_amount' => $_POST['total_amount'],
             ':order_id' => $orderId
         ]);
 
-        // Handle payment status changes
-        if ($oldPaymentStatus !== $newPaymentStatus) {
-            try {
-                if ($newPaymentStatus === 'Refunded') {
-                    // Create refund transaction
-                    createTransaction($db, [
-                        'type' => 'Refund',
-                        'order_id' => $orderId,
-                        'amount' => -abs($_POST['total_amount']),
-                        'payment_method' => $_POST['payment_method'],
-                        'payment_status' => 'completed',
-                        'id' => $_SESSION['id'],
-                        'remarks' => 'Order refund'
-                    ]);
-
-                    // Update inventory if needed
-                    updateInventoryOnRefund($db, $orderId);
-                } else {
-                    // Update or create payment transaction
-                    createTransaction($db, [
-                        'type' => 'Customer Payment',
-                        'order_id' => $orderId,
-                        'amount' => $_POST['total_amount'],
-                        'payment_method' => $_POST['payment_method'],
-                        'payment_status' => $newPaymentStatus,
-                        'id' => $_SESSION['id'],
-                        'remarks' => 'Payment status update'
-                    ]);
-                }
-            } catch (Exception $e) {
-                throw new Exception("Error updating transaction: " . $e->getMessage());
-            }
+        // If order is marked as Delivered or Cancelled, update driver's vehicle status
+        if (($newStatus === 'Delivered' || $newStatus === 'Cancelled') && $oldDriverId) {
+            $updateVehicleQuery = "UPDATE vehicles 
+                                 SET vehicle_status = 'Available'
+                                 WHERE driver_id = :driver_id";
+            $stmt = $db->prepare($updateVehicleQuery);
+            $stmt->execute([':driver_id' => $oldDriverId]);
         }
 
-        // Handle refund scenarios
-        if ($oldPaymentStatus !== 'Refunded' && $newPaymentStatus === 'Refunded') {
-            // Check if refund transaction already exists
-            $existingRefund = getTransactionByOrderId($db, $orderId, 'Refund');
-            
-            if (!$existingRefund) {
-                createTransaction($db, [
-                    'type' => 'Refund',
-                    'amount' => -abs($_POST['total_amount']),
-                    'payment_method' => $_POST['payment_method'],
-                    'payment_status' => 'completed',
-                    'id' => $_SESSION['id'], // Changed from id to id
-                    'order_id' => $orderId,
-                    'remarks' => 'Order refund'
-                ]);
-            }
-        }
-
-        // Handle refund scenario
-        if ($oldPaymentStatus !== 'Refunded' && $newPaymentStatus === 'Refunded') {
-            // Update inventory levels
-            updateInventoryOnRefund($db, $orderId);
-            
-            // Create refund transaction
-            createTransaction($db, [
-                'type' => 'Refund',
-                'amount' => -abs($_POST['total_amount']),
-                'payment_method' => $_POST['payment_method'],
-                'payment_status' => 'completed',
-                'id' => $_SESSION['id'], // Changed from id to id
-                'order_id' => $orderId,
-                'remarks' => 'Order refund'
+        // Update transaction status
+        if (isset($_POST['payment_status'])) {
+            $updateTransactionQuery = "UPDATE transactions 
+                                     SET payment_status = :payment_status
+                                     WHERE order_id = :order_id";
+            $stmt = $db->prepare($updateTransactionQuery);
+            $stmt->execute([
+                ':payment_status' => $_POST['payment_status'],
+                ':order_id' => $orderId
             ]);
         }
 
-        // Get all form values
-        $status = $_POST['status'];
-        $paymentStatus = $_POST['payment_status'];
-        $trackingNumber = $order['tracking_number'];
-        $deliveryDate = $_POST['delivery_date'];
-        $shippingMethod = $_POST['shipping_method'];
-        $shippingAddress = $_POST['shipping_address'];
-        $paymentMethod = $_POST['payment_method'];
+        // Update order items
+        $stmt = $db->prepare("DELETE FROM order_items WHERE order_id = ?");
+        $stmt->execute([$orderId]);
 
-        // Update order query
-        $query = "UPDATE orders SET 
-                  status = ?, 
-                  payment_status = ?, 
-                  tracking_number = ?, 
-                  delivery_date = ?, 
-                  shipping_method = ?,
-                  shipping_address = ?,
-                  payment_method = ?
-                  WHERE order_id = ?";
-        $stmt = $db->prepare($query);
-        $stmt->execute([
-            $status,
-            $paymentStatus,
-            $trackingNumber, // Updated tracking number
-            $deliveryDate,
-            $shippingMethod,
-            $shippingAddress,
-            $paymentMethod,
-            $orderId
-        ]);
-
-        // Delete existing order items
-        $deleteQuery = "DELETE FROM order_items WHERE order_id = ?";
-        $deleteStmt = $db->prepare($deleteQuery);
-        $deleteStmt->execute([$orderId]);
-
-        // Insert updated order items
-        $totalAmount = 0;
-        foreach ($_POST['products'] as $product) {
-            $productId = filter_var($product['product_id'], FILTER_VALIDATE_INT);
-            if (!$productId) throw new Exception("Invalid product selection");
-
-            $quantity = filter_var($product['quantity'], FILTER_VALIDATE_INT, [
-                'options' => ['min_range' => 1]
-            ]);
-            if (!$quantity) throw new Exception("Quantity must be at least 1");
-
-            $unitPrice = filter_var($product['unit_price'], FILTER_VALIDATE_FLOAT, [
-                'options' => ['min_range' => 0]
-            ]);
-            if (!$unitPrice) throw new Exception("Invalid price per item");
-
-            $subtotal = $unitPrice * $quantity;
-            $totalAmount += $subtotal;
-
-            $orderItemQuery = "INSERT INTO order_items (
-                order_id, product_id, quantity, unit_price, subtotal
-            ) VALUES (
-                :order_id, :product_id, :quantity, :unit_price, :subtotal
-            )";
-            $orderItemStmt = $db->prepare($orderItemQuery);
-            $orderItemStmt->execute([
+        foreach ($_POST['products'] as $item) {
+            $stmt = $db->prepare("INSERT INTO order_items (order_id, product_id, quantity, unit_price, subtotal) 
+                                VALUES (:order_id, :product_id, :quantity, :unit_price, :subtotal)");
+            $subtotal = $item['quantity'] * $item['unit_price'];
+            $stmt->execute([
                 ':order_id' => $orderId,
-                ':product_id' => $productId,
-                ':quantity' => $quantity,
-                ':unit_price' => $unitPrice,
+                ':product_id' => $item['product_id'],
+                ':quantity' => $item['quantity'],
+                ':unit_price' => $item['unit_price'],
                 ':subtotal' => $subtotal
             ]);
         }
-
-        // Update total amount in orders table
-        $updateOrderQuery = "UPDATE orders SET total_amount = ? WHERE order_id = ?";
-        $updateOrderStmt = $db->prepare($updateOrderQuery);
-        $updateOrderStmt->execute([$totalAmount, $orderId]);
 
         $db->commit();
         header('Location: orders.php?success=Order updated successfully');
@@ -245,6 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Update Order</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="assets/css/badges.css" rel="stylesheet">
     <style>
         body {
             font-family: 'Montserrat', sans-serif;
@@ -449,6 +347,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                     </div>
                 </div>
+
+               
 
                 <div class="d-flex justify-content-between mt-4">
                     <button type="submit" class="btn btn-primary">Update Order</button>

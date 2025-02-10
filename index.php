@@ -8,6 +8,7 @@ if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
 }
 
 require_once 'config/database.php';
+require_once 'includes/functions/badge_functions.php'; // Add this line
 include 'includes/nav/collapsed.php';
 
 // Initialize variables with safe defaults
@@ -143,6 +144,8 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="assets/css/index.css">
+    <link rel="stylesheet" href="assets/css/badges.css">
+    <link rel="stylesheet" href="assets/css/orders.css">
 </head>
 <?php include 'includes/theme.php'; ?>
 
@@ -278,7 +281,7 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
                     <div class="card-body p-2">
                         <div class="d-flex align-items-center">
                             <div
-                                class="bg-purple text-white rounded-circle stats-icon me-2 d-flex align-items-center justify-content-center">
+                                class="bg-info text-white rounded-circle stats-icon me-2 d-flex align-items-center justify-content-center">
                                 <i class="fas fa-tags fa-lg"></i>
                             </div>
                             <div>
@@ -294,7 +297,7 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
                     <div class="card-body p-2">
                         <div class="d-flex align-items-center">
                             <div
-                                class="bg-orange text-white rounded-circle stats-icon me-2 d-flex align-items-center justify-content-center">
+                                class="bg-danger text-white rounded-circle stats-icon me-2 d-flex align-items-center justify-content-center">
                                 <i class="fas fa-wrench fa-lg"></i>
                             </div>
                             <div>
@@ -386,19 +389,34 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
                         <?php if (!empty($orderStats)): ?>
                             <?php foreach ($orderStats as $stat): ?>
                                 <?php
-                                $statusColor = match ($stat['status']) {
-                                    'Pending' => 'warning',
-                                    'Shipped' => 'primary',
-                                    'Delivered' => 'success',
-                                    default => 'secondary'
-                                }; ?>
+                                $statusColor = match (strtolower($stat['status'])) {
+                                    'pending' => 'order-status-pending',
+                                    'processing' => 'order-status-processing',
+                                    'shipped' => 'order-status-shipped',
+                                    'delivered' => 'order-status-delivered',
+                                    'cancelled' => 'order-status-cancelled',
+                                    default => 'order-status-pending'
+                                };
+                                $textColors = match (strtolower($stat['status'])) {
+                                    'pending' => '#874d00',     // Darker orange
+                                    'processing' => '#055160',   // Dark cyan
+                                    'shipped' => '#084298',      // Dark blue
+                                    'delivered' => '#0a3622',    // Dark green
+                                    'cancelled' => '#842029',    // Dark red
+                                    default => '#495057'         // Dark gray
+                                };
+                                ?>
                                 <div class="mb-2">
                                     <div class="d-flex justify-content-between small mb-1">
                                         <div>
-                                            <span class="status-indicator bg-<?= $statusColor ?>"></span>
-                                            <?= htmlspecialchars($stat['status']) ?>
+                                            <span class="status-indicator <?= $statusColor ?>"></span>
+                                            <span class="status-text" style="color: var(--status-text-color, <?= $textColors ?>)">
+                                                <?= htmlspecialchars($stat['status']) ?>
+                                            </span>
                                         </div>
-                                        <div><?= htmlspecialchars($stat['count']) ?></div>
+                                        <div class="status-count" style="color: var(--status-text-color, <?= $textColors ?>)">
+                                            <?= htmlspecialchars($stat['count']) ?>
+                                        </div>
                                     </div>
                                     <div class="progress" style="height: 6px;">
                                         <div class="progress-bar bg-<?= $statusColor ?>"
@@ -508,14 +526,7 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
                     <div class="card-body p-2">
                         <?php if (!empty($recentOrders)): ?>
                             <?php foreach ($recentOrders as $order): ?>
-                            <?php
-                                $statusColor = match ($order['status']) {
-                                    'Pending' => 'warning',
-                                    'Shipped' => 'primary',
-                                    'Delivered' => 'success',
-                                    default => 'secondary'
-                                }; ?>
-                                <div class="recent-activity-item border-<?= $statusColor ?>">
+                                <div class="recent-activity-item mb-3">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div>
                                             <div class="small fw-medium order-id">
@@ -525,9 +536,9 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
                                                 <?= date('M j, H:i', strtotime($order['order_date'])) ?>
                                             </small>
                                         </div>
-                                        <span class="badge bg-<?= $statusColor ?> small">
-                                            <?= htmlspecialchars($order['status']) ?>
-                                        </span>
+                                        <div>
+                                            <?= renderStatusBadge($order['status'], 'order', 'sm') ?>
+                                        </div>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
@@ -627,10 +638,6 @@ if (!isset($_SERVER['HTTP_REFERER']) || parse_url($_SERVER['HTTP_REFERER'], PHP_
         }
         ?>
 
-        <?php include 'includes/nav/footer.php'; ?>
-</body>
-
-</html>
         <?php include 'includes/nav/footer.php'; ?>
 </body>
 

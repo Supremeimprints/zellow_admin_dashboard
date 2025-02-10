@@ -3,6 +3,7 @@ session_start();
 require_once 'config/database.php';
 require_once 'includes/functions/transaction_functions.php';
 require_once 'includes/functions/order_functions.php';
+require_once 'includes/functions/badge_functions.php';
 
 // Authentication check
 if (!isset($_SESSION['id'])) {
@@ -34,14 +35,41 @@ $endDate = $_GET['end_date'] ?? '';
 $errorMessage = '';
 $successMessage = '';
 
-// Get order statistics for dispatch
-$orderStats = getOrderStatistics($db, 'dispatch');
+// Update the stats query for dispatch page (only Pending and Processing orders)
+$statsQuery = "SELECT o.status,
+    COUNT(DISTINCT o.order_id) as count,
+    COALESCE(SUM(oi.quantity * oi.unit_price), 0) as total_amount
+    FROM orders o
+    LEFT JOIN order_items oi ON o.order_id = oi.order_id
+    WHERE o.status IN ('Pending', 'Processing')
+    AND (o.payment_status = 'Paid' OR o.payment_status = 'Pending')
+    GROUP BY o.status";
+
+$statsStmt = $db->prepare($statsQuery);
+$statsStmt->execute();
+$orderStats = $statsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Initialize stats array with default values
+$stats = [
+    'Pending' => ['count' => 0, 'amount' => 0],
+    'Processing' => ['count' => 0, 'amount' => 0]
+];
+
+// Update stats with actual values
+foreach ($orderStats as $stat) {
+    if (isset($stats[$stat['status']])) {
+        $stats[$stat['status']] = [
+            'count' => (int)$stat['count'],
+            'amount' => (float)$stat['total_amount']
+        ];
+    }
+}
 
 // Modify the main query to prevent duplicates
 $query = "SELECT DISTINCT o.order_id, u.username, o.status, o.payment_status, o.payment_method, 
           o.shipping_method, o.tracking_number, o.shipping_address, o.order_date, 
           GROUP_CONCAT(DISTINCT p.product_name, ' (', oi.quantity, ')' SEPARATOR ', ') AS products,
-          o.total_amount
+          SUM(oi.quantity * oi.unit_price) as total_amount
           FROM orders o 
           JOIN users u ON o.id = u.id 
           JOIN order_items oi ON o.order_id = oi.order_id 
@@ -172,36 +200,53 @@ foreach ($statusResults as $result) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/orders.css">
+    <link href="assets/css/orders.css" rel="stylesheet">
+    <link href="assets/css/badges.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </head>
 
 <body>
     <?php include 'includes/nav/collapsed.php'; ?>
     <?php include 'includes/theme.php'; ?>
-    <div class="container mt-5">
-        <!-- Keep existing summary stats and orders table -->
-        <h2>Dispatch & Logistics Summary</h2>
-        <div class="row row-cols-1 row-cols-md-6 g-4 mb-4">
-            <?php foreach ($orderStats as $status => $stat): 
-                $color = match ($status) {
-                    'Pending' => 'warning',
-                    'Processing' => 'info',
-                    'Shipped' => 'primary',
-                    'Delivered' => 'success',
-                    'Cancelled' => 'danger',
-                    default => 'secondary'
-                };
-            ?>
-                <div class="col">
-                    <div class="card text-white bg-<?= $color ?>">
-                        <div class="card-body">
-                            <h6 class="card-title"><?= $status ?></h6>
-                            <h3 class="card-text"><?= $stat['count'] ?></h3>
+
+    
+        <div class="container mt-5">
+            <h2 class="mb-4">Dispatch & Logistics Summary</h2>
+            
+             <!-- Add this HTML just before the orders table -->
+            <div class="row g-3 mb-4">
+                <?php
+                $statusColors = [
+                    'Pending' => 'pending',
+                    'Processing' => 'processing',
+                    'Shipped' => 'shipped',
+                    'Delivered' => 'delivered',
+                    'Cancelled' => 'cancelled'
+                ];
+
+                foreach ($statusColors as $status => $colorClass): 
+                    $count = $stats[$status]['count'] ?? 0;
+                    $amount = $stats[$status]['amount'] ?? 0;
+                ?>
+                    <div class="col-md">
+                        <div class="card stats-card <?= $colorClass ?> h-100">
+                            <div class="card-body">
+                                <h6 class="card-title mb-3">
+                                    <?= $status ?> Orders
+                                </h6>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="display-6 fw-bold mb-0">
+                                        <?= number_format($count) ?>
+                                    </div>
+                                    <div class="fs-6">
+                                        Ksh. <?= number_format($amount, 2) ?>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-            <?php endforeach; ?>
-        </div>
+                <?php endforeach; ?>
+            </div>
 
         <!-- Filter Form -->
         <form method="GET" action="dispatch.php" class="mb-4">
@@ -308,26 +353,18 @@ foreach ($statusResults as $result) {
                     <?php else: ?>
                         <?php foreach ($orders as $order): ?>
                             <tr>
-                                <td>#<?php echo htmlspecialchars($order['order_id']); ?></td>
-                                <td><?php echo htmlspecialchars($order['username']); ?></td>
-                                <td><?php echo htmlspecialchars($order['products']); ?></td>
-                                <td>Ksh.<?php echo htmlspecialchars(number_format($order['total_amount'], 2)); ?></td>
-                                <td>
-                                    <span class="badge <?= getStatusBadgeClass($order['status']) ?>">
-                                        <?= htmlspecialchars($order['status']) ?>
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="badge <?= getStatusBadgeClass($order['payment_status'], 'payment') ?>">
-                                        <?= htmlspecialchars($order['payment_status']) ?>
-                                    </span>
-                                </td>
+                                <td>#<?= htmlspecialchars($order['order_id']) ?></td>
+                                <td><?= htmlspecialchars($order['username']) ?></td>
+                                <td><?= htmlspecialchars($order['products']) ?></td>
+                                <td class="text-end">Ksh.<?= number_format($order['total_amount'], 2) ?></td>
+                                <td><?= renderStatusBadge($order['status'], 'order', 'sm') ?></td>
+                                <td><?= renderStatusBadge($order['payment_status'], 'payment', 'sm') ?></td>
                                 <td><?= htmlspecialchars($order['tracking_number'] ?? 'N/A') ?></td>
-                                <td><?php echo htmlspecialchars($order['shipping_address']); ?></td>
-                                <td><?php echo htmlspecialchars(date('Y-m-d H:i', strtotime($order['order_date']))); ?></td>
+                                <td><?= htmlspecialchars($order['shipping_address']) ?></td>
+                                <td><?= date('Y-m-d H:i', strtotime($order['order_date'])) ?></td>
                                 <td>
                                     <?php if ($order['payment_status'] === 'Paid' || $order['payment_status'] === 'Pending'): ?>
-                                        <a href="dispatch_order.php?order_id=<?php echo $order['order_id']; ?>"
+                                        <a href="dispatch_order.php?order_id=<?= $order['order_id'] ?>"
                                             class="btn btn-sm btn-success">Dispatch</a>
                                     <?php else: ?>
                                         <button class="btn btn-sm btn-secondary" disabled>Cannot Dispatch</button>

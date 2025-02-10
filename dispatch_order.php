@@ -1,6 +1,10 @@
 <?php
 session_start();
 
+// Include required files
+require_once 'includes/functions/transaction_functions.php';  // First
+require_once 'includes/functions/order_functions.php';        // Second
+
 if (!isset($_SESSION['id'])) {
     header('Location: login.php');
     exit();
@@ -29,21 +33,41 @@ $order_id = $_GET['order_id'];
 
 // Fetch order details including payment status
 try {
-    $stmt = $db->prepare("SELECT o.*, 
-                                 GROUP_CONCAT(CONCAT(p.product_name, ' (', oi.quantity, ' x ', oi.unit_price, ')') SEPARATOR ', ') AS products, 
-                                 SUM(oi.subtotal) AS total_amount 
-                          FROM orders o
-                          JOIN order_items oi ON o.order_id = oi.order_id
-                          JOIN products p ON oi.product_id = p.product_id
-                          WHERE o.order_id = :order_id
-                          GROUP BY o.order_id");
+    $stmt = $db->prepare("
+        SELECT o.*,
+               GROUP_CONCAT(DISTINCT CONCAT(p.product_name, ' (', oi.quantity, ' x ', oi.unit_price, ')') SEPARATOR ', ') AS products,
+               SUM(oi.quantity * oi.unit_price) as total_amount
+        FROM orders o
+        JOIN order_items oi ON o.order_id = oi.order_id
+        JOIN products p ON oi.product_id = p.product_id
+        WHERE o.order_id = :order_id
+        GROUP BY o.order_id
+    ");
     $stmt->bindParam(':order_id', $order_id, PDO::PARAM_INT);
     $stmt->execute();
     $order = $stmt->fetch(PDO::FETCH_ASSOC);
 
+    // Fetch individual order items for detailed display
+    $itemsStmt = $db->prepare("
+        SELECT oi.*, p.product_name, 
+               (oi.quantity * oi.unit_price) as line_total
+        FROM order_items oi
+        JOIN products p ON oi.product_id = p.product_id
+        WHERE oi.order_id = :order_id
+    ");
+    $itemsStmt->bindParam(':order_id', $order_id);
+    $itemsStmt->execute();
+    $orderItems = $itemsStmt->fetchAll(PDO::FETCH_ASSOC);
+
     if (!$order) {
         header('Location: dispatch.php');
         exit();
+    }
+
+    // Initialize tracking number
+    $tracking_number = $order['tracking_number'];
+    if (empty($tracking_number)) {
+        $tracking_number = getOrCreateTrackingNumber($db, $order_id);
     }
 
     // Check if order is eligible for dispatch (Paid or Pending payment status)
@@ -82,6 +106,61 @@ try {
                 window.location.href = 'inventory.php';
             </script>";
             exit();
+        }
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        try {
+            $db->beginTransaction();
+            
+            $driver_id = $_POST['driver_id'] ?? '';
+            if (empty($driver_id)) {
+                throw new Exception("Please select a driver");
+            }
+
+            // Update order status without updated_at fieldd driver_id
+            $stmt = $db->prepare("
+                UPDATE orders 
+                SET status = 'Shipped',
+                    driver_id = :driver_id
+                WHERE order_id = :order_id
+            ");
+            
+            $stmt->execute([
+                ':driver_id' => $driver_id,
+                ':order_id' => $order_id
+            ]);
+
+            // Update vehicle status
+            $stmt = $db->prepare("
+                UPDATE vehicles 
+                SET vehicle_status = 'In Use'
+                WHERE driver_id = :driver_id
+            ");
+            $stmt->execute([':driver_id' => $driver_id]);
+
+            // Update inventory and create transaction record
+            foreach ($inventory as $item) {
+                $productId = $item['product_id'];
+                $orderItemStmt = $db->prepare("SELECT quantity FROM order_items WHERE order_id = :order_id AND product_id = :product_id");
+                $orderItemStmt->bindParam(':order_id', $order_id);
+                $orderItemStmt->bindParam(':product_id', $productId);
+                $orderItemStmt->execute();
+                $orderItem = $orderItemStmt->fetch(PDO::FETCH_ASSOC);
+
+                $updateInventoryStmt = $db->prepare("UPDATE inventory SET stock_quantity = stock_quantity - :quantity WHERE product_id = :product_id");
+                $updateInventoryStmt->bindParam(':quantity', $orderItem['quantity']);
+                $updateInventoryStmt->bindParam(':product_id', $productId);
+                $updateInventoryStmt->execute();
+            }
+
+            $db->commit();
+            $_SESSION['success'] = "Order #$order_id has been dispatched successfully!";
+            header('Location: dispatch.php');
+            exit();
+        } catch (Exception $e) {
+            $db->rollBack();
+            $error = "Error dispatching order: " . $e->getMessage();
         }
     }
 
@@ -165,7 +244,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $db->commit();
-            $_SESSION['success'] = "Order #$order_id has been dispatched successfully!";
+            $_SESSION['success'] = "Order #$order_id has been dispatched successfully! Tracking Number: $tracking_number";
             header('Location: dispatch.php');
             exit();
 
@@ -209,13 +288,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <p><strong>Customer:</strong>
                             <?= !empty($order['username']) ? htmlspecialchars($order['username']) : 'Unknown' ?></p>
                         <p><strong>Shipping Address:</strong> <?= htmlspecialchars($order['shipping_address']) ?></p>
-                        <p><strong>Payment Status:</strong> <?= htmlspecialchars($order['payment_status']) ?></p>
+                        <p><strong>Payment Status:</strong> 
+                            <span class="status-badge badge-<?= strtolower($order['payment_status']) ?>">
+                                <?= htmlspecialchars($order['payment_status']) ?>
+                            </span>
+                        </p>
                     </div>
                     <div class="col-md-6">
                         <p><strong>Order Date:</strong> <?= date('M j, Y H:i', strtotime($order['order_date'])) ?></p>
-                        <p><strong>Total Amount:</strong> Ksh.<?= number_format($order['total_amount'], 2) ?></p>
-                        <p><strong>Shipping Method:</strong> <?= htmlspecialchars($order['shipping_method']) ?></p>
+                      <p><strong>Shipping Method:</strong> <?= htmlspecialchars($order['shipping_method']) ?></p>
                     </div>
+                </div>
+
+                <!-- Add Order Items Table -->
+                <div class="table-responsive mt-3">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th class="text-end">Quantity</th>
+                                <th class="text-end">Unit Price</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($orderItems as $item): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($item['product_name']) ?></td>
+                                    <td class="text-end"><?= htmlspecialchars($item['quantity']) ?></td>
+                                    <td class="text-end">Ksh.<?= number_format($item['unit_price'], 2) ?></td>
+                                    <td class="text-end">Ksh.<?= number_format($item['line_total'], 2) ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                            <tr>
+                                <td colspan="3" class="text-end"><strong>Total Amount:</strong></td>
+                                <td class="text-end"><strong>Ksh.<?= number_format($order['total_amount'], 2) ?></strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -246,11 +356,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">Tracking Number</label>
+                        <label class="form-label">Order Tracking Number</label>
                         <input type="text" class="form-control" 
-                               value="<?= htmlspecialchars($tracking_number) ?>"
+                               value="<?= htmlspecialchars($order['tracking_number']) ?>"
                                readonly>
-                        <small class="text-muted">Generated automatically</small>
+                        <small class="text-muted">Original tracking number</small>
                     </div>
                     <button type="submit" class="btn btn-primary">Dispatch Order</button>
                 <?php endif; ?>

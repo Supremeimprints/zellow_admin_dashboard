@@ -47,19 +47,31 @@ function getOrderStatistics($db, $type = 'all') {
     }
 }
 
-// Add this new function
+function generateTrackingNumber() {
+    $prefix = 'ZE';
+    $timestamp = date('ymd');
+    $random = strtoupper(substr(uniqid(), -4));
+    return "{$prefix}{$timestamp}-{$random}";
+}
+
 function getOrCreateTrackingNumber($db, $orderId) {
+    // First check if order already has a tracking number
     $stmt = $db->prepare("SELECT tracking_number FROM orders WHERE order_id = ?");
     $stmt->execute([$orderId]);
-    $tracking = $stmt->fetchColumn();
-    
-    if (!$tracking) {
-        $tracking = generateTrackingNumber();
-        $updateStmt = $db->prepare("UPDATE orders SET tracking_number = ? WHERE order_id = ?");
-        $updateStmt->execute([$tracking, $orderId]);
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($result && $result['tracking_number']) {
+        return $result['tracking_number'];
     }
-    
-    return $tracking;
+
+    // Generate new tracking number
+    $trackingNumber = generateTrackingNumber();
+
+    // Update the order with the new tracking number
+    $updateStmt = $db->prepare("UPDATE orders SET tracking_number = ? WHERE order_id = ?");
+    $updateStmt->execute([$trackingNumber, $orderId]);
+
+    return $trackingNumber;
 }
 
 // Modify the existing updateOrderStatus function
@@ -116,13 +128,6 @@ function getStatusCardClass($status) {
     };
 }
 
-function generateTrackingNumber() {
-    $prefix = 'TRK';
-    $date = date('Ymd');
-    $random = strtoupper(substr(uniqid(), -4));
-    return "{$prefix}-{$date}-{$random}";
-}
-
 function validateTrackingNumber($trackingNumber) {
     // Format: TRK-YYYYMMDD-XXXX
     return preg_match('/^TRK-\d{8}-[A-Z0-9]{4}$/', $trackingNumber);
@@ -160,7 +165,7 @@ function renderOrdersTable($orders, $isDispatch = false) {
                             <td><?= htmlspecialchars($order['products']) ?></td>
                             <td>Ksh.<?= number_format($order['total_amount'], 2) ?></td>
                             <td>
-                                <span class="badge <?= getStatusBadgeClass($order['status']) ?>">
+                                <span class="badge <?= getStatusBadgeClass($order['status'], 'status') ?>">
                                     <?= htmlspecialchars($order['status']) ?>
                                 </span>
                             </td>

@@ -7,12 +7,13 @@ if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
 }
 
 require_once 'config/database.php';
+require_once 'includes/utilities.php';
 $database = new Database();
 $db = $database->getConnection();
 
 $error = null;
 
-require_once 'includes/functions/order_functions.php';
+
 
 // Fetch products for dropdown
 try {
@@ -83,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $customerUsername = $customer['username']; // Use existing username
         }
 
-        // Insert order
+        // Insert order with tracking number
         $orderQuery = "INSERT INTO orders (
             id, username, status, payment_status, payment_method,
             shipping_address, shipping_method, order_date, tracking_number

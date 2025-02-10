@@ -61,6 +61,69 @@ if (!function_exists('getRecentTransactions')) {
     }
 }
 
+function createOrUpdateTransaction($db, $data) {
+    try {
+        // Check for existing transaction
+        $checkQuery = "SELECT id, payment_status FROM transactions 
+                      WHERE order_id = :order_id 
+                      AND transaction_type = :type";
+        
+        $checkStmt = $db->prepare($checkQuery);
+        $checkStmt->execute([
+            ':order_id' => $data['order_id'],
+            ':type' => $data['type']
+        ]);
+        
+        $existing = $checkStmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($existing) {
+            // Only update if payment status has changed
+            if ($existing['payment_status'] !== $data['payment_status']) {
+                $updateQuery = "UPDATE transactions 
+                              SET payment_status = :payment_status,
+                                  payment_method = :payment_method,
+                                  total_amount = :amount,
+                                  remarks = :remarks,
+                                  updated_at = CURRENT_TIMESTAMP
+                              WHERE id = :id";
+                
+                $updateStmt = $db->prepare($updateQuery);
+                return $updateStmt->execute([
+                    ':payment_status' => $data['payment_status'],
+                    ':payment_method' => $data['payment_method'],
+                    ':amount' => $data['amount'],
+                    ':remarks' => $data['remarks'] ?? 'Status updated',
+                    ':id' => $existing['id']
+                ]);
+            }
+            return true; // No update needed
+        } else {
+            // Create new transaction
+            $insertQuery = "INSERT INTO transactions 
+                          (reference_id, transaction_type, order_id, total_amount,
+                           payment_method, payment_status, user, remarks, transaction_date) 
+                          VALUES 
+                          (:reference_id, :type, :order_id, :amount,
+                           :payment_method, :payment_status, :user, :remarks, CURRENT_TIMESTAMP)";
+            
+            $insertStmt = $db->prepare($insertQuery);
+            return $insertStmt->execute([
+                ':reference_id' => 'TXN-' . uniqid(),
+                ':type' => $data['type'],
+                ':order_id' => $data['order_id'],
+                ':amount' => $data['amount'],
+                ':payment_method' => $data['payment_method'],
+                ':payment_status' => $data['payment_status'],
+                ':user' => $data['user'],
+                ':remarks' => $data['remarks'] ?? 'New transaction'
+            ]);
+        }
+    } catch (PDOException $e) {
+        error_log("Transaction error: " . $e->getMessage());
+        throw $e;
+    }
+}
+
 function createTransaction($db, $data) {
     // First check if a transaction already exists for this order
     if (isset($data['order_id'])) {
@@ -154,7 +217,7 @@ function recordPayment($db, $orderId, $amount, $paymentMethod, $userId) {
         'amount' => $amount,
         'payment_method' => $paymentMethod,
         'payment_status' => 'completed',
-        'user_id' => $userId,
+        'userid' => $userId,
         'order_id' => $orderId,
         'remarks' => 'Order payment'
     ]);
@@ -189,26 +252,4 @@ function updateInventoryOnRefund($db, $orderId) {
     }
 }
 
-function getStatusBadgeClass($status, $type = 'status') {
-    if ($type === 'status') {
-        return match ($status) {
-            'Pending' => 'bg-warning text-dark',
-            'Processing' => 'bg-info text-white',
-            'Shipped' => 'bg-primary text-white',
-            'Delivered' => 'bg-success text-white',
-            'Cancelled' => 'bg-danger text-white',
-            'Refunded' => 'bg-secondary text-white',
-            default => 'bg-secondary text-white'
-        };
-    }
-    
-    if ($type === 'payment') {
-        return match ($status) {
-            'Paid' => 'bg-success text-white',
-            'Pending' => 'bg-warning text-dark',
-            'Failed' => 'bg-danger text-white',
-            'Refunded' => 'bg-info text-white',
-            default => 'bg-secondary text-white'
-        };
-    }
-}
+// Remove the getStatusBadgeClass function from here - it's now in badge_functions.php

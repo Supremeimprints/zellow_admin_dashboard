@@ -72,9 +72,15 @@ body {
 }
 
 .status-badge {
-    font-size: 0.875rem;
-    padding: 0.5em 0.75em;
-    border-radius: 30px;
+    font-size: 0.75rem;
+    padding: 0.4em 0.85em;
+    border-radius: 50rem;
+    display: inline-block;
+    font-weight: 500;
+    text-align: center;
+    text-transform: capitalize;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    letter-spacing: 0.3px;
 }
 
 .order-stats-card {
@@ -189,6 +195,23 @@ body {
     color: var(--text-main);
 }
 
+/* Stats Cards Dark Mode */
+[data-bs-theme="dark"] .stats-card {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stats-card .card-title {
+    opacity: 0.9;
+}
+
+.stats-card .display-6 {
+    font-size: 1.5rem;
+}
+
+.stats-card .fs-6 {
+    opacity: 0.8;
+}
+
 /* Status Badge Styling */
 .badge {
     font-weight: 500;
@@ -215,6 +238,55 @@ body {
 
 .badge.bg-primary {
     background-color: #007bff !important;
+}
+
+.badge-processing {
+    background-color: #cff4fc;
+    color: #055160;
+    border: 1px solid rgba(5, 81, 96, 0.1);
+}
+
+.badge-shipped {
+    background-color: #d1e7ff;
+    color: #084298;
+    border: 1px solid rgba(8, 66, 152, 0.1);
+}
+
+.badge-pending {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid rgba(133, 100, 4, 0.1);
+}
+
+.badge-delivered {
+    background-color: #d1e7dd;
+    color: #0a3622;
+    border: 1px solid rgba(10, 54, 34, 0.1);
+}
+
+.badge-cancelled {
+    background-color: #f8d7da;
+    color: #842029;
+    border: 1px solid rgba(132, 32, 41, 0.1);
+}
+
+/* Payment Status Badge Colors */
+.badge-paid {
+    background-color: #d1e7dd;
+    color: #0a3622;
+    border: 1px solid rgba(10, 54, 34, 0.1);
+}
+
+.badge-failed {
+    background-color: #f8d7da;
+    color: #842029;
+    border: 1px solid rgba(132, 32, 41, 0.1);
+}
+
+.badge-refunded {
+    background-color: #cff4fc;
+    color: #055160;
+    border: 1px solid rgba(5, 81, 96, 0.1);
 }
 
 /* Status Card Styling */
