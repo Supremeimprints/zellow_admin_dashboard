@@ -155,6 +155,72 @@ zellow_admin/
 └── README.md
 ```
 
+## Features
+
+### Order Management
+- Create, view, update and track orders
+- Advanced filtering and search capabilities
+- Real-time order statistics with visual indicators
+- Automatic tracking number generation for all orders
+- Consistent order status tracking across the system
+
+### Order Statistics
+- Dynamic status cards showing order counts and totals
+- Color-coded status indicators
+- Real-time financial tracking for each order status
+- Separate statistics for dispatch-ready orders
+
+### Theme System
+- Light/Dark mode support
+- Consistent color scheme across all pages
+- Enhanced contrast for better readability
+- Status-specific color coding that works in both themes
+
+### Dispatch System
+- Dedicated dispatch interface
+- Driver management and vehicle tracking
+- Inventory verification before dispatch
+- Automatic vehicle status updates
+- Preserved tracking numbers across all operations
+
+### Status Badges
+- Unified status indication system
+- Context-aware colors and states
+- Consistent styling across all pages
+- Accessible color contrasts
+
+## Configuration
+
+### Database Setup
+
+// ... existing database setup ...
+
+### Theme Configuration
+The system now supports automatic theme detection and user preferences:
+```php
+data-bs-theme="light|dark"
+```
+
+### Status Color Configuration
+Status colors are defined in `assets/css/badges.css`:
+- Pending: Orange/Yellow theme
+- Processing: Cyan theme
+- Shipped: Blue theme
+- Delivered: Green theme
+- Cancelled: Red theme
+
+## Usage
+
+// ... existing usage instructions ...
+
+## Updates
+- Added order statistics dashboard
+- Implemented unified tracking number system
+- Enhanced theme support with dark mode
+- Improved status indication system
+- Added real-time financial tracking
+- Integrated dispatch management system
+
 ## Contributing
 
 If you would like to contribute to this project, please fork the repository and submit a pull request. I welcome all contributions!
