@@ -1,5 +1,10 @@
 <?php
 require_once 'config/database.php';
+require_once 'includes/auth.php';
+require_once 'includes/functions/badge_functions.php';
+require_once 'includes/functions/transaction_functions.php';
+require_once 'config/constants.php';
+
 
 // Authenticate user
 if (!isset($_SESSION['id'])) {
@@ -21,7 +26,7 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Site Title</title>
+    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/themes.css">
 </head>

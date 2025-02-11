@@ -303,3 +303,114 @@ body {
 .card:hover .bi {
     opacity: 1;
 }
+
+/* Recent Activities Card Styling */
+.recent-activity-item {
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    background-color: rgba(var(--bs-secondary-rgb), 0.05);
+    transition: all 0.2s ease-in-out;
+    margin-bottom: 0.75rem;
+}
+
+.recent-activity-item:hover {
+    background-color: rgba(var(--bs-secondary-rgb), 0.1);
+}
+
+.recent-activity-item .fw-medium {
+    color: var(--bs-body-color);
+    font-size: 0.875rem;
+}
+
+.recent-activity-item small {
+    font-size: 0.75rem;
+    opacity: 0.75;
+}
+
+/* Dark mode adjustments */
+[data-bs-theme="dark"] .recent-activity-item {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-bs-theme="dark"] .recent-activity-item:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Notifications styling to match */
+.list-group-item {
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    background-color: rgba(var(--bs-secondary-rgb), 0.05);
+    margin-bottom: 0.75rem;
+    border: none;
+}
+
+.list-group-item:hover {
+    background-color: rgba(var(--bs-secondary-rgb), 0.1);
+}
+
+/* Notifications Card Styling */
+.notifications-item {
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    background-color: rgba(var(--bs-secondary-rgb), 0.05);
+    transition: all 0.2s ease-in-out;
+    margin-bottom: 0.75rem;
+    border: 1px solid rgba(var(--bs-secondary-rgb), 0.1);
+}
+
+.notifications-item:hover {
+    background-color: rgba(var(--bs-secondary-rgb), 0.1);
+    border-color: rgba(var(--bs-secondary-rgb), 0.15);
+}
+
+.notifications-item .badge {
+    padding: 0.4em 0.8em;
+    font-weight: 500;
+}
+
+.notifications-item .sender-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--bs-body-color);
+}
+
+.notifications-item .timestamp {
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color);
+}
+
+.notifications-item .action-buttons {
+    gap: 0.5rem;
+}
+
+/* Dark mode adjustments for notifications */
+[data-bs-theme="dark"] .notifications-item {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-bs-theme="dark"] .notifications-item:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Order Status Card Dark Mode Adjustments */
+[data-bs-theme="dark"] .order-status-title {
+    color: var(--bs-light) !important;
+}
+
+[data-bs-theme="dark"] .status-text,
+[data-bs-theme="dark"] .status-count {
+    color: var(--bs-light) !important;
+}
+
+/* Card body padding adjustment */
+.card-body {
+    padding: 1rem !important;
+}
+
+.card-body .list-group {
+    margin: -0.5rem;
+    padding: 0.5rem;
+}

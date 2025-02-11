@@ -433,55 +433,41 @@ $uniqueItems = $inventoryStats['unique_items'];
             <div class="col-md-4">
                 <div class="card shadow-sm h-100">
                     <div class="card-header bg-white p-2 d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0 fw-bold notifications-title">Notifications</h6>
+                        <h6 class="mb-0 fw-bold">Notifications</h6>
                         <a href="notifications.php" class="btn btn-sm btn-link p-0">View All →</a>
                     </div>
                     <div class="card-body p-2">
                         <?php if (!empty($notifications)): ?>
-                            <?php foreach ($notifications as $notification): ?>
-                                <div
-                                    class="list-group-item position-relative <?= $notification['is_read'] ? '' : 'bg-light' ?>">
-                                    <div
-                                        class="notification-priority priority-<?= strtolower($notification['priority'] ?? 'Medium') ?>">
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-start ps-3">
-                                        <div class="w-75">
-                                            <span class="badge notification-type bg-<?= match ($notification['type'] ?? 'Message') {
-                                                'Task' => 'warning',
-                                                'Alert' => 'danger',
-                                                default => 'secondary'
-                                            } ?>">
-                                                <?= $notification['type'] ?? 'Message' ?>
-                                            </span>
-                                            <div class="fw-medium mb-1">
-                                                <?= htmlspecialchars($notification['sender_name']) ?>
-                                                <?php if (!$notification['is_read']): ?>
-                                                    <span class="badge bg-primary ms-2">New</span>
-                                                <?php endif; ?>
-                                                <?= htmlspecialchars($notification['sender_name']) ?>
-                                                <?php if (!$notification['is_read']): ?>
-                                                    <span class="badge bg-primary ms-2">New</span>
-                                                <?php endif; ?>
-                                            <small class="text-muted d-block mt-2">
-                                                <i class="fas fa-clock me-1"></i>
-                                                <?= time_elapsed_string($notification['created_at']) ?>
-                                            </small>
-                                        </div>
-                                        <div class="text-end">
-                                            <div class="btn-group">
-                                                <form method="GET" action="mark_read.php" class="d-inline">
+                            <div class="notifications-list">
+                                <?php foreach ($notifications as $notification): ?>
+                                    <div class="notifications-item">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <span class="badge bg-<?= match ($notification['type'] ?? 'Message') {
+                                                    'Task' => 'warning',
+                                                    'Alert' => 'danger',
+                                                    'Message' => 'info',
+                                                    default => 'secondary'
+                                                } ?> mb-2">
+                                                    <?= $notification['type'] ?? 'Message' ?>
+                                                </span>
+                                                <div class="sender-name">
+                                                    <?= htmlspecialchars($notification['sender_name']) ?>
+                                                    <?php if (!$notification['is_read']): ?>
+                                                        <span class="badge bg-primary ms-2">New</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <div class="timestamp">
+                                                    <i class="fas fa-clock me-1"></i>
+                                                    <?= time_elapsed_string($notification['created_at']) ?>
+                                                </div>
+                                            </div>
+                                            <div class="action-buttons d-flex">
+                                                <form method="GET" action="mark_read.php" class="d-flex gap-2">
                                                     <input type="hidden" name="id" value="<?= $notification['id'] ?>">
-                                                    <button type="submit" name="mark_read"
-                                                        class="btn btn-sm btn-outline-secondary">
+                                                    <button type="submit" name="mark_read" class="btn btn-sm btn-outline-secondary">
                                                         <i class="fas fa-check"></i>
                                                     </button>
-                                                    <button type="submit" name="mark_read"
-                                                        class="btn btn-sm btn-outline-secondary">
-                                                    <input type="hidden" name="message_id" value="<?= $notification['id'] ?>">
-                                                    <button type="submit" name="delete" class="btn btn-sm btn-outline-danger">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                    <input type="hidden" name="message_id" value="<?= $notification['id'] ?>">
                                                     <button type="submit" name="delete" class="btn btn-sm btn-outline-danger">
                                                         <i class="fas fa-trash"></i>
                                                     </button>
@@ -489,26 +475,25 @@ $uniqueItems = $inventoryStats['unique_items'];
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <div class="alert alert-info mb-3 p-3 small">
-                                <i class="fas fa-info-circle me-2"></i> No new notifications
+                                <?php endforeach; ?>
                             </div>
-
+                        <?php else: ?>
+                            <div class="alert alert-info mb-0">
+                                <i class="fas fa-info-circle me-2"></i>No new notifications
+                            </div>
                         <?php endif; ?>
 
-                        <a href="inventory.php" class="text-decoration-none">
-                            <div class="alert alert-warning low-stock-alert">
+                        <?php if (!empty($reportData['low_stock'])): ?>
+                            <div class="notifications-item mt-3">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
-                                        <h6 class="mb-0">Low Stock Alerts</h6>
-                                        <p class="mb-0 small">You have <?= count($reportData['low_stock']) ?> low stock alerts.</p>
+                                        <h6 class="mb-1">Low Stock Alerts</h6>
+                                        <p class="mb-0 small">You have <?= count($reportData['low_stock']) ?> low stock items</p>
                                     </div>
+                                    <a href="inventory.php" class="btn btn-sm btn-warning">View</a>
                                 </div>
                             </div>
-                        </a>
-
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -517,19 +502,18 @@ $uniqueItems = $inventoryStats['unique_items'];
             <div class="col-md-4">
                 <div class="card shadow-sm h-100">
                     <div class="card-header bg-white p-2 d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0 fw-bold recent-activities-title">Recent Activities</h6>
+                        <h6 class="mb-0 fw-bold">Recent Activities</h6>
                         <a href="orders.php" class="btn btn-sm btn-link p-0">View All →</a>
                     </div>
-                    <div class="card-body p-2">
+                    <div class="card-body">
                         <?php if (!empty($recentOrders)): ?>
                             <?php foreach ($recentOrders as $order): ?>
-                                <div class="recent-activity-item mb-3">
+                                <div class="recent-activity-item">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div>
-                                            <div class="small fw-medium order-id">
-                                                Order #<?= htmlspecialchars($order['order_id']) ?>
-                                            </div>
-                                            <small class="text-muted order-date">
+                                            <div class="fw-medium">Order #<?= htmlspecialchars($order['order_id']) ?></div>
+                                            <small class="text-muted">
+                                                <i class="fas fa-calendar me-1"></i>
                                                 <?= date('M j, H:i', strtotime($order['order_date'])) ?>
                                             </small>
                                         </div>
@@ -540,7 +524,9 @@ $uniqueItems = $inventoryStats['unique_items'];
                                 </div>
                             <?php endforeach; ?>
                         <?php else: ?>
-                            <div class="text-center text-muted small py-2">No recent activity</div>
+                            <div class="alert alert-info mb-0">
+                                <i class="fas fa-info-circle me-2"></i>No recent activity
+                            </div>
                         <?php endif; ?>
                     </div>
                 </div>
