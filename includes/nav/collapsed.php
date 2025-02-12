@@ -3,16 +3,18 @@ if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
+// Get admin info without redirecting
+require_once __DIR__ . '/../../config/database.php';
+$database = new Database();
+$db = $database->getConnection();
+
 // Check authentication here instead of in individual pages
 if (!isset($_SESSION['id'])) {
     header('Location: /zellow_admin/login.php');
     exit();
 }
 
-// Get admin info without redirecting
-require_once __DIR__ . '/../../config/database.php';
-$database = new Database();
-$db = $database->getConnection();
+
 
 $query = "SELECT username, profile_photo FROM users WHERE id = ? AND role = 'admin'";
 $stmt = $db->prepare($query);
