@@ -1,19 +1,25 @@
 <?php
 session_start();
 
+// Move all includes to the top
+require_once 'config/database.php';
+require_once 'includes/theme.php';
+require_once 'includes/functions/utilities.php';
+
 // Authentication check
 if (!isset($_SESSION['id'])) {
     header('Location: login.php');
     exit();
 }
 
-require_once 'config/database.php';
 $database = new Database();
 $db = $database->getConnection();
-
 $user_id = $_SESSION['id'];
 
-// Fetch user data from users table
+// Initialize variables
+$error = $success = '';
+
+// Fetch user data
 $stmt = $db->prepare("SELECT * FROM users WHERE id = ?");
 $stmt->execute([$user_id]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -21,8 +27,6 @@ $user = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$user) {
     die("User not found");
 }
-
-$error = $success = '';
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -124,11 +128,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit();
         }
 
+        // Update marketing API settings
+        if (isset($_POST['google_ads_id'])) {
+            update_setting('google_ads_id', $_POST['google_ads_id']);
+        }
+        if (isset($_POST['google_analytics_id'])) {
+            update_setting('google_analytics_id', $_POST['google_analytics_id']);
+        }
+        if (isset($_POST['facebook_pixel_id'])) {
+            update_setting('facebook_pixel_id', $_POST['facebook_pixel_id']);
+        }
+
     } catch (Exception $e) {
         $error = "Error: " . $e->getMessage();
     }
 }
-
 
 // Handle photo deletion
 if (isset($_GET['delete_photo'])) {
@@ -143,8 +157,6 @@ if (isset($_GET['delete_photo'])) {
         $error = "Error deleting photo: " . $e->getMessage();
     }
 }
-
-include 'includes/theme.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -154,7 +166,9 @@ include 'includes/theme.php';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Settings</title>
     <link rel="stylesheet" href="assets/css/settings.css">
+    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
         .profile-photo-container {
             display: flex;
@@ -209,90 +223,205 @@ include 'includes/theme.php';
 
 <body>
 <?php include 'includes/nav/collapsed.php'; ?>
-    <div class="settings-container">
-        <div class="container mt-5">
-            <h2>Admin Settings</h2>
+<div class="settings-container">
+    <div class="container-fluid mt-5">
+        <div class="row gx-5"> <!-- Added gutter between columns -->
+            <!-- Left Column - Main Settings -->
+            <div class="col-md-8">
+                <div class="settings-card">
+                    <h2 class="settings-title">Profile Settings</h2>
+                    <?php if ($error): ?>
+                        <div class="alert alert-danger"><?= $error ?></div>
+                    <?php endif; ?>
+                    <?php if ($success): ?>
+                        <div class="alert alert-success"><?= $success ?></div>
+                    <?php endif; ?>
 
-            <!-- Display any error or success messages -->
-            <?php if ($error): ?>
-                <div class="alert alert-danger"><?= $error ?></div>
-            <?php endif; ?>
-            <?php if ($success): ?>
-                <div class="alert alert-success"><?= $success ?></div>
-            <?php endif; ?>
+                    <!-- Profile Update Form -->
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="mb-3 profile-photo-container">
+                            <img src="<?= htmlspecialchars($user['profile_photo']) ?>" 
+                                 alt="Profile Photo" 
+                                 class="profile-photo" 
+                                 id="profilePhotoPreview">
+                            <input type="file" 
+                                   class="profile-photo-upload" 
+                                   id="profile_photo" 
+                                   name="profile_photo" 
+                                   accept="image/*" 
+                                   style="display: none;">
+                            <label for="profile_photo" class="upload-btn">
+                                <i class="bi bi-camera"></i> Upload Photo
+                            </label>
+                        </div>
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="username" name="username"
+                                value="<?= htmlspecialchars($user['username']) ?>" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email"
+                                value="<?= htmlspecialchars($user['email']) ?>" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="theme" class="form-label">Theme</label>
+                            <select class="form-control" id="theme" name="theme">
+                                <option value="light" <?= $user['theme'] === 'light' ? 'selected' : '' ?>>Light</option>
+                                <option value="dark" <?= $user['theme'] === 'dark' ? 'selected' : '' ?>>Dark</option>
+                            </select>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="notification_enabled"
+                                name="notification_enabled" <?= $user['notification_enabled'] ? 'checked' : '' ?>>
+                            <label class="form-check-label" for="notification_enabled">Enable Notifications</label>
+                        </div>
+                        <button type="submit" name="update_profile" class="btn btn-primary">Update Profile</button>
+                    </form>
 
-            <!-- Profile Update Form -->
-            <form method="POST" enctype="multipart/form-data">
-                <div class="mb-3 profile-photo-container">
-                    <img src="<?= htmlspecialchars($user['profile_photo']) ?>" 
-                         alt="Profile Photo" 
-                         class="profile-photo" 
-                         id="profilePhotoPreview">
-                    <input type="file" 
-                           class="profile-photo-upload" 
-                           id="profile_photo" 
-                           name="profile_photo" 
-                           accept="image/*" 
-                           style="display: none;">
-                    <label for="profile_photo" class="upload-btn">
-                        <i class="bi bi-camera"></i> Upload Photo
-                    </label>
+                    <!-- Password Change Form -->
+                    <form method="POST" class="mt-4">
+                        <div class="mb-3">
+                            <label for="current_password" class="form-label">Current Password</label>
+                            <input type="password" class="form-control" id="current_password" name="current_password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="new_password" class="form-label">New Password</label>
+                            <input type="password" class="form-control" id="new_password" name="new_password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirm_password" class="form-label">Confirm New Password</label>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                        </div>
+                        <button type="submit" name="update_password" class="btn btn-primary">Update Password</button>
+                    </form>
+
+                    <!-- Account Deletion -->
+                    <form method="POST" class="mt-4 delete-section">
+                        <h3>Delete Account</h3>
+                        <p>This action is permanent.
+                            All your data will be deleted.</p>
+                        <button type="submit" name="delete_account" class="btn btn-danger">Delete Account</button>
+                    </form>
                 </div>
-                <div class="mb-3">
-                    <label for="username" class="form-label">Full Name</label>
-                    <input type="text" class="form-control" id="username" name="username"
-                        value="<?= htmlspecialchars($user['username']) ?>" required>
+            </div>
+
+            <!-- Right Column - API & Payment Settings -->
+            <div class="col-md-4">
+                <!-- Marketing API Settings -->
+                <div class="settings-card">
+                    <h2 class="settings-title">API Settings</h2>
+                    <form method="POST">
+                        <div class="settings-form-group mb-3">
+                            <label class="form-label">Google Ads API Key</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   name="google_ads_id"
+                                   value="<?= htmlspecialchars(get_setting('google_ads_id')) ?>">
+                            <div class="form-text">Used for ad campaign tracking</div>
+                        </div>
+
+                        <div class="settings-form-group mb-3">
+                            <label class="form-label">Google Analytics Key</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   name="google_analytics_id"
+                                   value="<?= htmlspecialchars(get_setting('google_analytics_id')) ?>">
+                            <div class="form-text">Used for website analytics</div>
+                        </div>
+
+                        <div class="settings-form-group mb-3">
+                            <label class="form-label">Facebook Pixel ID</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   name="facebook_pixel_id"
+                                   value="<?= htmlspecialchars(get_setting('facebook_pixel_id')) ?>">
+                            <div class="form-text">Used for Facebook ad tracking</div>
+                        </div>
+
+                        <button type="submit" name="save_api" class="btn btn-primary w-100">
+                            Save API Settings
+                        </button>
+                    </form>
                 </div>
-                <div class="mb-3">
-                    <label for="email" class="form-label">Email</label>
-                    <input type="email" class="form-control" id="email" name="email"
-                        value="<?= htmlspecialchars($user['email']) ?>" required>
+
+                <!-- Payment Settings -->
+                <div class="settings-card mt-4">
+                    <h2 class="settings-title">Payment Settings</h2>
+                    
+                    <!-- Credit Card Settings -->
+                    <div class="payment-section mb-4">
+                        <div class="payment-header">
+                            <h3>Credit Card Payment</h3>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enableStripe" name="stripe_enabled"
+                                       <?= get_setting('stripe_enabled') ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="enableStripe">Enable</label>
+                            </div>
+                        </div>
+                        <div class="payment-body">
+                            <div class="mb-3">
+                                <label class="form-label">Publishable Key</label>
+                                <input type="text" class="form-control" name="stripe_public_key"
+                                       value="<?= htmlspecialchars(get_setting('stripe_public_key')) ?>">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Secret Key</label>
+                                <input type="password" class="form-control" name="stripe_secret_key"
+                                       value="<?= htmlspecialchars(get_setting('stripe_secret_key')) ?>">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- M-Pesa Settings -->
+                    <div class="payment-section">
+                        <div class="payment-header">
+                            <h3>M-Pesa Integration</h3>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enableMpesa" name="mpesa_enabled"
+                                       <?= get_setting('mpesa_enabled') ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="enableMpesa">Enable</label>
+                            </div>
+                        </div>
+                        <div class="payment-body">
+                            <div class="mb-3">
+                                <label class="form-label">Consumer Key</label>
+                                <input type="text" class="form-control" name="mpesa_consumer_key"
+                                       value="<?= htmlspecialchars(get_setting('mpesa_consumer_key')) ?>">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Consumer Secret</label>
+                                <input type="password" class="form-control" name="mpesa_consumer_secret"
+                                       value="<?= htmlspecialchars(get_setting('mpesa_consumer_secret')) ?>">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Pass Key</label>
+                                <input type="password" class="form-control" name="mpesa_passkey"
+                                       value="<?= htmlspecialchars(get_setting('mpesa_passkey')) ?>">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Business Short Code</label>
+                                <input type="text" class="form-control" name="mpesa_shortcode"
+                                       value="<?= htmlspecialchars(get_setting('mpesa_shortcode')) ?>">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Environment</label>
+                                <select class="form-select" name="mpesa_environment">
+                                    <option value="sandbox" <?= get_setting('mpesa_environment') === 'sandbox' ? 'selected' : '' ?>>Sandbox</option>
+                                    <option value="live" <?= get_setting('mpesa_environment') === 'live' ? 'selected' : '' ?>>Live</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" name="update_payment" class="btn btn-primary w-100 mt-4">
+                        Save Payment Settings
+                    </button>
                 </div>
-                <div class="mb-3">
-                    <label for="theme" class="form-label">Theme</label>
-                    <select class="form-control" id="theme" name="theme">
-                        <option value="light" <?= $user['theme'] === 'light' ? 'selected' : '' ?>>Light</option>
-                        <option value="dark" <?= $user['theme'] === 'dark' ? 'selected' : '' ?>>Dark</option>
-                    </select>
-                </div>
-                <div class="mb-3 form-check">
-                    <input type="checkbox" class="form-check-input" id="notification_enabled"
-                        name="notification_enabled" <?= $user['notification_enabled'] ? 'checked' : '' ?>>
-                    <label class="form-check-label" for="notification_enabled">Enable Notifications</label>
-                </div>
-                <button type="submit" name="update_profile" class="btn btn-primary">Update Profile</button>
-            </form>
-        </div>
-        <!-- Password Change Form -->
-        <div class="container mt-5">
-            <form method="POST" class="mt-4">
-                <h3>Change Password</h3>
-                <div class="mb-3">
-                    <label for="current_password" class="form-label">Current Password</label>
-                    <input type="password" class="form-control" id="current_password" name="current_password" required>
-                </div>
-                <div class="mb-3">
-                    <label for="new_password" class="form-label">New Password</label>
-                    <input type="password" class="form-control" id="new_password" name="new_password" required>
-                </div>
-                <div class="mb-3">
-                    <label for="confirm_password" class="form-label">Confirm New Password</label>
-                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
-                </div>
-                <button type="submit" name="update_password" class="btn btn-primary">Update Password</button>
-            </form>
-        </div>
-        <!-- Account Deletion -->
-        <div class="container mt-5">
-            <form method="POST" class="mt-4">
-                <h3>Delete Account</h3>
-                <p>This action is permanent.
-                    All your data will be deleted.</p>
-                <button type="submit" name="delete_account" class="btn btn-danger">Delete Account</button>
-            </form>
+            </div>
         </div>
     </div>
-</body>
+</div>
 <?php include 'includes/nav/footer.php'; ?>
 </body>
 <script>

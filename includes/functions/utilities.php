@@ -133,3 +133,82 @@ function is_valid_date($date, $format = 'Y-m-d') {
     $d = DateTime::createFromFormat($format, $date);
     return $d && $d->format($format) === $date;
 }
+
+/**
+ * Count active marketing campaigns
+ */
+function count_active_campaigns() {
+    global $conn;
+    if (!$conn) return 0;
+    
+    $sql = "SELECT COUNT(*) as count FROM marketing_campaigns WHERE end_date >= CURDATE()";
+    $result = $conn->query($sql);
+    if (!$result) return 0;
+    
+    $row = $result->fetch_assoc();
+    return $row['count'] ?? 0;
+}
+
+/**
+ * Get total coupon usage
+ */
+function get_total_coupon_usage() {
+    global $conn;
+    if (!$conn) return 0;
+    
+    $sql = "SELECT COUNT(*) as count FROM orders WHERE coupon_id IS NOT NULL";
+    $result = $conn->query($sql);
+    if (!$result) return 0;
+    
+    $row = $result->fetch_assoc();
+    return $row['count'] ?? 0;
+}
+
+/**
+ * Generate Google Ads tracking code
+ */
+function get_google_ads_code($campaign_id) {
+    $tracking_id = get_setting('google_ads_id');
+    if (empty($tracking_id)) return '';
+    
+    return "<!-- Google Ads Tracking -->
+    <script async src='https://www.googletagmanager.com/gtag/js?id={$tracking_id}'></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', '{$tracking_id}');
+        gtag('event', 'page_view', {
+            'campaign_id': '{$campaign_id}'
+        });
+    </script>";
+}
+
+/**
+ * Get a setting value from the database
+ */
+function get_setting($key, $default = '') {
+    global $conn;
+    $key = clean_input($key);
+    $sql = "SELECT $key FROM settings WHERE id = 1";
+    $result = $conn->query($sql);
+    
+    if ($row = $result->fetch_assoc()) {
+        return $row[$key] ?? $default;
+    }
+    return $default;
+}
+
+/**
+ * Update a setting
+ */
+function update_setting($key, $value) {
+    global $conn;
+    $key = clean_input($key);
+    $value = clean_input($value);
+    
+    $sql = "UPDATE settings SET $key = ? WHERE id = 1";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("s", $value);
+    return $stmt->execute();
+}

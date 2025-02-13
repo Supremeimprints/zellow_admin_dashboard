@@ -35,6 +35,11 @@
     margin: 2rem auto;
   }
   
+  /* Update container styles for two-column layout */
+  .settings-container .container-fluid {
+    padding: 0 2rem;
+  }
+
   /* Scoped typography */
   .settings-container h2,
   .settings-container h3 {
@@ -376,6 +381,68 @@
     color: var(--text-main);
 }
 
+/* Card styling for both columns */
+.settings-card {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+/* Marketing settings specific styles */
+.marketing-settings {
+    position: relative;
+    top: auto;
+    height: fit-content;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    padding: 1.5rem;
+}
+
+.marketing-form .input-group-text {
+    background-color: var(--primary);
+    border: none;
+    color: white;
+    width: 45px;
+    display: flex;
+    justify-content: center;
+}
+
+.marketing-form .form-control {
+    border-left: none;
+    padding-left: 15px;
+}
+
+.marketing-form .form-text {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.settings-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border);
+    color: var(--text-main);
+}
+
+.marketing-settings .btn {
+    margin-top: 1rem;
+}
+
+/* Dark mode adjustments */
+[data-bs-theme="dark"] .marketing-settings {
+    background: var(--background-dark);
+}
+
+[data-bs-theme="dark"] .marketing-form .input-group-text {
+    background-color: var(--primary);
+    color: white;
+}
+
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
     .settings-container .container {
@@ -392,4 +459,136 @@
         align-items: center;
         text-align: center;
     }
+
+    .settings-container .container-fluid {
+        padding: 0 1rem;
+    }
+
+    .marketing-settings {
+        position: static;
+        margin-top: 2rem;
+    }
+
+    .row.gx-5 > * {
+        padding: 0 1rem;
+    }
+}
+
+/* Adjust main container padding for sidebar */
+.settings-container {
+    padding-left: 4.5rem; /* Match sidebar width + small gap */
+    min-height: 100vh;
+    background-color: var(--background-color);
+}
+
+/* Simplified Marketing Settings Card */
+.marketing-settings {
+    position: relative;
+    top: auto;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    padding: 1.5rem;
+}
+
+.marketing-form .input-group {
+    margin-bottom: 1.5rem;
+}
+
+.marketing-form .form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.marketing-form .input-hint {
+    display: block;
+    font-size: 0.75rem;
+    color: var (--text-muted);
+    margin-top: 0.25rem;
+}
+
+/* Payment Settings Styles */
+.payment-section {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.payment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.payment-header h3 {
+    font-size: 1.1rem;
+    margin: 0;
+    font-weight: 600;
+}
+
+.payment-body {
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+.form-check.form-switch {
+    padding-left: 2.5rem;
+}
+
+.form-check-input {
+    cursor: pointer;
+    width: 3rem;
+}
+
+.form-select {
+    background-color: var(--background-light);
+    color: var(--text-main);
+    border-color: var(--border);
+}
+
+/* Update spacing for right column cards */
+.col-md-4 .settings-card + .settings-card {
+    margin-top: 2rem;
+}
+
+/* API Settings Form Styles */
+.settings-form-group {
+    margin-bottom: 1.5rem;
+}
+
+.settings-form-group .form-label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: var(--text-main);
+}
+
+.settings-form-group .form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--background-light);
+    color: var(--text-main);
+}
+
+.settings-form-group .form-text {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.settings-card form {
+    margin-bottom: 0;
+}
+
+/* Remove conflicting styles */
+.marketing-settings,
+.marketing-form {
+    position: static;
+    padding: 0;
+    border: none;
 }
