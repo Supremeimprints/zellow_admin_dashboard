@@ -1,1 +1,158 @@
+/* Import the compiled Tailwind CSS file */
+@import './tailwind.css';
+
 /* Notifications specific styles */
+
+/* Custom styles */
+:root {
+  --sidebar-width: 4.5rem;
+  --sidebar-expanded: 14rem;
+  --bg-light: rgb(249 250 251);
+  --bg-dark: rgb(17 24 39);
+  --content-bg-light: #ffffff;
+  --content-bg-dark: #1a202c;
+  --card-shadow-light: 0 0 20px rgba(0,0,0,0.05);
+  --card-shadow-dark: 0 0 20px rgba(0,0,0,0.2);
+  --text-light: #212529;
+  --text-dark: #e5e7eb;
+  --border-light: rgba(0,0,0,0.125);
+  --border-dark: rgba(255,255,255,0.1);
+}
+
+/* Base layout structure */
+.admin-layout {
+  display: flex;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-light);
+  overflow-x: hidden;
+}
+.dark .admin-layout {
+  background-color: rgb(17 24 39);
+}
+
+.layout-wrapper {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* Content wrapper */
+.content-wrapper {
+  margin-left: var(--sidebar-width);
+  padding: 1rem;
+  transition: all 0.3s;
+}
+
+/* Main content adjustments */
+.main-content {
+  flex: 1;
+  min-height: 100vh;
+  padding: 1rem;
+  background-color: var(--bg-light);
+  color: var(--text-light);
+}
+
+/* Container adjustments */
+.container-fluid {
+  width: 100%;
+  max-width: 1920px;
+  margin: 0 auto;
+  background-color: var(--content-bg-light);
+  border-radius: 0.5rem;
+  box-shadow: var(--card-shadow-light);
+  padding: 0 1rem; /* Added consistent padding */
+}
+
+/* Row gutters */
+.row.gx-5 {
+  --bs-gutter-x: 3rem;
+}
+
+.row.g-4 {
+  --bs-gutter-x: 1.5rem;
+  --bs-gutter-y: 1.5rem;
+}
+
+/* Row gutters - updated sizes */
+.row.g-3 {
+  --bs-gutter-x: 1rem;
+  --bs-gutter-y: 1rem;
+}
+
+/* Card adjustments */
+.card {
+  height: 100%;
+  border: none;
+  box-shadow: 0 0 20px rgba(0,0,0,0.05);
+  margin-bottom: 1rem;
+}
+
+
+
+/* Card header styling */
+.card-header {
+  background: var(--card-bg, #fff);
+  border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.125));
+  padding: 1rem;
+}
+
+[data-bs-theme="dark"] .card-header {
+  background: var(--card-bg-dark, #1a202c);
+  border-color: var(--border-color-dark, rgba(255,255,255,0.125));
+}
+
+.card-header.bg-white {
+  background: var(--card-bg, #fff) !important;
+}
+
+[data-bs-theme="dark"] .card-header.bg-white {
+  background: var(--card-bg-dark, #1a202c) !important;
+  color: var(--text-color-dark, #fff);
+}
+
+/* Dark mode support */
+[data-bs-theme="dark"] {
+  background-color: var(--bg-dark);
+  color: var(--text-dark);
+}
+
+[data-bs-theme="dark"] .main-content {
+  background-color: var(--bg-dark);
+  color: var(--text-dark);
+}
+
+[data-bs-theme="dark"] .container-fluid {
+  background-color: var(--content-bg-dark);
+  box-shadow: var(--card-shadow-dark);
+}
+
+[data-bs-theme="dark"] .card {
+  background-color: var(--content-bg-dark);
+  border-color: var(--border-dark);
+}
+
+/* Status text colors for dark mode */
+[data-bs-theme="dark"] .order-status-title {
+  color: var(--text-color-dark, #fff);
+}
+
+/* Remove footer styles that might be affecting layout */
+.footer {
+  display: none; /* Hide the footer for now */
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .content-wrapper {
+    margin-left: 0;
+  }
+  .main-content {
+    margin-left: 3.5rem;
+    width: calc(100% - 3.5rem);
+  }
+  .admin-layout {
+    padding-left: 3.5rem;
+  }
+}

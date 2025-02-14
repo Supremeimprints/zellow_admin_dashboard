@@ -414,3 +414,46 @@ body {
     margin: -0.5rem;
     padding: 0.5rem;
 }
+
+/* Main content layout */
+.main-content {
+    margin-left: 4.5rem;
+    width: calc(100% - 4.5rem);
+    min-height: 100vh;
+    background-color: var(--bg-light);
+    color: var(--text-light);
+    transition: all 0.3s ease;
+}
+
+/* Container and row spacing */
+.container-fluid {
+    max-width: 1920px;
+    margin: 0 auto;
+    background-color: var(--content-bg-light);
+    border-radius: 0.5rem;
+    box-shadow: var(--card-shadow-light);
+}
+
+.row.g-3 {
+    --bs-gutter-x: 1rem;
+    --bs-gutter-y: 1rem;
+}
+
+/* Dark mode adjustments */
+[data-bs-theme="dark"] .main-content {
+    background-color: var(--bg-dark);
+    color: var(--text-dark);
+}
+
+[data-bs-theme="dark"] .container-fluid {
+    background-color: var(--content-bg-dark);
+    box-shadow: var(--card-shadow-dark);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .main-content {
+        margin-left: 3.5rem;
+        width: calc(100% - 3.5rem);
+    }
+}

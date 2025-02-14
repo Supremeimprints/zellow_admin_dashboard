@@ -1,5 +1,5 @@
 body {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Montserrat', sans-serif !important;
   background-color: var(--background);
   color: var(--text-color);
 }
@@ -118,7 +118,7 @@ body.dark-mode tr:hover {
 }
 
 .status-completed {
-  background-color: var(--priority-low);
+  background-color: #2ecc71 !important;
   color: white;
 }
 

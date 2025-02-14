@@ -151,6 +151,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create Order</title>
+     <!-- Feather Icons - Add this line -->
+     <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- Existing stylesheets -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/index.css">
+    <link rel="stylesheet" href="assets/css/badges.css">
+    <link rel="stylesheet" href="assets/css/orders.css">
+    <link rel="stylesheet" href="assets/css/collapsed.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/css/orders.css" rel="stylesheet">
+    <link href="assets/css/badges.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -176,98 +189,106 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 <body>
-<?php include 'includes/nav/collapsed.php'; ?>
+<div class="admin-layout"> 
 <?php include 'includes/theme.php'; ?>
-
-    <div class="container mt-5">
-        <h2>Create New Order</h2>
+    <nav class="navbar">
+    <?php include 'includes/nav/collapsed.php'; ?>
+    </nav>
+    <div class="main-content">
+        <div class="container-fluid p-3">
+            <div class="row g-3">
+                <div class="col-12">
+                    <h2>Create New Order</h2>
         
-        <?php if ($error): ?>
-            <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
-        <?php endif; ?>
+                    <?php if ($error): ?>
+                        <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+                    <?php endif; ?>
 
-        <form method="POST" class="needs-validation" novalidate>
-            <div class="form-section">
-                <h4 class="mb-3">Customer Information</h4>
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label for="email" class="form-label">Email</label>
-                        <input type="email" name="email" id="email" class="form-control" required>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="username" class="form-label">Username</label>
-                        <input type="text" name="username" id="username" class="form-control" required>
-                    </div>
-                </div>
-            </div>
+                    <form method="POST" class="needs-validation" novalidate>
+                        <div class="form-section">
+                            <h4 class="mb-3">Customer Information</h4>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="email" class="form-label">Email</label>
+                                    <input type="email" name="email" id="email" class="form-control" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="username" class="form-label">Username</label>
+                                    <input type="text" name="username" id="username" class="form-control" required>
+                                </div>
+                            </div>
+                        </div>
 
-            <div class="form-section">
-                <h4 class="mb-3">Order Details</h4>
-                <div id="products-container">
-                    <div class="row g-3 product-item">
-                        <div class="col-md-6">
-                            <label for="product_id" class="form-label">Product</label>
-                            <select name="products[0][product_id]" class="form-select product-select" required>
-                                <option value="">Select Product</option>
-                                <?php foreach ($products as $product): ?>
-                                    <option value="<?= htmlspecialchars($product['product_id']) ?>" 
-                                            data-price="<?= htmlspecialchars($product['price']) ?>">
-                                        <?= htmlspecialchars($product['product_name']) ?> - 
-                                        Ksh. <?= number_format($product['price'], 2) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
+                        <div class="form-section">
+                            <h4 class="mb-3">Order Details</h4>
+                            <div id="products-container">
+                                <div class="row g-3 product-item">
+                                    <div class="col-md-6">
+                                        <label for="product_id" class="form-label">Product</label>
+                                        <select name="products[0][product_id]" class="form-select product-select" required>
+                                            <option value="">Select Product</option>
+                                            <?php foreach ($products as $product): ?>
+                                                <option value="<?= htmlspecialchars($product['product_id']) ?>" 
+                                                        data-price="<?= htmlspecialchars($product['price']) ?>">
+                                                    <?= htmlspecialchars($product['product_name']) ?> - 
+                                                    Ksh. <?= number_format($product['price'], 2) ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="quantity" class="form-label">Quantity</label>
+                                        <input type="number" name="products[0][quantity]" class="form-control quantity-input" min="1" value="1" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="unit_price" class="form-label">Price per Unit</label>
+                                        <input type="number" name="products[0][unit_price]" class="form-control unit-price-input" step="0.01" required>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                    <button type="button" id="add-product" class="btn btn-secondary mt-3">Add Another Product</button>
+                                        <button type="button" class="btn btn-danger remove-product mt-3">Remove</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
                         </div>
-                        <div class="col-md-3">
-                            <label for="quantity" class="form-label">Quantity</label>
-                            <input type="number" name="products[0][quantity]" class="form-control quantity-input" min="1" value="1" required>
+
+                        <div class="form-section">
+                            <h4 class="mb-3">Shipping & Payment</h4>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label for="payment_method" class="form-label">Payment Method</label>
+                                    <select name="payment_method" id="payment_method" class="form-select" required>
+                                        <option value="Mpesa">Mpesa</option>
+                                        <option value="Airtel Money">Airtel Money</option>
+                                        <option value="Credit Card">Credit Card</option>
+                                        <option value="Cash On Delivery">Cash On Delivery</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="shipping_method" class="form-label">Shipping Method</label>
+                                    <select name="shipping_method" id="shipping_method" class="form-select" required>
+                                        <option value="Standard">Standard (3-5 days)</option>
+                                        <option value="Express">Express (2 days)</option>
+                                        <option value="Next Day">Next Day</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-12">
+                                    <label for="shipping_address" class="form-label">Shipping Address</label>
+                                    <textarea name="shipping_address" id="shipping_address" 
+                                            class="form-control" rows="3" required></textarea>
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-md-3">
-                            <label for="unit_price" class="form-label">Price per Unit</label>
-                            <input type="number" name="products[0][unit_price]" class="form-control unit-price-input" step="0.01" required>
-                        </div>
+
                         <div class="d-flex justify-content-between">
-                        <button type="button" id="add-product" class="btn btn-secondary mt-3">Add Another Product</button>
-                            <button type="button" class="btn btn-danger remove-product mt-3">Remove</button>
+                            <button type="submit" class="btn btn-primary btn-lg">Create Order</button>
+                            <a href="orders.php" class="btn btn-danger btn-lg">Cancel</a>
                         </div>
-                    </div>
-                </div>
-                
-            </div>
-
-            <div class="form-section">
-                <h4 class="mb-3">Shipping & Payment</h4>
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label for="payment_method" class="form-label">Payment Method</label>
-                        <select name="payment_method" id="payment_method" class="form-select" required>
-                            <option value="Mpesa">Mpesa</option>
-                            <option value="Airtel Money">Airtel Money</option>
-                            <option value="Credit Card">Credit Card</option>
-                            <option value="Cash On Delivery">Cash On Delivery</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="shipping_method" class="form-label">Shipping Method</label>
-                        <select name="shipping_method" id="shipping_method" class="form-select" required>
-                            <option value="Standard">Standard (3-5 days)</option>
-                            <option value="Express">Express (2 days)</option>
-                            <option value="Next Day">Next Day</option>
-                        </select>
-                    </div>
-                    <div class="col-md-12">
-                        <label for="shipping_address" class="form-label">Shipping Address</label>
-                        <textarea name="shipping_address" id="shipping_address" 
-                                  class="form-control" rows="3" required></textarea>
-                    </div>
+                    </form>
                 </div>
             </div>
-
-            <div class="d-flex justify-content-between">
-                <button type="submit" class="btn btn-primary btn-lg">Create Order</button>
-                <a href="orders.php" class="btn btn-danger btn-lg">Cancel</a>
-            </div>
-        </form>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

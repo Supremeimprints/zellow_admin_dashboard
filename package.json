@@ -1,0 +1,17 @@
+{
+  "name": "zellow_admin",
+  "version": "1.0.0",
+  "description": "An integrated enterprise resource planning system was developed for Zellow Enterprises to streamline their logistics, inventory, and administrative operations. This Admin Dashboard manages the entire business workflow from inventory tracking to employee management and customer service.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.5.2",
+    "tailwindcss": "^4.0.6"
+  }
+}
