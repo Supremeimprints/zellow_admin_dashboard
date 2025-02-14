@@ -1,8 +1,6 @@
 <?php
 session_start();
 require_once 'config/database.php';
-require_once 'includes/nav/collapsed.php'; // Include collapsed.php for the header
-require_once 'includes/theme.php'; // Include themes
 require_once 'includes/functions/transaction_functions.php'; // Add this line
 //require_once 'includes/functions/chart_functions.php'; // Add near the top after other requires
 
@@ -510,6 +508,20 @@ $customerGrowth = ($customerStats && $customerStats['previous'] != 0) ?
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Financial Dashboard</title>
+     <!-- Feather Icons - Add this line -->
+     <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- Existing stylesheets -->
+    <link rel="stylesheet" href="assets/css/transaction_styles.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/index.css">
+    <link rel="stylesheet" href="assets/css/badges.css">
+    <link rel="stylesheet" href="assets/css/orders.css">
+    <link rel="stylesheet" href="assets/css/collapsed.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+    
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <link href="reports.css" rel="stylesheet"> <!-- Link to reports.css -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -848,6 +860,11 @@ $customerGrowth = ($customerStats && $customerStats['previous'] != 0) ?
 </head>
 
 <body> <!-- Remove bg-gray-100 class -->
+<div class="admin-layout"> 
+<?php include 'includes/theme.php'; ?>
+    <nav class="navbar">
+    <?php include 'includes/nav/collapsed.php'; ?>
+    </nav>
     <div class="container">
         <!-- Date Filter Section -->
         <div class="filter-form">

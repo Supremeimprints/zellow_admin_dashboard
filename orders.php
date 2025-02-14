@@ -207,221 +207,242 @@ foreach ($orders as $order) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>View Orders</title>
+    <!-- Feather Icons - Add this line -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- Existing stylesheets -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/index.css">
+    <link rel="stylesheet" href="assets/css/badges.css">
+    <link rel="stylesheet" href="assets/css/orders.css">
+    <link rel="stylesheet" href="assets/css/collapsed.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="assets/css/orders.css" rel="stylesheet">
     <link href="assets/css/badges.css" rel="stylesheet">
 </head>
 
 <body>
+<div class="admin-layout"> 
+<?php include 'includes/theme.php'; ?>
+    <nav class="navbar">
     <?php include 'includes/nav/collapsed.php'; ?>
-    <?php include 'includes/theme.php' ?>
+    </nav>
+    <div class="main-content">
+       
+            <div class="row g-3">
+                <div class="col-12">
+                    <!-- Orders content -->
 
-   
-        <!-- Summary Stats Cards -->
-        <div class="container mt-5">
-            <h2 class="mb-4">Order Statistics</h2>
-            
-             <!-- Add this HTML just before the orders table -->
-            <div class="row g-3 mb-4">
-                <?php
-                $statusColors = [
-                    'Pending' => 'pending',
-                    'Processing' => 'processing',
-                    'Shipped' => 'shipped',
-                    'Delivered' => 'delivered',
-                    'Cancelled' => 'cancelled'
-                ];
+                    <!-- Summary Stats Cards -->
+                    <div class="container mt-5">
+                        <h2 class="mb-4">Order Statistics</h2>
 
-                foreach ($statusColors as $status => $colorClass): 
-                    $count = $stats[$status]['count'] ?? 0;
-                    $amount = $stats[$status]['amount'] ?? 0;
-                ?>
-                    <div class="col-md">
-                        <div class="card stats-card <?= $colorClass ?> h-100">
-                            <div class="card-body">
-                                <h6 class="card-title mb-3">
-                                    <?= $status ?> Orders
-                                </h6>
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div class="display-6 fw-bold mb-0">
-                                        <?= number_format($count) ?>
-                                    </div>
-                                    <div class="fs-6">
-                                        Ksh. <?= number_format($amount, 2) ?>
+                        <!-- Add this HTML just before the orders table -->
+                        <div class="row g-3 mb-4">
+                            <?php
+                            $statusColors = [
+                                'Pending' => 'pending',
+                                'Processing' => 'processing',
+                                'Shipped' => 'shipped',
+                                'Delivered' => 'delivered',
+                                'Cancelled' => 'cancelled'
+                            ];
+
+                            foreach ($statusColors as $status => $colorClass):
+                                $count = $stats[$status]['count'] ?? 0;
+                                $amount = $stats[$status]['amount'] ?? 0;
+                            ?>
+                                <div class="col-md">
+                                    <div class="card stats-card <?= $colorClass ?> h-100">
+                                        <div class="card-body">
+                                            <h6 class="card-title mb-3">
+                                                <?= $status ?> Orders
+                                            </h6>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div class="display-6 fw-bold mb-0">
+                                                    <?= number_format($count) ?>
+                                                </div>
+                                                <div class="fs-6">
+                                                    Ksh. <?= number_format($amount, 2) ?>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
+                            <?php endforeach; ?>
+                        </div>
+
+
+                        <div class="container mt-5">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h2>View Orders</h2>
+                                <a href="create_order.php" class="btn btn-primary">Create New Order</a>
+                            </div>
+
+                            <!-- Filter Form -->
+                            <form method="GET" action="orders.php" class="mb-4">
+                                <div class="row g-3">
+                                    <!-- Search Input -->
+                                    <div class="col-md-3">
+                                        <input type="text" name="search" class="form-control"
+                                            placeholder="Search (username, address, email, tracking)"
+                                            value="<?= htmlspecialchars($search) ?>">
+                                    </div>
+
+                                    <!-- Status Filters -->
+                                    <div class="col-md-2">
+                                        <select name="status" class="form-select">
+                                            <option value="">Shipping Status</option>
+                                            <option value="Pending" <?= $statusFilter === 'Pending' ? 'selected' : '' ?>>Pending</option>
+                                            <option value="Processing" <?= $statusFilter === 'Processing' ? 'selected' : '' ?>>Processing
+                                            </option>
+                                            <option value="Shipped" <?= $statusFilter === 'Shipped' ? 'selected' : '' ?>>Shipped</option>
+                                            <option value="Delivered" <?= $statusFilter === 'Delivered' ? 'selected' : '' ?>>Delivered
+                                            </option>
+                                            <option value="Cancelled" <?= $statusFilter === 'Cancelled' ? 'selected' : '' ?>>Cancelled
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Payment Status -->
+                                    <div class="col-md-2">
+                                        <select name="payment_status" class="form-select">
+                                            <option value="">Payment Status</option>
+                                            <option value="Paid" <?= $paymentStatusFilter === 'Paid' ? 'selected' : '' ?>>Paid</option>
+                                            <option value="Pending" <?= $paymentStatusFilter === 'Pending' ? 'selected' : '' ?>>Pending
+                                            </option>
+                                            <option value="Failed" <?= $paymentStatusFilter === 'Failed' ? 'selected' : '' ?>>Failed
+                                            </option>
+                                            <option value="Refunded" <?= $paymentStatusFilter === 'Refunded' ? 'selected' : '' ?>>Refunded
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Payment Method -->
+                                    <div class="col-md-2">
+                                        <select name="payment_method" class="form-select">
+                                            <option value="">Payment Method</option>
+                                            <option value="Mpesa" <?= $paymentMethodFilter === 'Mpesa' ? 'selected' : '' ?>>Mpesa</option>
+                                            <option value="Airtel Money" <?= $paymentMethodFilter === 'Airtel Money' ? 'selected' : '' ?>>
+                                                Airtel Money</option>
+                                            <option value="Credit Card" <?= $paymentMethodFilter === 'Credit Card' ? 'selected' : '' ?>>
+                                                Credit Card</option>
+                                            <option value="Cash On Delivery" <?= $paymentMethodFilter === 'Cash On Delivery' ? 'selected' : '' ?>>Cash On Delivery</option>
+                                        </select>
+                                    </div>
+                                    <!-- Shipping Method -->
+                                    <div class="col-md-2">
+                                        <select name="shipping_method" class="form-select">
+                                            <option value="">Shipping Method</option>
+                                            <option value="Standard" <?= $shippingMethodFilter === 'Standard' ? 'selected' : '' ?>>Standard
+                                            </option>
+                                            <option value="Express" <?= $shippingMethodFilter === 'Express' ? 'selected' : '' ?>>Express
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Date Range -->
+                                    <div class="col-md-4">
+                                        <div class="input-group">
+                                            <input type="date" name="start_date" class="form-control"
+                                                value="<?= htmlspecialchars($startDate) ?>" placeholder="Start Date">
+                                            <input type="date" name="end_date" class="form-control"
+                                                value="<?= htmlspecialchars($endDate) ?>" placeholder="End Date">
+                                        </div>
+                                    </div>
+
+                                    <!-- Submit and Reset Buttons -->
+                                    <div class="col-md-2">
+                                        <div class="d-flex gap-2">
+                                            <button type="submit" class="btn btn-primary flex-grow-1">Filter</button>
+                                            <a href="orders.php" class="btn btn-secondary">Reset</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+
+
+                            <!-- Orders Table -->
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Order ID</th>
+                                            <th>Username</th>
+                                            <th>Products</th>
+                                            <th>Total Amount</th>
+                                            <th>Status</th>
+                                            <th>Payment Status</th>
+                                            <th>Tracking Number</th>
+                                            <th>Shipping Address</th>
+                                            <th>Order Date</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php if (empty($orders)): ?>
+                                            <tr>
+                                                <td colspan="10" class="text-center">No orders found</td>
+                                            </tr>
+                                        <?php else: ?>
+                                            <?php foreach ($orders as $order): ?>
+                                                <tr>
+                                                    <td>#<?php echo htmlspecialchars($order['order_id']); ?></td>
+                                                    <td><?php echo htmlspecialchars($order['username']); ?></td>
+                                                    <td><?php echo htmlspecialchars($order['products']); ?></td>
+                                                    <td>Ksh.<?php echo htmlspecialchars(number_format($order['total_amount'], 2)); ?></td>
+                                                    <td>
+                                                        <?= renderStatusBadge($order['status'], 'order', 'md') ?>
+                                                    </td>
+                                                    <td>
+                                                        <?= renderStatusBadge($order['payment_status'], 'payment', 'md') ?>
+                                                    </td>
+                                                    <td><?= htmlspecialchars($order['tracking_number'] ?? 'N/A') ?></td>
+                                                    <td><?php echo htmlspecialchars($order['shipping_address']); ?></td>
+                                                    <td><?php echo htmlspecialchars(date('Y-m-d H:i', strtotime($order['order_date']))); ?></td>
+                                                    <td>
+                                                        <a href="update_order.php?id=<?php echo $order['order_id']; ?>"
+                                                            class="btn btn-sm btn-primary">Update</a>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
 
-          
-        <div class="container mt-5">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2>View Orders</h2>
-                <a href="create_order.php" class="btn btn-primary">Create New Order</a>
-            </div>
+                        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-            <!-- Filter Form -->
-            <form method="GET" action="orders.php" class="mb-4">
-                <div class="row g-3">
-                    <!-- Search Input -->
-                    <div class="col-md-3">
-                        <input type="text" name="search" class="form-control"
-                            placeholder="Search (username, address, email, tracking)"
-                            value="<?= htmlspecialchars($search) ?>">
-                    </div>
+                        <?php
+                        function getStatusColor($status)
+                        {
+                            return match ($status) {
+                                'Pending' => 'warning',
+                                'Processing' => 'info',
+                                'Shipped' => 'primary',
+                                'Delivered' => 'success',
+                                'Cancelled' => 'danger',
+                                default => 'secondary'
+                            };
+                        }
 
-                    <!-- Status Filters -->
-                    <div class="col-md-2">
-                        <select name="status" class="form-select">
-                            <option value="">Shipping Status</option>
-                            <option value="Pending" <?= $statusFilter === 'Pending' ? 'selected' : '' ?>>Pending</option>
-                            <option value="Processing" <?= $statusFilter === 'Processing' ? 'selected' : '' ?>>Processing
-                            </option>
-                            <option value="Shipped" <?= $statusFilter === 'Shipped' ? 'selected' : '' ?>>Shipped</option>
-                            <option value="Delivered" <?= $statusFilter === 'Delivered' ? 'selected' : '' ?>>Delivered
-                            </option>
-                            <option value="Cancelled" <?= $statusFilter === 'Cancelled' ? 'selected' : '' ?>>Cancelled
-                            </option>
-                        </select>
-                    </div>
-
-                    <!-- Payment Status -->
-                    <div class="col-md-2">
-                        <select name="payment_status" class="form-select">
-                            <option value="">Payment Status</option>
-                            <option value="Paid" <?= $paymentStatusFilter === 'Paid' ? 'selected' : '' ?>>Paid</option>
-                            <option value="Pending" <?= $paymentStatusFilter === 'Pending' ? 'selected' : '' ?>>Pending
-                            </option>
-                            <option value="Failed" <?= $paymentStatusFilter === 'Failed' ? 'selected' : '' ?>>Failed
-                            </option>
-                            <option value="Refunded" <?= $paymentStatusFilter === 'Refunded' ? 'selected' : '' ?>>Refunded
-                            </option>
-                        </select>
-                    </div>
-
-                    <!-- Payment Method -->
-                    <div class="col-md-2">
-                        <select name="payment_method" class="form-select">
-                            <option value="">Payment Method</option>
-                            <option value="Mpesa" <?= $paymentMethodFilter === 'Mpesa' ? 'selected' : '' ?>>Mpesa</option>
-                            <option value="Airtel Money" <?= $paymentMethodFilter === 'Airtel Money' ? 'selected' : '' ?>>
-                                Airtel Money</option>
-                            <option value="Credit Card" <?= $paymentMethodFilter === 'Credit Card' ? 'selected' : '' ?>>
-                                Credit Card</option>
-                            <option value="Cash On Delivery" <?= $paymentMethodFilter === 'Cash On Delivery' ? 'selected' : '' ?>>Cash On Delivery</option>
-                        </select>
-                    </div>
-                    <!-- Shipping Method -->
-                    <div class="col-md-2">
-                        <select name="shipping_method" class="form-select">
-                            <option value="">Shipping Method</option>
-                            <option value="Standard" <?= $shippingMethodFilter === 'Standard' ? 'selected' : '' ?>>Standard
-                            </option>
-                            <option value="Express" <?= $shippingMethodFilter === 'Express' ? 'selected' : '' ?>>Express
-                            </option>
-                        </select>
-                    </div>
-
-                    <!-- Date Range -->
-                    <div class="col-md-4">
-                        <div class="input-group">
-                            <input type="date" name="start_date" class="form-control"
-                                value="<?= htmlspecialchars($startDate) ?>" placeholder="Start Date">
-                            <input type="date" name="end_date" class="form-control"
-                                value="<?= htmlspecialchars($endDate) ?>" placeholder="End Date">
-                        </div>
-                    </div>
-
-                    <!-- Submit and Reset Buttons -->
-                    <div class="col-md-2">
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-primary flex-grow-1">Filter</button>
-                            <a href="orders.php" class="btn btn-secondary">Reset</a>
-                        </div>
+                        function getPaymentStatusColor($status)
+                        {
+                            return match ($status) {
+                                'Pending' => 'warning',
+                                'Paid' => 'success',
+                                'Failed' => 'danger',
+                                'Refunded' => 'info',
+                                default => 'secondary'
+                            };
+                        }
+                        ?>
                     </div>
                 </div>
-            </form>
-
-            
-            <!-- Orders Table -->
-            <div class="table-responsive">
-                <table class="table table-striped table-hover">
-                    <thead>
-                        <tr>
-                            <th>Order ID</th>
-                            <th>Username</th>
-                            <th>Products</th>
-                            <th>Total Amount</th>
-                            <th>Status</th>
-                            <th>Payment Status</th>
-                            <th>Tracking Number</th>
-                            <th>Shipping Address</th>
-                            <th>Order Date</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if (empty($orders)): ?>
-                            <tr>
-                                <td colspan="10" class="text-center">No orders found</td>
-                            </tr>
-                        <?php else: ?>
-                            <?php foreach ($orders as $order): ?>
-                                <tr>
-                                    <td>#<?php echo htmlspecialchars($order['order_id']); ?></td>
-                                    <td><?php echo htmlspecialchars($order['username']); ?></td>
-                                    <td><?php echo htmlspecialchars($order['products']); ?></td>
-                                    <td>Ksh.<?php echo htmlspecialchars(number_format($order['total_amount'], 2)); ?></td>
-                                    <td>
-                                        <?= renderStatusBadge($order['status'], 'order', 'md') ?>
-                                    </td>
-                                    <td>
-                                        <?= renderStatusBadge($order['payment_status'], 'payment', 'md') ?>
-                                    </td>
-                                    <td><?= htmlspecialchars($order['tracking_number'] ?? 'N/A') ?></td>
-                                    <td><?php echo htmlspecialchars($order['shipping_address']); ?></td>
-                                    <td><?php echo htmlspecialchars(date('Y-m-d H:i', strtotime($order['order_date']))); ?></td>
-                                    <td>
-                                        <a href="update_order.php?id=<?php echo $order['order_id']; ?>"
-                                            class="btn btn-sm btn-primary">Update</a>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
             </div>
         </div>
-
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-        <?php
-        function getStatusColor($status)
-        {
-            return match ($status) {
-                'Pending' => 'warning',
-                'Processing' => 'info',
-                'Shipped' => 'primary',
-                'Delivered' => 'success',
-                'Cancelled' => 'danger',
-                default => 'secondary'
-            };
-        }
-
-        function getPaymentStatusColor($status)
-        {
-            return match ($status) {
-                'Pending' => 'warning',
-                'Paid' => 'success',
-                'Failed' => 'danger',
-                'Refunded' => 'info',
-                default => 'secondary'
-            };
-        }
-        ?>
     </div>
 </body>
 <?php include 'includes/nav/footer.php'; ?>

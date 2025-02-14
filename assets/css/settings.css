@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css?family=Montserrat:400,800');
 /* assets/css/settings.css */
 :root {
     --primary: #2d60e5;
@@ -17,7 +18,7 @@
   --flex-direction: column;
   --min-height: 100vh;
   }
-  @import url('https://fonts.googleapis.com/css?family=Montserrat:400,800');
+ 
   body {
     background-color: var(--background-color);
     font-family: var(--font-family);

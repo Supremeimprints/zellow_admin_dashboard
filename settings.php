@@ -165,6 +165,19 @@ if (isset($_GET['delete_photo'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Settings</title>
+     <!-- Feather Icons - Add this line -->
+     <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- Existing stylesheets -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/index.css">
+    <link rel="stylesheet" href="assets/css/badges.css">
+    <link rel="stylesheet" href="assets/css/orders.css">
+    <link rel="stylesheet" href="assets/css/collapsed.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/css/orders.css" rel="stylesheet">
+    <link href="assets/css/badges.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/settings.css">
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -222,9 +235,13 @@ if (isset($_GET['delete_photo'])) {
 </head>
 
 <body>
-<?php include 'includes/nav/collapsed.php'; ?>
-<div class="settings-container">
-    <div class="container-fluid mt-5">
+<div class="admin-layout"> 
+<?php include 'includes/theme.php'; ?>
+    <nav class="navbar">
+    <?php include 'includes/nav/collapsed.php'; ?>
+    </nav>
+
+    <div class="container-fluid mt-3">
         <div class="row gx-5"> <!-- Added gutter between columns -->
             <!-- Left Column - Main Settings -->
             <div class="col-md-8">

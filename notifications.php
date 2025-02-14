@@ -89,14 +89,29 @@ $reportData['low_stock'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <html>
 <head>
     <title>Notifications & Feedback</title>
+     <!-- Feather Icons - Add this line -->
+     <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- Existing stylesheets -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/index.css">
+    <link rel="stylesheet" href="assets/css/badges.css">
+    <link rel="stylesheet" href="assets/css/orders.css">
+    <link rel="stylesheet" href="assets/css/collapsed.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/css/orders.css" rel="stylesheet">
+    <link href="assets/css/badges.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <link href="assets/css/notifications.css" rel="stylesheet">
 </head>
 <body>
-<?php include 'includes/nav/collapsed.php'; ?>
+<div class="admin-layout"> 
 <?php include 'includes/theme.php'; ?>
-
+    <nav class="navbar">
+    <?php include 'includes/nav/collapsed.php'; ?>
+    </nav>
 <?php
 // Display Messages
 if (isset($_SESSION['success'])): ?>
