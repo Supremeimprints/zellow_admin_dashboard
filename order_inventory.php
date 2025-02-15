@@ -101,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <!-- Existing stylesheets -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="assets/css/index.css">
+    <link rel="stylesheet" href="assets/css/settings.css">
     <link rel="stylesheet" href="assets/css/badges.css">
     <link rel="stylesheet" href="assets/css/orders.css">
     <link rel="stylesheet" href="assets/css/collapsed.css">
@@ -111,18 +111,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="assets/css/inventory.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/index.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
     <link rel="stylesheet" href="assets/css/collapsed.css">
     <style>
         .low-stock {
-            color: #dc3545;
-            font-weight: bold;
+            color: var(--text-danger, #dc3545);
         }
         .order-form {
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background: var(--content-bg-light, #fff);
+            padding: 1.25rem;
+            border-radius: 0.5rem;
+            box-shadow: var(--card-shadow-light);
+        }
+        [data-bs-theme="dark"] .order-form {
+            background: var(--content-bg-dark, #1a202c);
+            box-shadow: var(--card-shadow-dark);
+        }
+        [data-bs-theme="dark"] .form-select,
+        [data-bs-theme="dark"] .form-control {
+            background-color: var(--bg-dark);
+            border-color: var(--border-dark);
+            color: var(--text-dark);
+        }
+        [data-bs-theme="dark"] .form-select option {
+            background-color: var(--bg-dark);
+            color: var(--text-dark);
         }
     </style>
 </head>
@@ -133,75 +146,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php include 'includes/nav/collapsed.php'; ?>
     </nav>
 
-    <div class="container mt-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>Order Inventory from Suppliers</h2>
-            <a href="inventory.php" class="btn btn-secondary">Back to Inventory</a>
-        </div>
+    <main class="main-content">
+        <div class="container mt-5">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Order Inventory from Suppliers</h2>
+                <a href="inventory.php" class="btn btn-secondary">Back to Inventory</a>
+            </div>
 
-        <?php if ($error): ?>
-            <div class="alert alert-danger"><?= $error ?></div>
-        <?php endif; ?>
-        <?php if ($success): ?>
-            <div class="alert alert-success"><?= $success ?></div>
-        <?php endif; ?>
+            <?php if ($error): ?>
+                <div class="alert alert-danger"><?= $error ?></div>
+            <?php endif; ?>
+            <?php if ($success): ?>
+                <div class="alert alert-success"><?= $success ?></div>
+            <?php endif; ?>
 
-        <div class="order-form">
-            <form method="POST" action="create_purchase_order.php">
-                <input type="hidden" name="supplier_id" value="<?= htmlspecialchars($_GET['supplier_id'] ?? '') ?>">
-                <div class="mb-4">
-                    <label for="id" class="form-label">Select Supplier</label>
-                    <select name="supplier_id" id="supplier_id" class="form-select" required>
-                        <option value="">Choose a supplier...</option>
-                        <?php foreach ($suppliers as $supplier): ?>
-                            <option value="<?= $supplier['supplier_id'] ?>">
-                                <?= htmlspecialchars($supplier['company_name']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
+            <div class="order-form">
+                <form method="POST" action="create_purchase_order.php">
+                    <input type="hidden" name="supplier_id" value="<?= htmlspecialchars($_GET['supplier_id'] ?? '') ?>">
+                    <div class="mb-4">
+                        <label for="id" class="form-label">Select Supplier</label>
+                        <select name="supplier_id" id="supplier_id" class="form-select" required>
+                            <option value="">Choose a supplier...</option>
+                            <?php foreach ($suppliers as $supplier): ?>
+                                <option value="<?= $supplier['supplier_id'] ?>">
+                                    <?= htmlspecialchars($supplier['company_name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
 
-                <div class="mb-4">
-                    <h5>Order Items</h5>
-                    <div id="orderItems">
-                        <!-- Items will be added here -->
-                        <div class="row mb-3 order-item">
-                            <div class="col-md-4">
-                                <select name="items[0][product_id]" class="form-select" required>
-                                    <option value="">Select Product...</option>
-                                    <?php foreach ($products as $product): ?>
-                                        <option value="<?= $product['product_id'] ?>" 
-                                                data-stock="<?= $product['stock_quantity'] ?>"
-                                                data-min="<?= $product['min_stock_level'] ?>">
-                                            <?= htmlspecialchars($product['product_name']) ?>
-                                            (Stock: <?= $product['stock_quantity'] ?>)
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <input type="number" name="items[0][quantity]" 
-                                       class="form-control" placeholder="Quantity" required>
-                            </div>
-                            <div class="col-md-3">
-                                <input type="number" name="items[0][unit_price]" 
-                                       class="form-control" placeholder="Unit Price" required>
-                            </div>
-                            <div class="col-md-2">
-                                <button type="button" class="btn btn-danger remove-item">Remove</button>
+                    <div class="mb-4">
+                        <h5>Order Items</h5>
+                        <div id="orderItems">
+                            <!-- Items will be added here -->
+                            <div class="row mb-3 order-item">
+                                <div class="col-md-4">
+                                    <select name="items[0][product_id]" class="form-select" required>
+                                        <option value="">Select Product...</option>
+                                        <?php foreach ($products as $product): ?>
+                                            <option value="<?= $product['product_id'] ?>" 
+                                                    data-stock="<?= $product['stock_quantity'] ?>"
+                                                    data-min="<?= $product['min_stock_level'] ?>">
+                                                <?= htmlspecialchars($product['product_name']) ?>
+                                                (Stock: <?= $product['stock_quantity'] ?>)
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="number" name="items[0][quantity]" 
+                                           class="form-control" placeholder="Quantity" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="number" name="items[0][unit_price]" 
+                                           class="form-control" placeholder="Unit Price" required>
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" class="btn btn-danger remove-item">Remove</button>
+                                </div>
                             </div>
                         </div>
+                        <button type="button" class="btn btn-secondary" id="addItem">+ Add Item</button>
                     </div>
-                    <button type="button" class="btn btn-secondary" id="addItem">+ Add Item</button>
-                </div>
 
-                <div class="d-flex justify-content-between">
-                    <button type="submit" class="btn btn-primary">Create Purchase Order</button>
-                    <div class="h4">Total: Ksh. <span id="orderTotal">0.00</span></div>
-                </div>
-            </form>
+                    <div class="d-flex justify-content-between">
+                        <button type="submit" class="btn btn-primary">Create Purchase Order</button>
+                        <div class="h4">Total: Ksh. <span id="orderTotal">0.00</span></div>
+                    </div>
+                </form>
+            </div>
         </div>
-    </div>
+        <?php include 'includes/nav/footer.php'; ?>
+    </main>
 </div>
 
 <script>

@@ -83,7 +83,13 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </nav>
     <div class="container mt-4">
        <div class="container mt-5">
-        <h2> Manage Products </h2>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Manage Products</h2>
+            <div class="d-flex gap-2 justify-content-end">
+                <a href="order_inventory.php" class="btn btn-primary">Update Stock</a>
+                <a href="add_product.php" class="btn btn-success">Add New Product</a>
+            </div>
+        </div>
 
         <!-- Search Form -->
         <form method="GET" action="products.php" class="mb-3">
@@ -93,10 +99,6 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <button type="submit" class="btn btn-primary">Search</button>
             </div>
         </form>
-
-        <!-- Add Product Button -->
-        <a href="add_product.php" class="btn btn-primary mb-3">Add New Product</a>
-        <a href="inventory.php" class="btn btn-success mb-3">Update Stock</a>
 
         <!-- Products Table -->
         <div class="table-responsive">

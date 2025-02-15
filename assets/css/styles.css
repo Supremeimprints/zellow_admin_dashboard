@@ -133,6 +133,37 @@
   color: var(--text-color-dark, #fff);
 }
 
+/* Dark mode form elements */
+[data-bs-theme="dark"] .form-select,
+[data-bs-theme="dark"] .form-control {
+    background-color: var(--bg-dark);
+    border-color: var(--border-dark);
+    color: var(--text-dark);
+}
+
+[data-bs-theme="dark"] .form-select option {
+    background-color: var(--bg-dark);
+    color: var(--text-dark);
+}
+
+[data-bs-theme="dark"] .form-label {
+    color: var(--text-dark);
+}
+
+/* Order form specific styles */
+.order-form {
+    background: var(--content-bg-light);
+    padding: 1.25rem;
+    border-radius: 0.5rem;
+    box-shadow: var(--card-shadow-light);
+    margin-bottom: 2rem;
+}
+
+[data-bs-theme="dark"] .order-form {
+    background: var(--content-bg-dark);
+    box-shadow: var(--card-shadow-dark);
+}
+
 /* Remove footer styles that might be affecting layout */
 .footer {
   display: none; /* Hide the footer for now */
