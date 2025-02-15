@@ -30,7 +30,6 @@ body {
 
 .navbar {
   position: fixed;
-  top: 0;
   left: 0;
   height: 100vh; /* Full height */
   width: 4.5rem; /* Ensure it matches collapsed width */
@@ -40,6 +39,8 @@ body {
   justify-content: space-between;
   transition: width 0.3s ease;
   box-shadow: 4px 0 10px rgba(0, 0, 0, 0.05);
+  position: relative; /* Add this */
+  z-index: 1000;
 }
 
 [data-bs-theme="dark"] .navbar {
@@ -63,12 +64,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 2.5rem;
-  width: 2.5rem;
-  margin: 0;  /* Removed auto margin */
+  height: 2rem; /* Reduced from 2.5rem */
+  width: 2rem; /* Reduced from 2.5rem */
+  margin: 0.25rem 0.5rem;
   color: var(--nav-text-light);
-  border-radius: 8px;
+  border-radius: 6px; /* Slightly reduced */
   transition: all 250ms ease;
+  font-size: 0.9rem; /* Add this to make icons smaller */
 }
 
 [data-bs-theme="dark"] .navbar__link {
@@ -84,9 +86,9 @@ body {
   pointer-events: none;
   color: #406ff3;
   background: #fff;
-  padding: 0.5rem 0.75rem;
+  padding: 0.35rem 0.5rem; /* Smaller padding */
   border-radius: 6px;
-  font-size: 0.875rem;
+  font-size: 0.75rem; /* Smaller tooltip text */
   white-space: nowrap;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
   transition: 250ms ease all;
@@ -106,6 +108,30 @@ body {
 .navbar__link:hover span {
   opacity: 1;
   transform: translate(0.5rem);
+}
+
+/* Add active state indicator */
+.navbar__link.active {
+  color: var(--nav-hover);
+  background: rgba(64, 111, 243, 0.1);
+}
+
+.navbar__link.active::after {
+  content: '';
+  position: absolute;
+  right: -0.5rem; /* Align with navbar edge */
+  top: 0;
+  height: 100%;
+  width: 3px;
+  background-color: var(--nav-hover);
+  border-radius: 3px 0 0 3px;
+}
+
+/* Update icon sizes */
+.navbar__link i,
+.navbar__link svg {
+  width: 1.2rem; /* Smaller icons */
+  height: 1.2rem;
 }
 
 /* Profile section */
@@ -189,8 +215,14 @@ body {
   }
   
   .navbar__link {
-    height: 2rem;
-    width: 2rem;
+    height: 1.75rem; /* Even smaller on mobile */
+    width: 1.75rem;
+  }
+  
+  .navbar__link i,
+  .navbar__link svg {
+    width: 1rem;
+    height: 1rem;
   }
   
   .profile-pic,

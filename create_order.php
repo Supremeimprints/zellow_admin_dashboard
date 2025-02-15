@@ -26,13 +26,30 @@ try {
 
 // Add this after database connection
 $promotionsQuery = "SELECT * FROM marketing_campaigns WHERE status = 'active' AND CURDATE() BETWEEN start_date AND end_date";
-$couponsQuery = "SELECT * FROM coupons WHERE expiration_date >= CURDATE()";
+$couponsQuery = "SELECT * FROM coupons 
+                 WHERE expiration_date >= CURRENT_DATE() 
+                 AND status = 'active'
+                 ORDER BY expiration_date ASC";
+
+try {
+    $couponsStmt = $db->query($couponsQuery);
+    $validCoupons = $couponsStmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    // If status column doesn't exist, fall back to simpler query
+    if ($e->getCode() == '42S22') { // SQL state for column not found
+        $couponsQuery = "SELECT * FROM coupons 
+                        WHERE expiration_date >= CURRENT_DATE()
+                        ORDER BY expiration_date ASC";
+        $couponsStmt = $db->query($couponsQuery);
+        $validCoupons = $couponsStmt->fetchAll(PDO::FETCH_ASSOC);
+    } else {
+        throw $e; // Re-throw if it's a different error
+    }
+}
 
 $promotionsStmt = $db->query($promotionsQuery);
-$couponsStmt = $db->query($couponsQuery);
 
 $activePromotions = $promotionsStmt->fetchAll(PDO::FETCH_ASSOC);
-$validCoupons = $couponsStmt->fetchAll(PDO::FETCH_ASSOC);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -113,15 +130,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Apply discount if coupon is valid
         if (!empty($_POST['coupon_code'])) {
-            $couponStmt = $db->prepare("SELECT * FROM coupons WHERE code = ? AND expiration_date >= CURDATE()");
+            // Check if the coupon exists in session and is still valid
+            if (!isset($_SESSION['valid_coupon']) || 
+                $_SESSION['valid_coupon']['code'] !== $_POST['coupon_code']) {
+                throw new Exception("Invalid or expired coupon code");
+            }
+            
+            // Double-check coupon validity in database
+            $couponStmt = $db->prepare("
+                SELECT * FROM coupons 
+                WHERE code = ? 
+                AND expiration_date >= CURRENT_DATE()
+                AND status = 'active'
+            ");
             $couponStmt->execute([$_POST['coupon_code']]);
             $coupon = $couponStmt->fetch(PDO::FETCH_ASSOC);
-
-            if ($coupon) {
-                $discount_amount = ($total_amount * $coupon['discount_percentage']) / 100;
-                $total_amount -= $discount_amount;
-                $coupon_id = $coupon['coupon_id'];
+            
+            if (!$coupon) {
+                throw new Exception("Coupon is no longer valid");
             }
+            
+            $discount_amount = ($total_amount * $coupon['discount_percentage']) / 100;
+            $coupon_id = $coupon['coupon_id'];
         }
 
         // Add shipping fee to total
@@ -386,19 +416,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <div class="mt-3">
                                 <h6>Available Coupons:</h6>
                                 <div class="list-group">
-                                    <?php foreach ($validCoupons as $coupon): ?>
-                                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <code><?= htmlspecialchars($coupon['code']) ?></code>
-                                                <small class="d-block text-muted">
-                                                    <?= $coupon['discount_percentage'] ?>% off
-                                                </small>
-                                            </div>
-                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="applyCoupon('<?= $coupon['code'] ?>')">
-                                                Apply
-                                            </button>
+                                    <?php if (empty($validCoupons)): ?>
+                                        <div class="list-group-item text-muted">
+                                            No active coupons available
                                         </div>
-                                    <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <?php foreach ($validCoupons as $coupon): 
+                                            $isExpired = strtotime($coupon['expiration_date']) < time();
+                                            $badgeClass = $isExpired ? 'bg-danger' : 'bg-success';
+                                            $status = $isExpired ? 'Expired' : 'Active';
+                                        ?>
+                                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <code><?= htmlspecialchars($coupon['code']) ?></code>
+                                                    <span class="badge <?= $badgeClass ?> ms-2"><?= $status ?></span>
+                                                    <small class="d-block text-muted">
+                                                        <?= $coupon['discount_percentage'] ?>% off
+                                                        (Expires: <?= date('M d, Y', strtotime($coupon['expiration_date'])) ?>)
+                                                    </small>
+                                                </div>
+                                                <?php if (!$isExpired): ?>
+                                                    <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                            onclick="applyCoupon('<?= $coupon['code'] ?>')">
+                                                        Apply
+                                                    </button>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
@@ -548,6 +593,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Coupon handling
         function validateCoupon() {
             const couponCode = document.getElementById('couponCode').value;
+            const couponInput = document.getElementById('couponCode');
+            const feedback = document.getElementById('couponFeedback');
+            const submitButton = document.querySelector('button[type="submit"]');
+
             fetch('validate_coupon.php', {
                 method: 'POST',
                 headers: {
@@ -557,18 +606,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             })
             .then(response => response.json())
             .then(data => {
-                const feedback = document.getElementById('couponFeedback');
+                couponInput.classList.remove('is-valid', 'is-invalid');
+                
                 if (data.valid) {
                     feedback.className = 'text-success';
                     feedback.textContent = `${data.discount}% discount will be applied`;
                     currentDiscount = (currentSubtotal * data.discount) / 100;
-                    updateFinalTotal();
+                    couponInput.classList.add('is-valid');
+                    submitButton.disabled = false;
                 } else {
                     feedback.className = 'text-danger';
                     feedback.textContent = data.message;
                     currentDiscount = 0;
-                    updateFinalTotal();
+                    couponInput.classList.add('is-invalid');
+                    
+                    // Disable submit button if trying to use expired coupon
+                    if (data.status === 'expired') {
+                        submitButton.disabled = true;
+                    }
                 }
+                
+                updateFinalTotal();
+                
+                // Show visual feedback
+                document.getElementById('discountRow').style.display = data.valid ? 'flex' : 'none';
+            })
+            .catch(error => {
+                feedback.className = 'text-danger';
+                feedback.textContent = 'Error validating coupon';
+                currentDiscount = 0;
+                updateFinalTotal();
             });
         }
 
@@ -584,6 +651,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Add shipping method change handler
         document.getElementById('shipping_method').addEventListener('change', calculateTotal);
+        
+        // Add form submission validation
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const couponCode = document.getElementById('couponCode').value;
+            if (couponCode && !document.getElementById('couponCode').classList.contains('is-valid')) {
+                e.preventDefault();
+                alert('Please use a valid coupon code or remove it before submitting.');
+            }
+        });
     </script>
 </body>
 <?php include 'includes/nav/footer.php'; ?>
