@@ -55,17 +55,9 @@ try {
      <!-- Feather Icons - Add this line -->
      <script src="https://unpkg.com/feather-icons"></script>
     
-    <!-- Existing stylesheets -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="assets/css/index.css">
-    <link rel="stylesheet" href="assets/css/badges.css">
-    <link rel="stylesheet" href="assets/css/orders.css">
+   
     <link rel="stylesheet" href="assets/css/collapsed.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="assets/css/orders.css" rel="stylesheet">
-    <link href="assets/css/badges.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
 </head>
 <body>
     <div class="admin-layout"> 
@@ -131,10 +123,10 @@ try {
             </table>
         </div>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <?php include 'includes/nav/footer.php'; ?>
     </main>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-<?php include 'includes/nav/footer.php'; ?>
+
 </html>

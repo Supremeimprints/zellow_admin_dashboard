@@ -149,6 +149,7 @@ $uniqueItems = $inventoryStats['unique_items'];
     <link rel="stylesheet" href="assets/css/badges.css">
     <link rel="stylesheet" href="assets/css/orders.css">
     <link rel="stylesheet" href="assets/css/collapsed.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 
 <body>

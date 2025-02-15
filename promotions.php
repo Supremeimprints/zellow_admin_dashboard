@@ -88,7 +88,7 @@ $coupons = $coupons_stmt->fetchAll(PDO::FETCH_ASSOC);
     <title>Marketing & Promotions</title>
     <script src="https://unpkg.com/feather-icons"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/styles.css">
+   
     <link rel="stylesheet" href="assets/css/collapsed.css">
 </head>
 <body>
