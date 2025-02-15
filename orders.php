@@ -13,6 +13,7 @@ if ($_SESSION['role'] !== 'admin') {
 
 require_once 'config/database.php';
 require_once 'includes/functions/badge_functions.php';
+require_once 'includes/functions/shipping_functions.php';
 
 // Initialize database connection first
 $database = new Database();
@@ -37,16 +38,18 @@ $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
 $limit = 10;
 $offset = ($page - 1) * $limit;
 
-// Build query with enhanced filters
-$query = "SELECT o.order_id, u.username, o.status, o.payment_status, o.payment_method, 
-          o.shipping_method, o.tracking_number, o.shipping_address, o.order_date, 
-          GROUP_CONCAT(CONCAT(p.product_name, ' (', oi.quantity, ')') SEPARATOR ', ') AS products, 
-          SUM(oi.subtotal) AS total_amount 
+// Update the main query to prevent duplicates and include all order items
+$query = "SELECT DISTINCT o.*, 
+          u.username, 
+          GROUP_CONCAT(DISTINCT CONCAT(p.product_name, ' (', oi.quantity, ')') SEPARATOR ', ') as products,
+          SUM(oi.subtotal) as original_amount,
+          o.discount_amount,
+          o.total_amount
           FROM orders o 
-          JOIN users u ON o.id = u.id 
-          JOIN order_items oi ON o.order_id = oi.order_id 
-          JOIN products p ON oi.product_id = p.product_id 
-          WHERE 1";
+          LEFT JOIN users u ON o.id = u.id 
+          LEFT JOIN order_items oi ON o.order_id = oi.order_id 
+          LEFT JOIN products p ON oi.product_id = p.product_id 
+          WHERE 1=1";
 
 // Add filters to query
 if ($statusFilter) {
@@ -76,7 +79,10 @@ if ($search) {
               OR o.tracking_number LIKE :search)";
 }
 
-$query .= " GROUP BY o.order_id ORDER BY o.order_date DESC";
+// Update the GROUP BY and add ORDER BY
+$query .= " GROUP BY o.order_id, o.status, o.payment_status, o.payment_method, 
+            o.shipping_method, o.tracking_number, o.shipping_address, o.order_date
+            ORDER BY o.order_date DESC";
 
 try {
     $stmt = $db->prepare($query);
@@ -369,9 +375,9 @@ foreach ($orders as $order) {
                                     <thead>
                                         <tr>
                                             <th>Order ID</th>
-                                            <th>Username</th>
+                                            <th>Customer</th>
                                             <th>Products</th>
-                                            <th>Total Amount</th>
+                                            <th>Final Amount</th>
                                             <th>Status</th>
                                             <th>Payment Status</th>
                                             <th>Tracking Number</th>
@@ -391,7 +397,9 @@ foreach ($orders as $order) {
                                                     <td>#<?php echo htmlspecialchars($order['order_id']); ?></td>
                                                     <td><?php echo htmlspecialchars($order['username']); ?></td>
                                                     <td><?php echo htmlspecialchars($order['products']); ?></td>
-                                                    <td>Ksh.<?php echo htmlspecialchars(number_format($order['total_amount'], 2)); ?></td>
+                                                   
+                                                    </td>
+                                                    <td><?= number_format($order['total_amount'], 2) ?></td>
                                                     <td>
                                                         <?= renderStatusBadge($order['status'], 'order', 'md') ?>
                                                     </td>

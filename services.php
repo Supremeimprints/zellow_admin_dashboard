@@ -71,6 +71,33 @@ $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.8.1/font/bootstrap-icons.min.css"
         rel="stylesheet">
     <link href="assets/css/services.css" rel="stylesheet">
+
+    <!-- Add this CSS in the head section -->
+    <style>
+        .btn-link {
+            padding: 0.25rem;
+            text-decoration: none;
+        }
+        .btn-link:hover {
+            background-color: rgba(0,0,0,0.05);
+            border-radius: 4px;
+        }
+        .fas {
+            transition: transform 0.2s;
+        }
+        .btn-link:hover .fas {
+            transform: scale(1.1);
+        }
+        .description-cell {
+            max-width: 300px; /* Adjust width as needed */
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .table td {
+            vertical-align: middle;
+        }
+    </style>
 </head>
 
 <body>
@@ -97,7 +124,7 @@ $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <tr>
                     <th>ID</th>
                     <th>Name</th>
-                    <th>Description</th>
+                    <th style="width: 35%">Description</th> <!-- Set fixed width -->
                     <th>Price</th>
                     <th>Status</th>
                     <th>Actions</th>
@@ -109,20 +136,28 @@ $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <tr>
                         <td><?= htmlspecialchars($service['id']) ?></td>
                         <td><?= htmlspecialchars($service['name']) ?></td>
-                        <td><?= htmlspecialchars($service['description']) ?></td>
+                        <td class="description-cell"><?= htmlspecialchars($service['description']) ?></td>
                         <td>Ksh. <?= htmlspecialchars($service['price']) ?></td>
                         <td>
                             <span class="status-badge <?= $service['status'] === 'active' ? 'active' : 'inactive' ?>">
                                 <?= ucfirst($service['status']) ?>
                             </span>
                         </td>
-                        <td>
-                            <a href="edit_services.php?action=edit&id=<?= $service['id'] ?>"
-                                class="btn btn-warning btn-sm">Edit</a>
-                            <a href="services.php?action=toggle_status&id=<?= $service['id'] ?>"
-                                class="btn <?= $service['status'] === 'active' ? 'btn-danger' : 'btn-success' ?> btn-sm">
-                                <?= $service['status'] === 'active' ? 'Deactivate' : 'Activate' ?>
-                            </a>
+                        <td class="text-end">
+                            <div class="d-flex gap-2 justify-content-end">
+                                <a href="edit_services.php?id=<?= $service['id'] ?>" 
+                                   class="btn btn-sm btn-link text-primary" 
+                                   title="Edit Service">
+                                    <i class="fas fa-edit fs-5"></i>
+                                </a>
+                                
+                                <button type="button" 
+                                        class="btn btn-sm btn-link <?= $service['status'] === 'active' ? 'text-danger' : 'text-success' ?>"
+                                        onclick="toggleServiceStatus(<?= $service['id'] ?>, '<?= $service['status'] ?>')"
+                                        title="<?= $service['status'] === 'active' ? 'Deactivate' : 'Activate' ?> Service">
+                                    <i class="fas <?= $service['status'] === 'active' ? 'fa-ban' : 'fa-check-circle' ?> fs-5"></i>
+                                </button>
+                            </div>
                         </td>
                         <td>
                             <form method="POST" action="services.php?action=delete&id=<?= $service['id'] ?>"
@@ -142,6 +177,31 @@ $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Update the JavaScript function if needed -->
+    <script>
+    function toggleServiceStatus(id, currentStatus) {
+        const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+        
+        fetch('update_service_status.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `id=${encodeURIComponent(id)}&status=${encodeURIComponent(newStatus)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                console.error('Error:', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Network error:', error);
+        });
+    }
+    </script>
 </body>
 <?php include 'includes/nav/footer.php'; ?>
 
