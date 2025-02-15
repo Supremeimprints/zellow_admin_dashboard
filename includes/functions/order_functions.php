@@ -6,7 +6,9 @@ function getOrderStatistics($db, $type = 'all') {
         $query = "SELECT 
                     o.status,
                     COUNT(DISTINCT o.order_id) as count,
-                    COALESCE(SUM(o.total_amount), 0) as amount
+                    COALESCE(SUM(o.total_amount), 0) as amount,
+                    COALESCE(SUM(o.discount_amount), 0) as total_discounts,
+                    COALESCE(SUM(o.shipping_fee), 0) as total_shipping
                 FROM orders o
                 WHERE 1=1 ";
 
@@ -48,10 +50,7 @@ function getOrderStatistics($db, $type = 'all') {
 }
 
 function generateTrackingNumber() {
-    $prefix = 'ZE';
-    $timestamp = date('ymd');
-    $random = strtoupper(substr(uniqid(), -4));
-    return "{$prefix}{$timestamp}-{$random}";
+    return 'TRK-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -4));
 }
 
 function getOrCreateTrackingNumber($db, $orderId) {
@@ -198,4 +197,28 @@ function renderOrdersTable($orders, $isDispatch = false) {
     </div>
     <?php
     return ob_get_clean();
+}
+
+function getCouponCode($db, $coupon_id) {
+    try {
+        $stmt = $db->prepare("SELECT code, discount_percentage FROM coupons WHERE coupon_id = ?");
+        $stmt->execute([$coupon_id]);
+        $coupon = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $coupon ? "{$coupon['code']} ({$coupon['discount_percentage']}% off)" : 'N/A';
+    } catch (Exception $e) {
+        return 'N/A';
+    }
+}
+
+function getOrderTotals($order) {
+    return [
+        'subtotal' => $order['original_amount'],
+        'discount' => $order['discount_amount'],
+        'shipping' => $order['shipping_fee'],
+        'total' => $order['total_amount']
+    ];
+}
+
+function formatOrderAmount($amount, $prefix = 'Ksh.') {
+    return $prefix . ' ' . number_format($amount, 2);
 }

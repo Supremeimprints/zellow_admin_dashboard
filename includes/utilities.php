@@ -1,17 +1,6 @@
 <?php
 
 /**
- * Generates a unique tracking number for orders
- * Format: ZL-YEAR-RANDOM (e.g., ZL-2024-A1B2C3)
- */
-function generateTrackingNumber() {
-    $prefix = 'ZL';
-    $year = date('Y');
-    $random = strtoupper(substr(md5(uniqid()), 0, 6));
-    return "{$prefix}-{$year}-{$random}";
-}
-
-/**
  * Gets an existing tracking number or returns false
  */
 function getExistingTrackingNumber($db, $orderId) {

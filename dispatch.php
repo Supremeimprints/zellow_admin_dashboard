@@ -65,16 +65,17 @@ foreach ($orderStats as $stat) {
     }
 }
 
-// Modify the main query to prevent duplicates
-$query = "SELECT DISTINCT o.order_id, u.username, o.status, o.payment_status, o.payment_method, 
-          o.shipping_method, o.tracking_number, o.shipping_address, o.order_date, 
-          GROUP_CONCAT(DISTINCT p.product_name, ' (', oi.quantity, ')' SEPARATOR ', ') AS products,
-          SUM(oi.quantity * oi.unit_price) as total_amount
+// Modify the main query to properly fetch orders
+$query = "SELECT DISTINCT o.*, 
+          u.username, 
+          GROUP_CONCAT(DISTINCT CONCAT(p.product_name, ' (', oi.quantity, ')') SEPARATOR ', ') as products,
+          o.total_amount,
+          o.order_date
           FROM orders o 
-          JOIN users u ON o.id = u.id 
-          JOIN order_items oi ON o.order_id = oi.order_id 
-          JOIN products p ON oi.product_id = p.product_id 
-          WHERE o.status IN ('Pending', 'Processing')
+          LEFT JOIN users u ON o.id = u.id 
+          LEFT JOIN order_items oi ON o.order_id = oi.order_id 
+          LEFT JOIN products p ON oi.product_id = p.product_id 
+          WHERE (o.status = 'Pending' OR o.status = 'Processing')
           AND (o.payment_status = 'Paid' OR o.payment_status = 'Pending')";
 
 // Add filters to query
@@ -105,10 +106,8 @@ if ($search) {
               OR o.tracking_number LIKE :search)";
 }
 
-// Add GROUP BY to prevent duplicates
-$query .= " GROUP BY o.order_id, u.username, o.status, o.payment_status, o.payment_method, 
-            o.shipping_method, o.tracking_number, o.shipping_address, o.order_date, o.total_amount 
-            ORDER BY o.order_date DESC";
+// Add GROUP BY and ORDER BY
+$query .= " GROUP BY o.order_id ORDER BY o.order_date DESC";
 
 
 try {

@@ -367,7 +367,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     </div>
                                 </div>
 
-                            
+                                <div class="card mb-4">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">Order Summary</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row mb-3">
+                                            <div class="col-md-4">
+                                                <label class="form-label">Original Amount:</label>
+                                                <div class="form-control-plaintext">
+                                                    Ksh. <?= number_format($order['total_amount'] + $order['discount_amount'], 2) ?>
+                                                </div>
+                                            </div>
+                                            <?php if ($order['discount_amount'] > 0): ?>
+                                                <div class="col-md-4">
+                                                    <label class="form-label">Discount Applied:</label>
+                                                    <div class="form-control-plaintext text-success">
+                                                        -Ksh. <?= number_format($order['discount_amount'], 2) ?>
+                                                        <?php if ($order['coupon_id']): ?>
+                                                            <small class="text-muted d-block">
+                                                                Coupon: <?= getCouponCode($db, $order['coupon_id']) ?>
+                                                            </small>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
+                                            <?php endif; ?>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Final Amount:</label>
+                                                <div class="form-control-plaintext fw-bold">
+                                                    Ksh. <?= number_format($order['total_amount'], 2) ?>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
 
                                 <div class="d-flex justify-content-between mt-4">
                                     <button type="submit" class="btn btn-primary">Update Order</button>

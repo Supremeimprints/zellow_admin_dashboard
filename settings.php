@@ -139,6 +139,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             update_setting('facebook_pixel_id', $_POST['facebook_pixel_id']);
         }
 
+        // Update shipping rates
+        if (isset($_POST['update_shipping_rate'])) {
+            $method = $_POST['method'];
+            $rate = $_POST['rate'];
+            
+            if (updateShippingRate($db, $method, $rate)) {
+                $success = "Shipping rate updated successfully!";
+            } else {
+                $error = "Error updating shipping rate.";
+            }
+        }
+
     } catch (Exception $e) {
         $error = "Error: " . $e->getMessage();
     }
@@ -434,6 +446,39 @@ if (isset($_GET['delete_photo'])) {
                     <button type="submit" name="update_payment" class="btn btn-primary w-100 mt-4">
                         Save Payment Settings
                     </button>
+                </div>
+
+                <!-- Shipping Rates -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Shipping Rates</h5>
+                    </div>
+                    <div class="card-body">
+                        <?php
+                        $shippingRates = getShippingRates($db);
+                        foreach ($shippingRates as $rate): ?>
+                            <form method="POST" class="row mb-3 align-items-end">
+                                <div class="col-md-4">
+                                    <label class="form-label"><?= htmlspecialchars($rate['shipping_method']) ?></label>
+                                    <p class="text-muted small mb-0"><?= htmlspecialchars($rate['description']) ?></p>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="input-group">
+                                        <span class="input-group-text">Ksh.</span>
+                                        <input type="number" name="rate" class="form-control" 
+                                               value="<?= number_format($rate['base_rate'], 2) ?>" 
+                                               step="0.01" min="0" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="hidden" name="method" value="<?= htmlspecialchars($rate['shipping_method']) ?>">
+                                    <button type="submit" name="update_shipping_rate" class="btn btn-primary">
+                                        Update Rate
+                                    </button>
+                                </div>
+                            </form>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
             </div>
         </div>

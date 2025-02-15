@@ -7,13 +7,12 @@ if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
 }
 
 require_once 'config/database.php';
-require_once 'includes/utilities.php';
+require_once 'includes/functions/order_functions.php';
+require_once 'includes/functions/shipping_functions.php';
 $database = new Database();
 $db = $database->getConnection();
 
 $error = null;
-
-
 
 // Fetch products for dropdown
 try {
@@ -24,6 +23,16 @@ try {
 } catch (Exception $e) {
     $error = "Error fetching products: " . $e->getMessage();
 }
+
+// Add this after database connection
+$promotionsQuery = "SELECT * FROM marketing_campaigns WHERE status = 'active' AND CURDATE() BETWEEN start_date AND end_date";
+$couponsQuery = "SELECT * FROM coupons WHERE expiration_date >= CURDATE()";
+
+$promotionsStmt = $db->query($promotionsQuery);
+$couponsStmt = $db->query($couponsQuery);
+
+$activePromotions = $promotionsStmt->fetchAll(PDO::FETCH_ASSOC);
+$validCoupons = $couponsStmt->fetchAll(PDO::FETCH_ASSOC);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -84,60 +93,104 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $customerUsername = $customer['username']; // Use existing username
         }
 
-        // Insert order with tracking number
-        $orderQuery = "INSERT INTO orders (
-            id, username, status, payment_status, payment_method,
-            shipping_address, shipping_method, order_date, tracking_number
-        ) VALUES (
-            :id, :username, 'Pending', 'Pending', :payment_method,
-            :shipping_address, :shipping_method, CURRENT_TIMESTAMP, :tracking_number
-        )";
-        $orderStmt = $db->prepare($orderQuery);
+        // Calculate base total from products
+        $total_amount = 0;
+        $totalItems = 0;
+
+        foreach ($_POST['products'] as $product) {
+            $quantity = (int)$product['quantity'];
+            $unit_price = (float)$product['unit_price'];
+            $total_amount += ($quantity * $unit_price);
+            $totalItems += $quantity;
+        }
+
+        // Calculate shipping fee
+        $shipping_fee = calculateShippingFee($db, $_POST['shipping_method'], $total_amount, $totalItems);
+
+        // Initialize discount variables
+        $discount_amount = 0;
+        $coupon_id = null;
+
+        // Apply discount if coupon is valid
+        if (!empty($_POST['coupon_code'])) {
+            $couponStmt = $db->prepare("SELECT * FROM coupons WHERE code = ? AND expiration_date >= CURDATE()");
+            $couponStmt->execute([$_POST['coupon_code']]);
+            $coupon = $couponStmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($coupon) {
+                $discount_amount = ($total_amount * $coupon['discount_percentage']) / 100;
+                $total_amount -= $discount_amount;
+                $coupon_id = $coupon['coupon_id'];
+            }
+        }
+
+        // Add shipping fee to total
+        $final_total = $total_amount - $discount_amount + $shipping_fee;
+
+        // Create order with discount information
+        $orderStmt = $db->prepare("INSERT INTO orders (
+            id, 
+            email,
+            username,
+            total_amount,
+            discount_amount,
+            shipping_fee,
+            status,
+            shipping_address,
+            tracking_number,
+            payment_status,
+            shipping_method,
+            payment_method,
+            coupon_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
         $orderStmt->execute([
-            ':id' => $customerId,
-            ':username' => $customerUsername, // Use the fetched or new username
-            ':payment_method' => $paymentMethod,
-            ':shipping_address' => $shippingAddress,
-            ':shipping_method' => $shippingMethod,
-            ':tracking_number' => $trackingNumber
+            $customerId,
+            $email,
+            $username,
+            $final_total,
+            $discount_amount,
+            $shipping_fee,
+            'Pending',
+            $_POST['shipping_address'],
+            generateTrackingNumber(),
+            'Pending',
+            $_POST['shipping_method'],
+            $_POST['payment_method'],
+            $coupon_id
         ]);
+
         $orderId = $db->lastInsertId();
 
-        // Insert order items
+        // Insert order items with correct fields
         foreach ($_POST['products'] as $product) {
-            $productId = filter_var($product['product_id'], FILTER_VALIDATE_INT);
-            if (!$productId) throw new Exception("Invalid product selection");
+            $quantity = (int)$product['quantity'];
+            $unit_price = (float)$product['unit_price'];
+            $subtotal = $quantity * $unit_price;
 
-            $quantity = filter_var($product['quantity'], FILTER_VALIDATE_INT, [
-                'options' => ['min_range' => 1]
-            ]);
-            if (!$quantity) throw new Exception("Quantity must be at least 1");
+            $itemStmt = $db->prepare("INSERT INTO order_items (
+                order_id,
+                product_id,
+                quantity,
+                unit_price,
+                subtotal,
+                status
+            ) VALUES (?, ?, ?, ?, ?, 'purchased')");
 
-            $unitPrice = filter_var($product['unit_price'], FILTER_VALIDATE_FLOAT, [
-                'options' => ['min_range' => 0]
-            ]);
-            if (!$unitPrice) throw new Exception("Invalid price per item");
-
-            $subtotal = $unitPrice * $quantity;
-
-            $orderItemQuery = "INSERT INTO order_items (
-                order_id, product_id, quantity, unit_price, subtotal
-            ) VALUES (
-                :order_id, :product_id, :quantity, :unit_price, :subtotal
-            )";
-            $orderItemStmt = $db->prepare($orderItemQuery);
-            $orderItemStmt->execute([
-                ':order_id' => $orderId,
-                ':product_id' => $productId,
-                ':quantity' => $quantity,
-                ':unit_price' => $unitPrice,
-                ':subtotal' => $subtotal
+            $itemStmt->execute([
+                $orderId,
+                $product['product_id'],
+                $quantity,
+                $unit_price,
+                $subtotal
             ]);
         }
 
         $db->commit();
-        header('Location: orders.php?success=' . urlencode("Order created successfully. Tracking Number: $trackingNumber"));
+        $_SESSION['success'] = "Order created successfully!";
+        header('Location: orders.php');
         exit();
+
     } catch (Exception $e) {
         $db->rollBack();
         $error = "Error creating order: " . $e->getMessage();
@@ -253,6 +306,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             
                         </div>
 
+                        <div class="row mt-3">
+                            <div class="col-md-6 ms-auto">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span class="text-muted">Subtotal:</span>
+                                            <span class="text-muted" id="subtotal">Ksh. 0.00</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2" id="discountRow" style="display: none !important;">
+                                            <span class="text-danger">Discount:</span>
+                                            <span class="text-danger" id="discountAmount">-Ksh. 0.00</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span class="text-muted">Shipping Fee:</span>
+                                            <span class="text-muted" id="shipping_fee">Ksh. 0.00</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <strong>Total:</strong>
+                                            <strong id="finalTotal">Ksh. 0.00</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="form-section">
                             <h4 class="mb-3">Shipping & Payment</h4>
                             <div class="row g-3">
@@ -281,6 +359,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </div>
                         </div>
 
+                        <div class="form-section">
+                            <h4 class="mb-3">Promotions & Discounts</h4>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="campaign_id" class="form-label">Select Campaign (Optional)</label>
+                                    <select name="campaign_id" id="campaign_id" class="form-select">
+                                        <option value="">No Campaign</option>
+                                        <?php foreach ($activePromotions as $campaign): ?>
+                                            <option value="<?= $campaign['campaign_id'] ?>">
+                                                <?= htmlspecialchars($campaign['name']) ?> 
+                                                (<?= date('M d', strtotime($campaign['end_date'])) ?>)
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="coupon_code" class="form-label">Coupon Code</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" name="coupon_code" id="couponCode" placeholder="Enter coupon code">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="validateCoupon()">Apply</button>
+                                    </div>
+                                    <div id="couponFeedback" class="form-text"></div>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <h6>Available Coupons:</h6>
+                                <div class="list-group">
+                                    <?php foreach ($validCoupons as $coupon): ?>
+                                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <code><?= htmlspecialchars($coupon['code']) ?></code>
+                                                <small class="d-block text-muted">
+                                                    <?= $coupon['discount_percentage'] ?>% off
+                                                </small>
+                                            </div>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="applyCoupon('<?= $coupon['code'] ?>')">
+                                                Apply
+                                            </button>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="d-flex justify-content-between">
                             <button type="submit" class="btn btn-primary btn-lg">Create Order</button>
                             <a href="orders.php" class="btn btn-danger btn-lg">Cancel</a>
@@ -293,14 +415,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        let currentSubtotal = 0;
+        let currentDiscount = 0;
+        let shippingFee = 0;
+
         // Real-time price calculation
         function calculateTotal() {
             const productItems = document.querySelectorAll('.product-item');
+            currentSubtotal = 0;
+            
+            // Count unique products (not quantities)
+            let uniqueProducts = 0;
+            
             productItems.forEach(item => {
-                const pricePerUnit = parseFloat(item.querySelector('.unit-price-input').value) || 0;
                 const quantity = parseInt(item.querySelector('.quantity-input').value) || 0;
-                item.querySelector('.total-price-input').value = (pricePerUnit * quantity).toFixed(2);
+                const pricePerUnit = parseFloat(item.querySelector('.unit-price-input').value) || 0;
+                const productSelect = item.querySelector('.product-select');
+                
+                if (productSelect.value) {
+                    uniqueProducts++; // Increment for each selected product
+                }
+                
+                currentSubtotal += (pricePerUnit * quantity);
             });
+
+            // Get shipping method
+            const shippingMethod = document.getElementById('shipping_method').value;
+            
+            // Fetch shipping fee based on unique products
+            fetch('get_shipping_fee.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `method=${encodeURIComponent(shippingMethod)}&subtotal=${currentSubtotal}&uniqueItemCount=${uniqueProducts}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                shippingFee = parseFloat(data.fee);
+                document.getElementById('shipping_fee').textContent = `Ksh. ${shippingFee.toFixed(2)}`;
+                updateFinalTotal();
+            });
+
+            // Update subtotal display
+            document.getElementById('subtotal').textContent = `Ksh. ${currentSubtotal.toFixed(2)}`;
+        }
+
+        function updateFinalTotal() {
+            const finalTotal = currentSubtotal - currentDiscount + shippingFee;
+            document.getElementById('finalTotal').textContent = `Ksh. ${finalTotal.toFixed(2)}`;
+            
+            // Update summary display
+            document.getElementById('subtotal').textContent = `Ksh. ${currentSubtotal.toFixed(2)}`;
+            document.getElementById('discount').textContent = currentDiscount > 0 ? `-Ksh. ${currentDiscount.toFixed(2)}` : '-';
+            document.getElementById('total').textContent = `Ksh. ${finalTotal.toFixed(2)}`;
         }
 
         // Add new product row
@@ -376,6 +544,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }, false)
             })
         })()
+
+        // Coupon handling
+        function validateCoupon() {
+            const couponCode = document.getElementById('couponCode').value;
+            fetch('validate_coupon.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'coupon_code=' + encodeURIComponent(couponCode)
+            })
+            .then(response => response.json())
+            .then(data => {
+                const feedback = document.getElementById('couponFeedback');
+                if (data.valid) {
+                    feedback.className = 'text-success';
+                    feedback.textContent = `${data.discount}% discount will be applied`;
+                    currentDiscount = (currentSubtotal * data.discount) / 100;
+                    updateFinalTotal();
+                } else {
+                    feedback.className = 'text-danger';
+                    feedback.textContent = data.message;
+                    currentDiscount = 0;
+                    updateFinalTotal();
+                }
+            });
+        }
+
+        function applyCoupon(code) {
+            document.getElementById('couponCode').value = code;
+            validateCoupon();
+        }
+
+        function updateOrderTotal(discountPercentage) {
+            // Add logic to update order total with discount
+            // ...
+        }
+
+        // Add shipping method change handler
+        document.getElementById('shipping_method').addEventListener('change', calculateTotal);
     </script>
 </body>
 <?php include 'includes/nav/footer.php'; ?>
