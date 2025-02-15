@@ -50,6 +50,19 @@ $category_stmt = $db->prepare($category_query);
 $category_stmt->execute();
 $categories = $category_stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// Update the supplier query to use the new structure
+$supplierQuery = "
+    SELECT s.*, 
+           CASE WHEN s.supplier_id = p.supplier_id THEN 1 ELSE 0 END as is_selected
+    FROM suppliers s
+    LEFT JOIN products p ON p.product_id = :product_id
+    WHERE s.status = 'Active'
+    ORDER BY s.company_name";
+
+$stmt = $db->prepare($supplierQuery);
+$stmt->execute([':product_id' => $product_id]);
+$suppliers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = $_POST['product_name'];
@@ -78,16 +91,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         move_uploaded_file($_FILES['variant_images']['tmp_name'][1], $variant_image_2_path);
     }
 
-    // Update query
-    $update_query = "UPDATE products 
-                     SET main_image = ?, variant_image_1 = ?, variant_image_2 = ?, product_name = ?, description = ?, price = ?, category_id = ?, is_active = ? 
-                     WHERE product_id = ?";
-    $update_stmt = $db->prepare($update_query);
-    $update_stmt->execute([$main_image_path, $variant_image_1_path, $variant_image_2_path, $name, $description, $price, $category_id, $is_active, $product_id]);
+    try {
+        $db->beginTransaction();
 
-    // Redirect to products page after successful update
-    header("Location: products.php");
-    exit();
+        // Update product details including supplier info
+        $update_query = "UPDATE products 
+                        SET main_image = ?, 
+                            variant_image_1 = ?, 
+                            variant_image_2 = ?, 
+                            product_name = ?, 
+                            description = ?, 
+                            price = ?, 
+                            category_id = ?, 
+                            supplier_id = ?,
+                            moq = ?,
+                            lead_time = ?,
+                            is_active = ? 
+                        WHERE product_id = ?";
+        
+        $update_stmt = $db->prepare($update_query);
+        $update_stmt->execute([
+            $main_image_path,
+            $variant_image_1_path,
+            $variant_image_2_path,
+            $name,
+            $description,
+            $price,
+            $category_id,
+            $_POST['supplier_id'],
+            $_POST['moq'],
+            $_POST['lead_time'],
+            $is_active,
+            $product_id
+        ]);
+
+        $db->commit();
+        $_SESSION['success'] = "Product updated successfully!";
+        header("Location: products.php");
+        exit();
+
+    } catch (Exception $e) {
+        $db->rollBack();
+        $error = $e->getMessage();
+    }
 }
 ?>
 
@@ -259,6 +305,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="mb-3 form-check">
             <input type="checkbox" class="form-check-input" id="is_active" name="is_active" <?= $product['is_active'] ? 'checked' : ''; ?>>
             <label class="form-check-label" for="is_active">Active</label>
+        </div>
+
+        <div class="mb-3">
+            <label for="supplier_id" class="form-label">Supplier</label>
+            <select class="form-select" id="supplier_id" name="supplier_id" required>
+                <option value="">Select a supplier</option>
+                <?php foreach ($suppliers as $supplier): ?>
+                    <option value="<?= $supplier['supplier_id'] ?>" 
+                            <?= ($supplier['is_selected'] == 1) ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($supplier['company_name']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="moq" class="form-label">Minimum Order Quantity</label>
+            <input type="number" class="form-control" id="moq" name="moq" 
+                   value="<?= htmlspecialchars($product['moq']) ?>" min="1" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="lead_time" class="form-label">Lead Time (days)</label>
+            <input type="number" class="form-control" id="lead_time" name="lead_time" 
+                   value="<?= htmlspecialchars($product['lead_time']) ?>" min="0" required>
         </div>
 
         <div class="d-flex justify-content-between">

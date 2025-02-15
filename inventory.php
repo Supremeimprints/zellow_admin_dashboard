@@ -24,13 +24,29 @@ if (isset($_GET['search'])) {
     $search = trim($_GET['search']);
 }
 
-// Fetch inventory data with optional filtering
+// Update the inventory query to include more details
 $query = "
-    SELECT i.id, p.product_name, i.stock_quantity, i.min_stock_level, i.last_restocked, u.username AS updated_by
+    SELECT 
+        i.id,
+        p.product_name,
+        p.price,
+        s.company_name as supplier_name,
+        i.stock_quantity,
+        i.min_stock_level,
+        i.last_restocked,
+        u.username AS updated_by,
+        CASE 
+            WHEN i.stock_quantity <= i.min_stock_level THEN 'low'
+            ELSE 'normal'
+        END as stock_status
     FROM inventory i
     LEFT JOIN products p ON i.product_id = p.product_id
+    LEFT JOIN suppliers s ON p.supplier_id = s.supplier_id
     LEFT JOIN users u ON i.updated_by = u.id
-    WHERE p.product_name LIKE :search OR u.username LIKE :search
+    WHERE p.product_name LIKE :search 
+       OR s.company_name LIKE :search 
+       OR u.username LIKE :search
+    ORDER BY stock_status DESC, p.product_name ASC
 ";
 
 try {
@@ -65,6 +81,28 @@ try {
     <link href="assets/css/badges.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="assets/css/inventory.css" rel="stylesheet">
+    <style>
+        .supplier-badge {
+            display: inline-block;
+            max-width: 200px;
+            white-space: normal;
+            word-wrap: break-word;
+            background-color: #dcfce7;
+            color: #166534;
+            border: 1px solid #16a34a;
+            font-size: 0.875rem;
+            padding: 0.35rem 0.65rem;
+            border-radius: 0.375rem;
+            line-height: 1.2;
+        }
+        
+        .low-stock-warning {
+            margin-top: 0.5rem;
+            display: block;
+            color: #dc2626;
+            font-size: 0.8rem;
+        }
+    </style>
 </head>
 <body>
 <div class="admin-layout"> 
@@ -75,8 +113,11 @@ try {
     <div class="container mt-5">
         <h2>Manage Inventory</h2>
         
-        <!-- Back to Products Button -->
-        <a href="products.php" class="btn btn-primary mb-3">Back to Products</a>
+        <!-- Updated buttons section with flex container -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <a href="products.php" class="btn btn-primary">Back to Products</a>
+            <a href="order_inventory.php" class="btn btn-success">+ Order Inventory</a>
+        </div>
 
         <?php if (isset($errorMessage)): ?>
             <div class="alert alert-danger" role="alert">
@@ -97,7 +138,8 @@ try {
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th>Product Name</th>
+                        <th>Product</th>
+                        <th>Supplier</th>
                         <th>Stock Quantity</th>
                         <th>Min Stock Level</th>
                         <th>Last Restocked</th>
@@ -108,18 +150,30 @@ try {
                 <tbody>
                     <?php if (empty($inventory)): ?>
                         <tr>
-                            <td colspan="6" class="text-center">No inventory found</td>
+                            <td colspan="7" class="text-center">No inventory found</td>
                         </tr>
                     <?php else: ?>
                         <?php foreach ($inventory as $item): ?>
                             <tr>
-                                <td><?php echo htmlspecialchars($item['product_name']); ?></td>
-                                <td><?php echo htmlspecialchars($item['stock_quantity']); ?></td>
-                                <td><?php echo htmlspecialchars($item['min_stock_level']); ?></td>
-                                <td><?php echo htmlspecialchars(date('Y-m-d H:i:s', strtotime($item['last_restocked']))); ?></td>
-                                <td><?php echo htmlspecialchars($item['updated_by']); ?></td>
+                                <td class="<?= $item['stock_status'] === 'low' ? 'text-danger' : '' ?>">
+                                    <?= htmlspecialchars($item['product_name']) ?>
+                                </td>
                                 <td>
-                                    <a href="update_inventory.php?id=<?php echo $item['id']; ?>" class="btn btn-warning btn-sm">Edit</a>
+                                    <div class="supplier-badge">
+                                        <?= htmlspecialchars($item['supplier_name'] ?? 'No Supplier') ?>
+                                    </div>
+                                    <?php if ($item['stock_status'] === 'low'): ?>
+                                        <span class="low-stock-warning">
+                                            <i class="fas fa-exclamation-triangle"></i> Low Stock
+                                        </span>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?= htmlspecialchars($item['stock_quantity']); ?></td>
+                                <td><?= htmlspecialchars($item['min_stock_level']); ?></td>
+                                <td><?= htmlspecialchars(date('Y-m-d H:i:s', strtotime($item['last_restocked']))); ?></td>
+                                <td><?= htmlspecialchars($item['updated_by']); ?></td>
+                                <td>
+                                    <a href="update_inventory.php?id=<?= $item['id']; ?>" class="btn btn-warning btn-sm">Edit</a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

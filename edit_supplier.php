@@ -17,35 +17,56 @@ $supplier = null;
 
 // Fetch supplier details
 if (isset($_GET['id'])) {
-    try {
-        $stmt = $db->prepare("SELECT * FROM suppliers WHERE id = ?");
-        $stmt->execute([$_GET['id']]);
-        $supplier = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$supplier) {
-            $errorMsg = "Supplier not found.";
-        }
-    } catch (PDOException $e) {
-        $errorMsg = "Error fetching supplier: " . $e->getMessage();
+    $supplier_id = $_GET['id'];
+    
+    $query = "SELECT * FROM suppliers WHERE supplier_id = ?";
+    $stmt = $db->prepare($query);
+    $stmt->execute([$supplier_id]);
+    $supplier = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$supplier) {
+        echo "Supplier not found.";
+        exit();
     }
+} else {
+    echo "Invalid Supplier ID.";
+    exit();
 }
 
 // Handle supplier update
-if (isset($_POST['update_supplier']) && isset($_POST['id'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
-        $stmt = $db->prepare("UPDATE suppliers SET company_name = ?, contact_person = ?, email = ?, phone = ?, status = ? WHERE id = ?");
+        $db->beginTransaction();
+
+        $stmt = $db->prepare("
+            UPDATE suppliers 
+            SET company_name = ?, 
+                contact_person = ?, 
+                email = ?, 
+                phone = ?, 
+                address = ?, 
+                status = ?
+            WHERE supplier_id = ?
+        ");
+        
         $stmt->execute([
             $_POST['company_name'],
             $_POST['contact_person'],
             $_POST['email'],
             $_POST['phone'],
+            $_POST['address'],
             $_POST['status'],
-            $_POST['id']
+            $supplier_id
         ]);
-        $successMsg = "Supplier updated successfully";
+
+        $db->commit();
+        $_SESSION['success'] = "Supplier updated successfully!";
         header("Location: suppliers.php");
         exit();
-    } catch (PDOException $e) {
-        $errorMsg = "Error updating supplier: " . $e->getMessage();
+
+    } catch (Exception $e) {
+        $db->rollBack();
+        $error = $e->getMessage();
     }
 }
 
@@ -132,7 +153,7 @@ if (isset($_POST['update_supplier']) && isset($_POST['id'])) {
                 <div class="card card-full shadow-sm">
                     <div class="card-body">
                         <form method="POST">
-                            <input type="hidden" name="id" value="<?= htmlspecialchars($supplier['id']) ?>">
+                            <input type="hidden" name="supplier_id" value="<?= htmlspecialchars($supplier['supplier_id']) ?>">
                             
                             <div class="mb-3">
                                 <label for="company_name" class="form-label">Company Name</label>

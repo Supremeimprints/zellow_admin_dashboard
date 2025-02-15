@@ -22,65 +22,104 @@ $category_stmt = $db->prepare($category_query);
 $category_stmt->execute();
 $categories = $category_stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// Fetch suppliers for dropdown
+$suppliersQuery = "SELECT supplier_id, company_name FROM suppliers WHERE status = 'Active'";
+$suppliers = $db->query($suppliersQuery)->fetchAll(PDO::FETCH_ASSOC);
+
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name = $_POST['product_name'];
-    $description = $_POST['description'];
-    $price = $_POST['price'];
-    $category_id = $_POST['category_id'];
-    $is_active = isset($_POST['is_active']) ? 1 : 0;
+    try {
+        $db->beginTransaction();
 
-    // Create uploads directory if it doesn't exist
-    $upload_dir = 'uploads/products/';
-    if (!file_exists($upload_dir)) {
-        mkdir($upload_dir, 0777, true);
-    }
+        $name = $_POST['product_name'];
+        $description = $_POST['description'];
+        $price = $_POST['price'];
+        $category_id = $_POST['category_id'];
+        $is_active = isset($_POST['is_active']) ? 1 : 0;
 
-    // Function to handle image upload
-    function handleImageUpload($file) {
-        global $upload_dir;
-        if ($file['error'] === UPLOAD_ERR_OK) {
-            $temp_name = $file['tmp_name'];
-            $name = basename($file['name']);
-            $file_ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-            $new_name = uniqid() . '.' . $file_ext;
-            $destination = $upload_dir . $new_name;
-            
-            if (move_uploaded_file($temp_name, $destination)) {
-                return $destination;
-            }
+        // Create uploads directory if it doesn't exist
+        $upload_dir = 'uploads/products/';
+        if (!file_exists($upload_dir)) {
+            mkdir($upload_dir, 0777, true);
         }
-        return null;
+
+        // Function to handle image upload
+        function handleImageUpload($file) {
+            global $upload_dir;
+            if ($file['error'] === UPLOAD_ERR_OK) {
+                $temp_name = $file['tmp_name'];
+                $name = basename($file['name']);
+                $file_ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+                $new_name = uniqid() . '.' . $file_ext;
+                $destination = $upload_dir . $new_name;
+                
+                if (move_uploaded_file($temp_name, $destination)) {
+                    return $destination;
+                }
+            }
+            return null;
+        }
+
+        // Handle image uploads
+        $main_image = isset($_FILES['main_image']) ? handleImageUpload($_FILES['main_image']) : null;
+        $variant_image_1 = isset($_FILES['variant_image_1']) ? handleImageUpload($_FILES['variant_image_1']) : null;
+        $variant_image_2 = isset($_FILES['variant_image_2']) ? handleImageUpload($_FILES['variant_image_2']) : null;
+
+        // Insert product into database
+        $stmt = $db->prepare("
+            INSERT INTO products (
+                product_name, description, price, 
+                category_id, supplier_id, moq, lead_time,
+                stock_quantity, main_image, variant_image_1, 
+                variant_image_2, is_active, last_updated_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+
+        $stmt->execute([
+            $_POST['product_name'],
+            $_POST['description'],
+            $_POST['price'],
+            $_POST['category_id'],
+            $_POST['supplier_id'],
+            $_POST['moq'],
+            $_POST['lead_time'],
+            0, // Initial stock
+            $main_image ?? null,
+            $variant_image_1 ?? null,
+            $variant_image_2 ?? null,
+            isset($_POST['is_active']) ? 1 : 0,
+            $_SESSION['id']
+        ]);
+
+        $product_id = $db->lastInsertId();
+
+        // Create initial inventory record
+        $inventoryStmt = $db->prepare("
+            INSERT INTO inventory (
+                product_id, 
+                stock_quantity, 
+                min_stock_level,
+                last_restocked,
+                updated_by
+            ) VALUES (?, ?, ?, NOW(), ?)
+        ");
+
+        $inventoryStmt->execute([
+            $product_id,
+            0, // Initial stock quantity
+            $_POST['min_stock_level'] ?? 0, // Get from form
+            $_SESSION['id']
+        ]);
+
+        $db->commit();
+        $_SESSION['success'] = "Product and inventory record added successfully!";
+        header("Location: products.php");
+        exit();
+
+    } catch (Exception $e) {
+        $db->rollBack();
+        $error = $e->getMessage();
     }
-
-    // Handle image uploads
-    $main_image = isset($_FILES['main_image']) ? handleImageUpload($_FILES['main_image']) : null;
-    $variant_image_1 = isset($_FILES['variant_image_1']) ? handleImageUpload($_FILES['variant_image_1']) : null;
-    $variant_image_2 = isset($_FILES['variant_image_2']) ? handleImageUpload($_FILES['variant_image_2']) : null;
-
-    // Insert product into database
-    $insert_query = "INSERT INTO products (
-        main_image, variant_image_1, variant_image_2,
-        product_name, description, price,
-        category_id, is_active
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-    
-    $insert_stmt = $db->prepare($insert_query);
-    $insert_stmt->execute([
-        $main_image, $variant_image_1, $variant_image_2,
-        $name, $description, $price,
-        $category_id, $is_active
-    ]);
-
-    $product_id = $db->lastInsertId();
-
-    // Initialize inventory record
-    $insert_inventory_query = "INSERT INTO inventory (product_id, stock_quantity) VALUES (?, ?)";
-    $insert_inventory_stmt = $db->prepare($insert_inventory_query);
-    $insert_inventory_stmt->execute([$product_id, 0]);
-
-    header("Location: products.php");
-    exit();
 }
 ?>
 
@@ -224,6 +263,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </option>
                 <?php endforeach; ?>
             </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="supplier_id" class="form-label">Supplier</label>
+            <select class="form-select" id="supplier_id" name="supplier_id" required>
+                <option value="">Select a supplier</option>
+                <?php foreach ($suppliers as $supplier): ?>
+                    <option value="<?= $supplier['supplier_id'] ?>">
+                        <?= htmlspecialchars($supplier['company_name']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="moq" class="form-label">Minimum Order Quantity</label>
+            <input type="number" class="form-control" id="moq" name="moq" value="1" min="1">
+        </div>
+
+        <div class="mb-3">
+            <label for="lead_time" class="form-label">Lead Time (days)</label>
+            <input type="number" class="form-control" id="lead_time" name="lead_time" value="0" min="0">
+        </div>
+
+        <div class="mb-3">
+            <label for="min_stock_level" class="form-label">Minimum Stock Level</label>
+            <input type="number" class="form-control" id="min_stock_level" 
+                   name="min_stock_level" value="0" min="0" required>
+            <div class="form-text">Set the minimum stock level for reorder notifications</div>
         </div>
 
         <div class="mb-3 form-check">

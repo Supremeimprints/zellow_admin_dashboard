@@ -26,9 +26,16 @@ if (isset($_POST['delete_supplier']) && isset($_POST['id'])) {
     }
 }
 
-// Fetch all suppliers
+// Update the supplier query to use supplier_id instead of id
 try {
-    $stmt = $db->query("SELECT * FROM suppliers ORDER BY company_name");
+    $stmt = $db->query("
+        SELECT s.*, 
+               COUNT(p.product_id) as product_count,
+               GROUP_CONCAT(p.product_name) as supplied_products
+        FROM suppliers s
+        LEFT JOIN products p ON s.supplier_id = p.supplier_id
+        GROUP BY s.supplier_id
+        ORDER BY s.company_name");
     $suppliers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     $errorMsg = "Error fetching suppliers: " . $e->getMessage();
@@ -40,10 +47,37 @@ try {
     $stmt = $db->query("SELECT * FROM invoices");
     $invoices = $stmt->fetchAll(PDO::FETCH_ASSOC);
     foreach ($invoices as $invoice) {
-        $supplierInvoices[$invoice['supplier_id']][] = $invoice;
+        $supplierInvoices[$invoice['id']][] = $invoice;
     }
 } catch (PDOException $e) {
     $errorMsg = "Error fetching invoices: " . $e->getMessage();
+}
+
+// Handle product form submission
+if (isset($_POST['add_product'])) {
+    try {
+        $stmt = $db->prepare("
+            INSERT INTO supplier_products (
+                id, product_name, description, 
+                unit_price, moq, lead_time
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        ");
+        
+        $stmt->execute([
+            $_POST['id'],
+            $_POST['product_name'],
+            $_POST['description'],
+            $_POST['unit_price'],
+            $_POST['moq'],
+            $_POST['lead_time']
+        ]);
+        
+        $successMsg = "Product added successfully";
+        header("Location: suppliers.php");
+        exit();
+    } catch (PDOException $e) {
+        $errorMsg = "Error adding product: " . $e->getMessage();
+    }
 }
 
 ?>
@@ -119,6 +153,7 @@ try {
                                     <th>Email</th>
                                     <th>Phone</th>
                                     <th>Status</th>
+                                    <th>Products</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -136,62 +171,48 @@ try {
                                         </td>
                                         <td>
                                             <div class="btn-group">
-                                                <a href="edit_supplier.php?id=<?= $supplier['id'] ?>" 
+                                                <button class="btn btn-sm btn-outline-primary dropdown-toggle" 
+                                                        type="button" 
+                                                        data-bs-toggle="dropdown">
+                                                    Products (<?= $supplier['product_count'] ?>)
+                                                </button>
+                                                <ul class="dropdown-menu">
+                                                    <?php 
+                                                    if ($supplier['product_count'] > 0):
+                                                        $products = explode(',', $supplier['supplied_products']);
+                                                        foreach ($products as $product): 
+                                                    ?>
+                                                        <li><span class="dropdown-item"><?= htmlspecialchars(trim($product)) ?></span></li>
+                                                    <?php 
+                                                        endforeach; 
+                                                    else:
+                                                    ?>
+                                                        <li><span class="dropdown-item text-muted">No products</span></li>
+                                                    <?php endif; ?>
+                                                    <li><hr class="dropdown-divider"></li>
+                                                    <li>
+                                                        <a class="dropdown-item text-primary" href="inventory.php?supplier_id=<?= $supplier['id'] ?>">
+                                                            View in Inventory
+                                                        </a>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group">
+                                                <a href="edit_supplier.php?id=<?= $supplier['supplier_id'] ?>" 
                                                    class="btn btn-sm btn-outline-primary">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
+                                                <a href="invoices.php?supplier_id=<?= $supplier['supplier_id'] ?>" 
+                                                   class="btn btn-sm btn-outline-info">
+                                                    <i class="fas fa-file-invoice"></i>
+                                                </a>
                                                 <button type="button" 
                                                         class="btn btn-sm btn-outline-danger"
-                                                        onclick="confirmDelete(<?= $supplier['id'] ?>)">
+                                                        onclick="confirmDelete(<?= $supplier['supplier_id'] ?>)">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td colspan="6">
-                                            <div class="accordion" id="accordionInvoices<?= $supplier['id'] ?>">
-                                                <div class="accordion-item">
-                                                    <h2 class="accordion-header" id="heading<?= $supplier['id'] ?>">
-                                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?= $supplier['id'] ?>" aria-expanded="false" aria-controls="collapse<?= $supplier['id'] ?>">
-                                                            View Invoices
-                                                        </button>
-                                                    </h2>
-                                                    <div id="collapse<?= $supplier['id'] ?>" class="accordion-collapse collapse" aria-labelledby="heading<?= $supplier['id'] ?>" data-bs-parent="#accordionInvoices<?= $supplier['id'] ?>">
-                                                        <div class="accordion-body">
-                                                            <?php if (isset($supplierInvoices[$supplier['id']])): ?>
-                                                                <table class="table table-sm">
-                                                                    <thead>
-                                                                        <tr>
-                                                                            <th>Invoice Number</th>
-                                                                            <th>Amount</th>
-                                                                            <th>Due Date</th>
-                                                                            <th>Status</th>
-                                                                        </tr>
-                                                                    </thead>
-                                                                    <tbody>
-                                                                        <?php foreach ($supplierInvoices[$supplier['id']] as $invoice): ?>
-                                                                            <tr>
-                                                                                <td><?= htmlspecialchars($invoice['invoice_number']) ?></td>
-                                                                                <td><?= htmlspecialchars($invoice['amount']) ?></td>
-                                                                                <td><?= htmlspecialchars($invoice['due_date']) ?></td>
-                                                                                <td>
-                                                                                    <span class="badge bg-<?= $invoice['status'] === 'Paid' ? 'success' : 'danger' ?>">
-                                                                                        <?= htmlspecialchars($invoice['status']) ?>
-                                                                                    </span>
-                                                                                </td>
-                                                                            </tr>
-                                                                        <?php endforeach; ?>
-                                                                    </tbody>
-                                                                </table>
-                                                            <?php else: ?>
-                                                                <div class="alert alert-info" role="alert">
-                                                                    No invoices found for this supplier.
-                                                                </div>
-                                                            <?php endif; ?>
-                                                        </div>
-                                                    </div>
-                                                </div>
                                             </div>
                                         </td>
                                     </tr>
@@ -238,11 +259,62 @@ try {
         </div>
     </div>
 
+    <!-- Add Product Modal -->
+    <div class="modal fade" id="addProductModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Supplier Product</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST">
+                    <div class="modal-body">
+                        <input type="hidden" name="id" id="modalSupplierId">
+                        <div class="mb-3">
+                            <label class="form-label">Product Name</label>
+                            <input type="text" name="product_name" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea name="description" class="form-control" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Unit Price</label>
+                            <input type="number" name="unit_price" class="form-control" step="0.01" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Minimum Order Quantity</label>
+                            <input type="number" name="moq" class="form-control" value="1" min="1" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Lead Time (days)</label>
+                            <input type="number" name="lead_time" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" name="add_product" class="btn btn-primary">Add Product</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function confirmDelete(id) {
             document.getElementById('deleteSupplierID').value = id;
             new bootstrap.Modal(document.getElementById('deleteModal')).show();
+        }
+
+        function showAddProductModal(supplierId) {
+            document.getElementById('modalSupplierId').value = supplierId;
+            new bootstrap.Modal(document.getElementById('addProductModal')).show();
+        }
+
+        function editProduct(product) {
+            // Implement edit functionality
+            console.log('Edit product:', product);
         }
     </script>
 </body>

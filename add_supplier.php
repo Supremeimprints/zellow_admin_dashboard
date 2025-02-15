@@ -9,207 +9,215 @@ if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
 
 $database = new Database();
 $db = $database->getConnection();
-
-$successMsg = $errorMsg = '';
+$error = $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
-        $stmt = $db->prepare("INSERT INTO suppliers (company_name, contact_person, email, phone, address, status) 
-                             VALUES (?, ?, ?, ?, ?, ?)");
-        
+        $db->beginTransaction();
+
+        // Insert supplier
+        $stmt = $db->prepare("
+            INSERT INTO suppliers (
+                company_name, 
+                contact_person, 
+                email, 
+                phone, 
+                address, 
+                status
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        ");
+
         $stmt->execute([
-            $_POST['company_name'] ?? '',
-            $_POST['contact_person'] ?? '',
-            $_POST['email'] ?? '',
-            $_POST['phone'] ?? '',
-            $_POST['address'] ?? '',
-            $_POST['status'] ?? 'Active'
+            $_POST['company_name'],
+            $_POST['contact_person'],
+            $_POST['email'],
+            $_POST['phone'],
+            $_POST['address'],
+            'Active' // Default status
         ]);
 
-        header('Location: suppliers.php?success=added');
+        $supplierId = $db->lastInsertId();
+
+        // Handle supplier products if any were submitted
+        if (!empty($_POST['products'])) {
+            $productStmt = $db->prepare("
+                INSERT INTO supplier_products (
+                    id,
+                    product_name,
+                    description,
+                    unit_price,
+                    moq,
+                    lead_time,
+                    status
+                ) VALUES (?, ?, ?, ?, ?, ?, 'Active')
+            ");
+
+            foreach ($_POST['products'] as $product) {
+                if (!empty($product['product_name'])) {
+                    $productStmt->execute([
+                        $supplierId,
+                        $product['product_name'],
+                        $product['description'] ?? '',
+                        $product['unit_price'],
+                        $product['moq'] ?? 1,
+                        $product['lead_time'] ?? 0
+                    ]);
+                }
+            }
+        }
+
+        $db->commit();
+        $success = "Supplier added successfully!";
+        header("Location: suppliers.php");
         exit();
-    } catch (PDOException $e) {
-        $errorMsg = "Error adding supplier: " . $e->getMessage();
+
+    } catch (Exception $e) {
+        $db->rollBack();
+        $error = "Error: " . $e->getMessage();
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add New Supplier - Zellow Enterprises</title>
-     <!-- Feather Icons - Add this line -->
-     <script src="https://unpkg.com/feather-icons"></script>
-    
-    <!-- Existing stylesheets -->
+    <title>Add New Supplier</title>
+    <!-- Include your existing CSS files -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="assets/css/index.css">
-    <link rel="stylesheet" href="assets/css/badges.css">
-    <link rel="stylesheet" href="assets/css/orders.css">
     <link rel="stylesheet" href="assets/css/collapsed.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="assets/css/orders.css" rel="stylesheet">
-    <link href="assets/css/badges.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="assets/css/index.css">
     <style>
-        .form-section {
-            background: var(--bs-white);
-            border-radius: 10px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
-            padding: 2rem;
-            margin-bottom: 2rem;
-        }
-        .section-title {
-            font-size: 1.5rem;
-            font-weight: 500;
-            margin-bottom: 1.5rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 1px solid var(--bs-gray-300);
-            color: inherit; /* This will inherit the theme text color */
-        }
-        .form-control:focus, .form-select:focus {
-            border-color: var(--bs-primary);
-            box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
-        }
-        .form-label {
-            font-weight: 500;
-            color: var(--bs-gray-700);
-        }
-        .required::after {
-            content: '*';
-            color: var(--bs-danger);
-            margin-left: 4px;
-        }
-        .button-container {
-            display: flex;
-            justify-content: space-between;
-            gap: 1rem;
-            margin-top: 2rem;
-        }
-        .button-container .btn {
-            padding: 0.5rem 2rem;
-            font-weight: 500;
-        }
-        .page-header {
-            background: var(--bs-white);
-            padding: 1rem 1.5rem;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            margin-bottom: 2rem;
-        }
-        .page-title {
-            color: var(--bs-gray-800);
-            font-size: 1.75rem;
-            margin: 0;
+        .product-entry {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
         }
     </style>
 </head>
-
-
 <body>
-<div class="admin-layout"> 
-<?php include 'includes/theme.php'; ?>
+<div class="admin-layout">
+    <?php include 'includes/theme.php'; ?>
     <nav class="navbar">
-    <?php include 'includes/nav/collapsed.php'; ?>
+        <?php include 'includes/nav/collapsed.php'; ?>
     </nav>
-    
-    <div class="main-content">
-        <div class="container mt-4">
-            <div class="page-header">
-                <h2 class="page-title">
-                    <i class="fas fa-plus-circle me-2"></i>Add New Supplier
-                </h2>
-            </div>
 
-            <?php if ($errorMsg): ?>
-                <div class="alert alert-danger"><?= htmlspecialchars($errorMsg) ?></div>
-            <?php endif; ?>
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Add New Supplier</h2>
+            <a href="suppliers.php" class="btn btn-secondary">Back to Suppliers</a>
+        </div>
 
-            <form method="POST" class="needs-validation" novalidate>
-                <div class="form-section">
-                    <h2 class="section-title">
-                        <i class="fas fa-building me-2"></i>Company Information
-                    </h2>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label for="company_name" class="form-label required">Company Name</label>
-                            <input type="text" class="form-control" id="company_name" name="company_name" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="contact_person" class="form-label required">Contact Person</label>
-                            <input type="text" class="form-control" id="contact_person" name="contact_person" required>
-                        </div>
-                    </div>
+        <?php if ($error): ?>
+            <div class="alert alert-danger"><?= $error ?></div>
+        <?php endif; ?>
+
+        <form method="POST" class="needs-validation" novalidate>
+            <!-- Supplier Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Supplier Information</h5>
                 </div>
-
-                <div class="form-section">
-                    <h2 class="section-title">
-                        <i class="fas fa-address-card me-2"></i>Contact Details
-                    </h2>
+                <div class="card-body">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label for="email" class="form-label required">Email Address</label>
-                            <input type="email" class="form-control" id="email" name="email" required>
+                            <label class="form-label">Company Name</label>
+                            <input type="text" name="company_name" class="form-control" required>
                         </div>
                         <div class="col-md-6">
-                            <label for="phone" class="form-label required">Phone Number</label>
-                            <input type="tel" class="form-control" id="phone" name="phone" required>
+                            <label class="form-label">Contact Person</label>
+                            <input type="text" name="contact_person" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Phone</label>
+                            <input type="tel" name="phone" class="form-control" required>
                         </div>
                         <div class="col-12">
-                            <label for="address" class="form-label required">Business Address</label>
-                            <textarea class="form-control" id="address" name="address" rows="3" required></textarea>
+                            <label class="form-label">Address</label>
+                            <textarea name="address" class="form-control" rows="3" required></textarea>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <div class="form-section">
-                    <h2 class="section-title">
-                        <i class="fas fa-info-circle me-2"></i>Additional Information
-                    </h2>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label for="status" class="form-label required">Supplier Status</label>
-                            <select class="form-select" id="status" name="status" required>
-                                <option value="Active">Active</option>
-                                <option value="Inactive">Inactive</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="button-container">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save me-2"></i>Save Supplier
+            <!-- Products Section -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Supplier Products</h5>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="addProductField()">
+                        Add Product
                     </button>
-                    <a href="suppliers.php" class="btn btn-danger">
-                        <i class="fas fa-times me-2"></i>Cancel
-                    </a>
                 </div>
-            </form>
-        </div>
+                <div class="card-body">
+                    <div id="productsContainer">
+                        <!-- Product entries will be added here -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary">Add Supplier</button>
+            </div>
+        </form>
     </div>
-    
-    <?php include 'includes/nav/footer.php'; ?>
-    <script>
-        // Form validation
-        (function() {
-            'use strict';
-            var forms = document.querySelectorAll('.needs-validation');
-            Array.prototype.slice.call(forms).forEach(function(form) {
-                form.addEventListener('submit', function(event) {
-                    if (!form.checkValidity()) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                    }
-                    form.classList.add('was-validated');
-                }, false);
-            });
-        })();
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</div>
+
+<script>
+let productCount = 0;
+
+function addProductField() {
+    const container = document.getElementById('productsContainer');
+    const productDiv = document.createElement('div');
+    productDiv.className = 'product-entry';
+    productDiv.innerHTML = `
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Product Name</label>
+                <input type="text" name="products[${productCount}][product_name]" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Unit Price</label>
+                <input type="number" name="products[${productCount}][unit_price]" class="form-control" step="0.01" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Minimum Order Quantity</label>
+                <input type="number" name="products[${productCount}][moq]" class="form-control" value="1" min="1">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Lead Time (days)</label>
+                <input type="number" name="products[${productCount}][lead_time]" class="form-control" value="0">
+            </div>
+            <div class="col-12">
+                <label class="form-label">Description</label>
+                <textarea name="products[${productCount}][description]" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="col-12">
+                <button type="button" class="btn btn-danger btn-sm" onclick="removeProduct(this)">
+                    Remove Product
+                </button>
+            </div>
+        </div>
+    `;
+    container.appendChild(productDiv);
+    productCount++;
+}
+
+function removeProduct(button) {
+    button.closest('.product-entry').remove();
+}
+
+// Add at least one product field by default
+document.addEventListener('DOMContentLoaded', function() {
+    addProductField();
+});
+</script>
+
+<?php include 'includes/nav/footer.php'; ?>
 </body>
 </html>
