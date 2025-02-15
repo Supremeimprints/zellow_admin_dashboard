@@ -207,14 +207,30 @@ foreach ($statusResults as $result) {
     <link rel="stylesheet" href="assets/css/orders.css">
     <link rel="stylesheet" href="assets/css/collapsed.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="assets/css/orders.css" rel="stylesheet">
-    <link href="assets/css/badges.css" rel="stylesheet">
+   
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/orders.css">
-    <link href="assets/css/orders.css" rel="stylesheet">
-    <link href="assets/css/badges.css" rel="stylesheet">
+    
+   
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        /* Remove previous custom style */
+        .main-content {
+            flex: 1;
+            padding: 1rem 2rem; /* Consistent padding with orders page */
+        }
+
+        .container-fluid {
+            max-width: 100%;
+            padding: 0 1rem;
+        }
+
+        /* Match orders page card styling */
+        .stats-card {
+            margin-bottom: 1.5rem;
+            border-radius: 0.5rem;
+        }
+    </style>
 </head>
 
 <body>
@@ -224,369 +240,366 @@ foreach ($statusResults as $result) {
             <?php include 'includes/nav/collapsed.php'; ?>
         </nav>
 
-        <div class="main-content">
+        <div class="main-content container mt-5">
+            <!-- Remove extra container and adjust structure -->
+            <h2>Dispatch & Logistics Summary</h2>
 
-            <div class="row g-3">
-                <div class="col-12">
-                    <div class="container mt-5">
-                        <h2 class="mb-4">Dispatch & Logistics Summary</h2>
-
-                        <!-- Add this HTML just before the orders table -->
-                        <div class="row g-3 mb-4">
-                            <?php
-                            $statusColors = [
-                                'Pending' => 'pending',
-                                'Processing' => 'processing',
-                                'Shipped' => 'shipped',
-                                'Delivered' => 'delivered',
-                                'Cancelled' => 'cancelled'
-                            ];
-
-                            foreach ($statusColors as $status => $colorClass):
-                                $count = $stats[$status]['count'] ?? 0;
-                                $amount = $stats[$status]['amount'] ?? 0;
-                                ?>
-                                <div class="col-md">
-                                    <div class="card stats-card <?= $colorClass ?> h-100">
-                                        <div class="card-body">
-                                            <h6 class="card-title mb-3">
-                                                <?= $status ?> Orders
-                                            </h6>
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <div class="display-6 fw-bold mb-0">
-                                                    <?= number_format($count) ?>
-                                                </div>
-                                                <div class="fs-6">
-                                                    Ksh. <?= number_format($amount, 2) ?>
-                                                </div>
-                                            </div>
-                                        </div>
+            <!-- Summary Cards -->
+            <div class="row g-3 mb-4">
+                <?php
+                $statusColors = [
+                    'Pending' => 'pending',
+                    'Processing' => 'processing'
+                ];
+                foreach ($statusColors as $status => $colorClass):
+                    $count = $stats[$status]['count'] ?? 0;
+                    $amount = $stats[$status]['amount'] ?? 0;
+                    ?>
+                    <div class="col-md-6">
+                        <div class="card stats-card <?= $colorClass ?> h-100">
+                            <div class="card-body">
+                                <h6 class="card-title mb-3">
+                                    <?= $status ?> Orders
+                                </h6>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="display-6 fw-bold mb-0">
+                                        <?= number_format($count) ?>
                                     </div>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-
-                        <!-- Filter Form -->
-                        <form method="GET" action="dispatch.php" class="mb-4">
-                            <div class="row g-3">
-                                <!-- Search Input -->
-                                <div class="col-md-3">
-                                    <input type="text" name="search" class="form-control"
-                                        placeholder="Search (username, address, email, tracking)"
-                                        value="<?= htmlspecialchars($search) ?>">
-                                </div>
-
-                                <!-- Status Filters -->
-                                <div class="col-md-2">
-                                    <select name="status" class="form-select">
-                                        <option value="">Shipping Status</option>
-                                        <option value="Pending" <?= $statusFilter === 'Pending' ? 'selected' : '' ?>>
-                                            Pending</option>
-                                        <option value="Processing" <?= $statusFilter === 'Processing' ? 'selected' : '' ?>>
-                                            Processing
-                                        </option>
-                                        <option value="Shipped" <?= $statusFilter === 'Shipped' ? 'selected' : '' ?>>
-                                            Shipped</option>
-                                        <option value="Delivered" <?= $statusFilter === 'Delivered' ? 'selected' : '' ?>>
-                                            Delivered</option>
-                                        <option value="Cancelled" <?= $statusFilter === 'Cancelled' ? 'selected' : '' ?>>
-                                            Cancelled</option>
-                                    </select>
-                                </div>
-
-                                <!-- Payment Status -->
-                                <div class="col-md-2">
-                                    <select name="payment_status" class="form-select">
-                                        <option value="">Payment Status</option>
-                                        <option value="Paid" <?= $paymentStatusFilter === 'Paid' ? 'selected' : '' ?>>Paid
-                                        </option>
-                                        <option value="Pending" <?= $paymentStatusFilter === 'Pending' ? 'selected' : '' ?>>Pending
-                                        </option>
-                                        <option value="Failed" <?= $paymentStatusFilter === 'Failed' ? 'selected' : '' ?>>
-                                            Failed</option>
-                                        <option value="Refunded" <?= $paymentStatusFilter === 'Refunded' ? 'selected' : '' ?>>Refunded
-                                        </option>
-                                    </select>
-                                </div>
-
-                                <!-- Payment Method -->
-                                <div class="col-md-2">
-                                    <select name="payment_method" class="form-select">
-                                        <option value="">Payment Method</option>
-                                        <option value="Mpesa" <?= $paymentMethodFilter === 'Mpesa' ? 'selected' : '' ?>>
-                                            Mpesa</option>
-                                        <option value="Airtel Money" <?= $paymentMethodFilter === 'Airtel Money' ? 'selected' : '' ?>>
-                                            Airtel Money</option>
-                                        <option value="Credit Card" <?= $paymentMethodFilter === 'Credit Card' ? 'selected' : '' ?>>Credit
-                                            Card</option>
-                                        <option value="Cash On Delivery" <?= $paymentMethodFilter === 'Cash On Delivery' ? 'selected' : '' ?>>Cash On Delivery</option>
-                                    </select>
-                                </div>
-
-                                <!-- Shipping Method -->
-                                <div class="col-md-2">
-                                    <select name="shipping_method" class="form-select">
-                                        <option value="">Shipping Method</option>
-                                        <option value="Standard" <?= $shippingMethodFilter === 'Standard' ? 'selected' : '' ?>>Standard
-                                        </option>
-                                        <option value="Express" <?= $shippingMethodFilter === 'Express' ? 'selected' : '' ?>>Express
-                                        </option>
-                                    </select>
-                                </div>
-
-                                <!-- Date Range -->
-                                <div class="col-md-4">
-                                    <div class="input-group">
-                                        <input type="date" name="start_date" class="form-control"
-                                            value="<?= htmlspecialchars($startDate) ?>" placeholder="Start Date">
-                                        <input type="date" name="end_date" class="form-control"
-                                            value="<?= htmlspecialchars($endDate) ?>" placeholder="End Date">
-                                    </div>
-                                </div>
-
-                                <!-- Submit and Reset Buttons -->
-                                <div class="col-md-2">
-                                    <div class="d-flex gap-2">
-                                        <button type="submit" class="btn btn-primary flex-grow-1">Filter</button>
-                                        <a href="dispatch.php" class="btn btn-secondary">Reset</a>
+                                    <div class="fs-6">
+                                        Ksh. <?= number_format($amount, 2) ?>
                                     </div>
                                 </div>
                             </div>
-                        </form>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
 
-                        <!-- Orders Table -->
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover">
-                                <thead>
+            <!-- Filter Form -->
+            <form method="GET" action="dispatch.php" class="mb-4">
+                <div class="row g-3">
+                    <!-- Search Input -->
+                    <div class="col-md-3">
+                        <input type="text" name="search" class="form-control"
+                            placeholder="Search (username, address, email, tracking)"
+                            value="<?= htmlspecialchars($search) ?>">
+                    </div>
+
+                    <!-- Status Filters -->
+                    <div class="col-md-2">
+                        <select name="status" class="form-select">
+                            <option value="">Shipping Status</option>
+                            <option value="Pending" <?= $statusFilter === 'Pending' ? 'selected' : '' ?>>
+                                Pending</option>
+                            <option value="Processing" <?= $statusFilter === 'Processing' ? 'selected' : '' ?>>
+                                Processing
+                            </option>
+                            <option value="Shipped" <?= $statusFilter === 'Shipped' ? 'selected' : '' ?>>
+                                Shipped</option>
+                            <option value="Delivered" <?= $statusFilter === 'Delivered' ? 'selected' : '' ?>>
+                                Delivered</option>
+                            <option value="Cancelled" <?= $statusFilter === 'Cancelled' ? 'selected' : '' ?>>
+                                Cancelled</option>
+                        </select>
+                    </div>
+
+                    <!-- Payment Status -->
+                    <div class="col-md-2">
+                        <select name="payment_status" class="form-select">
+                            <option value="">Payment Status</option>
+                            <option value="Paid" <?= $paymentStatusFilter === 'Paid' ? 'selected' : '' ?>>Paid
+                            </option>
+                            <option value="Pending" <?= $paymentStatusFilter === 'Pending' ? 'selected' : '' ?>>Pending
+                            </option>
+                            <option value="Failed" <?= $paymentStatusFilter === 'Failed' ? 'selected' : '' ?>>
+                                Failed</option>
+                            <option value="Refunded" <?= $paymentStatusFilter === 'Refunded' ? 'selected' : '' ?>>Refunded
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Payment Method -->
+                    <div class="col-md-2">
+                        <select name="payment_method" class="form-select">
+                            <option value="">Payment Method</option>
+                            <option value="Mpesa" <?= $paymentMethodFilter === 'Mpesa' ? 'selected' : '' ?>>
+                                Mpesa</option>
+                            <option value="Airtel Money" <?= $paymentMethodFilter === 'Airtel Money' ? 'selected' : '' ?>>
+                                Airtel Money</option>
+                            <option value="Credit Card" <?= $paymentMethodFilter === 'Credit Card' ? 'selected' : '' ?>>Credit
+                                Card</option>
+                            <option value="Cash On Delivery" <?= $paymentMethodFilter === 'Cash On Delivery' ? 'selected' : '' ?>>Cash On Delivery</option>
+                        </select>
+                    </div>
+
+                    <!-- Shipping Method -->
+                    <div class="col-md-2">
+                        <select name="shipping_method" class="form-select">
+                            <option value="">Shipping Method</option>
+                            <option value="Standard" <?= $shippingMethodFilter === 'Standard' ? 'selected' : '' ?>>Standard
+                            </option>
+                            <option value="Express" <?= $shippingMethodFilter === 'Express' ? 'selected' : '' ?>>Express
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Date Range -->
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <input type="date" name="start_date" class="form-control"
+                                value="<?= htmlspecialchars($startDate) ?>" placeholder="Start Date">
+                            <input type="date" name="end_date" class="form-control"
+                                value="<?= htmlspecialchars($endDate) ?>" placeholder="End Date">
+                        </div>
+                    </div>
+
+                    <!-- Submit and Reset Buttons -->
+                    <div class="col-md-2">
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary flex-grow-1">Filter</button>
+                            <a href="dispatch.php" class="btn btn-secondary">Reset</a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Orders Section -->
+            <div class="container mt-5">
+                <h2>Dispatch Orders</h2>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Username</th>
+                                <th>Products</th>
+                                <th>Total Amount</th>
+                                <th>Status</th>
+                                <th>Payment Status</th>
+                                <th>Tracking Number</th>
+                                <th>Shipping Address</th>
+                                <th>Order Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($orders)): ?>
+                                <tr>
+                                    <td colspan="10" class="text-center">No orders found</td>
+                                </tr>
+                            <?php else: ?>
+                                <?php foreach ($orders as $order): ?>
                                     <tr>
-                                        <th>Order ID</th>
-                                        <th>Username</th>
-                                        <th>Products</th>
-                                        <th>Total Amount</th>
-                                        <th>Status</th>
-                                        <th>Payment Status</th>
-                                        <th>Tracking Number</th>
-                                        <th>Shipping Address</th>
-                                        <th>Order Date</th>
-                                        <th>Actions</th>
+                                        <td>#<?= htmlspecialchars($order['order_id']) ?></td>
+                                        <td><?= htmlspecialchars($order['username']) ?></td>
+                                        <td><?= htmlspecialchars($order['products']) ?></td>
+                                        <td class="text-end">Ksh.<?= number_format($order['total_amount'], 2) ?></td>
+                                        <td><?= renderStatusBadge($order['status'], 'order', 'sm') ?></td>
+                                        <td><?= renderStatusBadge($order['payment_status'], 'payment', 'sm') ?></td>
+                                        <td><?= htmlspecialchars($order['tracking_number'] ?? 'N/A') ?></td>
+                                        <td><?= htmlspecialchars($order['shipping_address']) ?></td>
+                                        <td><?= date('Y-m-d H:i', strtotime($order['order_date'])) ?></td>
+                                        <td>
+                                            <?php if ($order['payment_status'] === 'Paid' || $order['payment_status'] === 'Pending'): ?>
+                                                <a href="dispatch_order.php?order_id=<?= $order['order_id'] ?>"
+                                                    class="btn btn-sm btn-success">Dispatch</a>
+                                            <?php else: ?>
+                                                <button class="btn btn-sm btn-secondary" disabled>Cannot Dispatch</button>
+                                            <?php endif; ?>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    <?php if (empty($orders)): ?>
-                                        <tr>
-                                            <td colspan="10" class="text-center">No orders found</td>
-                                        </tr>
-                                    <?php else: ?>
-                                        <?php foreach ($orders as $order): ?>
-                                            <tr>
-                                                <td>#<?= htmlspecialchars($order['order_id']) ?></td>
-                                                <td><?= htmlspecialchars($order['username']) ?></td>
-                                                <td><?= htmlspecialchars($order['products']) ?></td>
-                                                <td class="text-end">Ksh.<?= number_format($order['total_amount'], 2) ?></td>
-                                                <td><?= renderStatusBadge($order['status'], 'order', 'sm') ?></td>
-                                                <td><?= renderStatusBadge($order['payment_status'], 'payment', 'sm') ?></td>
-                                                <td><?= htmlspecialchars($order['tracking_number'] ?? 'N/A') ?></td>
-                                                <td><?= htmlspecialchars($order['shipping_address']) ?></td>
-                                                <td><?= date('Y-m-d H:i', strtotime($order['order_date'])) ?></td>
-                                                <td>
-                                                    <?php if ($order['payment_status'] === 'Paid' || $order['payment_status'] === 'Pending'): ?>
-                                                        <a href="dispatch_order.php?order_id=<?= $order['order_id'] ?>"
-                                                            class="btn btn-sm btn-success">Dispatch</a>
-                                                    <?php else: ?>
-                                                        <button class="btn btn-sm btn-secondary" disabled>Cannot Dispatch</button>
-                                                    <?php endif; ?>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-
-                        <!-- Enhanced Drivers Table -->
-                        <h2 class="container mt-5">Manage Drivers</h2>
-                        <div>
-                            <a href="create_driver.php" class="btn btn-primary mb-2">
-                                <i class="bi bi-person-plus"></i> Create New Driver
-                            </a>
-                        </div>
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover">
-                                <thead>
+            <!-- Drivers Section -->
+            <div class="mb-4">
+                <h2>Manage Drivers</h2>
+                <div>
+                    <a href="create_driver.php" class="btn btn-primary mb-3">
+                        <i class="bi bi-person-plus"></i> Create New Driver
+                    </a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Driver ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Driver Status</th>
+                                <th>Vehicle Type</th>
+                                <th>Vehicle Status</th>
+                                <th>Vehicle Model</th>
+                                <th>Registration</th>
+                                <th class="text-end pe-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($drivers)): ?>
+                                <tr>
+                                    <td colspan="10" class="text-center">No drivers available</td>
+                                </tr>
+                            <?php else: ?>
+                                <?php foreach ($drivers as $driver): ?>
                                     <tr>
-                                        <th>Driver ID</th>
-                                        <th>Name</th>
-                                        <th>Email</th>
-                                        <th>Phone</th>
-                                        <th>Driver Status</th>
-                                        <th>Vehicle Type</th>
-                                        <th>Vehicle Status</th>
-                                        <th>Vehicle Model</th>
-                                        <th>Registration</th>
-                                        <th class="text-end pe-4">Actions</th>
+                                        <td><?= $driver['driver_id'] ?></td>
+                                        <td><?= htmlspecialchars($driver['name']) ?></td>
+                                        <td><?= htmlspecialchars($driver['email']) ?></td>
+                                        <td><?= htmlspecialchars($driver['phone_number']) ?></td>
+                                        <td>
+                                            <span
+                                                class="badge bg-<?= $driver['status'] === 'Active' ? 'success' : 'danger' ?>">
+                                                <?= $driver['status'] ?>
+                                            </span>
+                                        </td>
+                                        <td><?= htmlspecialchars($driver['vehicle_type'] ?? 'N/A') ?></td>
+                                        <td>
+                                            <?php if ($driver['vehicle_status'] ?? false): ?>
+                                                <span
+                                                    class="badge bg-<?= getVehicleStatusColor($driver['vehicle_status']) ?>">
+                                                    <?= $driver['vehicle_status'] ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td><?= htmlspecialchars($driver['vehicle_model'] ?? 'N/A') ?></td>
+                                        <td><?= htmlspecialchars($driver['registration_number'] ?? 'N/A') ?></td>
+                                        <td>
+                                            <div class="dropdown">
+                                                <button class="btn btn-link btn-sm p-0 opacity-75" type="button"
+                                                    data-bs-toggle="dropdown" aria-expanded="false">
+                                                    <i class="bi bi-three-dots-vertical fs-5"></i>
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end shadow-sm border">
+                                                    <li>
+                                                        <a class="dropdown-item py-2 px-3"
+                                                            href="edit_driver.php?driver_id=<?= $driver['driver_id'] ?>">
+                                                            <i class="bi bi-pencil me-2"></i>Edit Driver
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <a class="dropdown-item py-2 px-3"
+                                                            href="update_vehicle.php?driver_id=<?= $driver['driver_id'] ?>">
+                                                            <i class="bi bi-truck me-2"></i>Update Vehicle
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <form method="POST" action="update_driver.php"
+                                                            class="dropdown-item p-0">
+                                                            <input type="hidden" name="driver_id"
+                                                                value="<?= $driver['driver_id'] ?>">
+                                                            <button type="submit" class="dropdown-item py-2 px-3">
+                                                                <i class="bi bi-arrow-repeat me-2"></i>Driver Status
+                                                            </button>
+                                                        </form>
+                                                    </li>
+                                                    <li>
+                                                        <hr class="dropdown-divider my-1">
+                                                    </li>
+                                                    <li>
+                                                        <form method="POST"
+                                                            onsubmit="return confirm('Are you sure you want to delete this driver?');">
+                                                            <input type="hidden" name="driver_id"
+                                                                value="<?= $driver['driver_id'] ?>">
+                                                            <button type="submit" class="dropdown-item py-2 px-3">
+                                                                <i class="bi bi-trash me-2"></i>Delete
+                                                            </button>
+                                                        </form>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    <?php if (empty($drivers)): ?>
-                                        <tr>
-                                            <td colspan="10" class="text-center">No drivers available</td>
-                                        </tr>
-                                    <?php else: ?>
-                                        <?php foreach ($drivers as $driver): ?>
-                                            <tr>
-                                                <td><?= $driver['driver_id'] ?></td>
-                                                <td><?= htmlspecialchars($driver['name']) ?></td>
-                                                <td><?= htmlspecialchars($driver['email']) ?></td>
-                                                <td><?= htmlspecialchars($driver['phone_number']) ?></td>
-                                                <td>
-                                                    <span
-                                                        class="badge bg-<?= $driver['status'] === 'Active' ? 'success' : 'danger' ?>">
-                                                        <?= $driver['status'] ?>
-                                                    </span>
-                                                </td>
-                                                <td><?= htmlspecialchars($driver['vehicle_type'] ?? 'N/A') ?></td>
-                                                <td>
-                                                    <?php if ($driver['vehicle_status'] ?? false): ?>
-                                                        <span
-                                                            class="badge bg-<?= getVehicleStatusColor($driver['vehicle_status']) ?>">
-                                                            <?= $driver['vehicle_status'] ?>
-                                                        </span>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td><?= htmlspecialchars($driver['vehicle_model'] ?? 'N/A') ?></td>
-                                                <td><?= htmlspecialchars($driver['registration_number'] ?? 'N/A') ?></td>
-                                                <td>
-                                                    <div class="dropdown">
-                                                        <button class="btn btn-link btn-sm p-0 opacity-75" type="button"
-                                                            data-bs-toggle="dropdown" aria-expanded="false">
-                                                            <i class="bi bi-three-dots-vertical fs-5"></i>
-                                                        </button>
-                                                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border">
-                                                            <li>
-                                                                <a class="dropdown-item py-2 px-3"
-                                                                    href="edit_driver.php?driver_id=<?= $driver['driver_id'] ?>">
-                                                                    <i class="bi bi-pencil me-2"></i>Edit Driver
-                                                                </a>
-                                                            </li>
-                                                            <li>
-                                                                <a class="dropdown-item py-2 px-3"
-                                                                    href="update_vehicle.php?driver_id=<?= $driver['driver_id'] ?>">
-                                                                    <i class="bi bi-truck me-2"></i>Update Vehicle
-                                                                </a>
-                                                            </li>
-                                                            <li>
-                                                                <form method="POST" action="update_driver.php"
-                                                                    class="dropdown-item p-0">
-                                                                    <input type="hidden" name="driver_id"
-                                                                        value="<?= $driver['driver_id'] ?>">
-                                                                    <button type="submit" class="dropdown-item py-2 px-3">
-                                                                        <i class="bi bi-arrow-repeat me-2"></i>Driver Status
-                                                                    </button>
-                                                                </form>
-                                                            </li>
-                                                            <li>
-                                                                <hr class="dropdown-divider my-1">
-                                                            </li>
-                                                            <li>
-                                                                <form method="POST"
-                                                                    onsubmit="return confirm('Are you sure you want to delete this driver?');">
-                                                                    <input type="hidden" name="driver_id"
-                                                                        value="<?= $driver['driver_id'] ?>">
-                                                                    <button type="submit" class="dropdown-item py-2 px-3">
-                                                                        <i class="bi bi-trash me-2"></i>Delete
-                                                                    </button>
-                                                                </form>
-                                                            </li>
-                                                        </ul>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 
-                        <!-- First, ensure Bootstrap JS is properly loaded -->
+    <?php include 'includes/nav/footer.php'; ?>
 
-                        <script
-                            src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-                        <?php
-                        // Handle deletion inside the same file
-                        if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['delete_driver'])) {
-                            $driver_id = (int) $_POST['driver_id'];
+    <!-- First, ensure Bootstrap JS is properly loaded -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <?php
+    // Handle deletion inside the same file
+    if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['delete_driver'])) {
+        $driver_id = (int) $_POST['driver_id'];
 
-                            $query = "DELETE FROM drivers WHERE driver_id = ?";
-                            $stmt = $db->prepare($query);
-                            if ($stmt->execute([$driver_id])) {
-                                echo "<script>
-            alert('Driver deleted successfully.');
-            window.location.href = 'dispatch.php';
-        </script>";
-                            } else {
-                                echo "Error: Unable to delete driver.";
-                            }
+        $query = "DELETE FROM drivers WHERE driver_id = ?";
+        $stmt = $db->prepare($query);
+        if ($stmt->execute([$driver_id])) {
+            echo "<script>
+                alert('Driver deleted successfully.');
+                window.location.href = 'dispatch.php';
+            </script>";
+        } else {
+            echo "Error: Unable to delete driver.";
+        }
+    }
+    ?>
+
+    <?php
+    function getStatusColor($status)
+    {
+        return match ($status) {
+            'Pending' => 'warning',
+            'Processing' => 'info',
+            'Shipped' => 'primary',
+            'Delivered' => 'success',
+            'Cancelled' => 'danger',
+            default => 'secondary'
+        };
+    }
+
+    function getPaymentStatusColor($status)
+    {
+        return match ($status) {
+            'Pending' => 'warning',
+            'Paid' => 'success',
+            'Failed' => 'danger',
+            'Refunded' => 'info',
+            default => 'secondary'
+        };
+    }
+
+    function getVehicleStatusColor($status)
+    {
+        return match ($status) {
+            'Available' => 'success',
+            'In Use' => 'warning',
+            'Under Maintenance' => 'danger',
+            default => 'secondary'
+        };
+    }
+    ?>
+    <script>
+        function deleteDriver(driverId) {
+            if (confirm("Are you sure you want to delete this driver?")) {
+                fetch('delete_driver_ajax.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'driver_id=' + driverId
+                })
+                    .then(response => response.text())
+                    .then(data => {
+                        if (data.trim() === 'success') {
+                            document.getElementById("row-" + driverId).remove();
+                            alert("Driver deleted successfully.");
+                        } else {
+                            alert("Error deleting driver.");
                         }
-                        ?>
-
-
-
-                        <?php
-                        function getStatusColor($status)
-                        {
-                            return match ($status) {
-                                'Pending' => 'warning',
-                                'Processing' => 'info',
-                                'Shipped' => 'primary',
-                                'Delivered' => 'success',
-                                'Cancelled' => 'danger',
-                                default => 'secondary'
-                            };
-                        }
-
-                        function getPaymentStatusColor($status)
-                        {
-                            return match ($status) {
-                                'Pending' => 'warning',
-                                'Paid' => 'success',
-                                'Failed' => 'danger',
-                                'Refunded' => 'info',
-                                default => 'secondary'
-                            };
-                        }
-
-                        function getVehicleStatusColor($status)
-                        {
-                            return match ($status) {
-                                'Available' => 'success',
-                                'In Use' => 'warning',
-                                'Under Maintenance' => 'danger',
-                                default => 'secondary'
-                            };
-                        }
-                        ?>
-                        <script>
-                            function deleteDriver(driverId) {
-                                if (confirm("Are you sure you want to delete this driver?")) {
-                                    fetch('delete_driver_ajax.php', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                                        body: 'driver_id=' + driverId
-                                    })
-                                        .then(response => response.text())
-                                        .then(data => {
-                                            if (data.trim() === 'success') {
-                                                document.getElementById("row-" + driverId).remove();
-                                                alert("Driver deleted successfully.");
-                                            } else {
-                                                alert("Error deleting driver.");
-                                            }
-                                        });
-                                }
-                            }
-                        </script>
+                    });
+            }
+        }
+    </script>
 </body>
-<?php include 'includes/nav/footer.php'; ?>
+
 
 </html>

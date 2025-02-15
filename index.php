@@ -159,7 +159,7 @@ $uniqueItems = $inventoryStats['unique_items'];
     <?php include 'includes/nav/collapsed.php'; ?>
     </nav>
         
-        <div class="main-content">
+        
             <div class="container mt-3">
                  <!-- Reduced gutter from gx-5 to g-3 -->
                     <div class="col-12">

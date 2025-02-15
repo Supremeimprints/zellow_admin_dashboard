@@ -64,6 +64,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
             $success = "Campaign updated successfully!";
         }
+
+        if (isset($_POST['delete_campaign'])) {
+            try {
+                $campaign_id = (int)$_POST['campaign_id'];
+                $stmt = $db->prepare("DELETE FROM marketing_campaigns WHERE campaign_id = ?");
+                if ($stmt->execute([$campaign_id])) {
+                    echo json_encode(['success' => true]);
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Failed to delete campaign']);
+                }
+                exit;
+            } catch (Exception $e) {
+                echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+                exit;
+            }
+        }
     } catch (Exception $e) {
         $error = $e->getMessage();
     }
@@ -88,8 +104,9 @@ $coupons = $coupons_stmt->fetchAll(PDO::FETCH_ASSOC);
     <title>Marketing & Promotions</title>
     <script src="https://unpkg.com/feather-icons"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-   
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="assets/css/collapsed.css">
+    <link rel="stylesheet" href="assets/css/promotions.css">
 </head>
 <body>
 <div class="admin-layout"> 
@@ -98,7 +115,6 @@ $coupons = $coupons_stmt->fetchAll(PDO::FETCH_ASSOC);
     <?php include 'includes/nav/collapsed.php'; ?>
     </nav>
     
-    <div class="main-content">
         <div class="container-fluid p-3">
             <?php if (isset($error)): ?>
                 <div class="alert alert-danger"><?= $error ?></div>
@@ -125,12 +141,12 @@ $coupons = $coupons_stmt->fetchAll(PDO::FETCH_ASSOC);
                                     <th>Budget</th>
                                     <th>Status</th>
                                     <th>Duration</th>
-                                    <th>Actions</th>
+                                    <th class="text-end">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($campaigns as $campaign): ?>
-                                    <tr>
+                                    <tr data-campaign-id="<?= $campaign['campaign_id'] ?>">
                                         <td><?= htmlspecialchars($campaign['name']) ?></td>
                                         <td><?= htmlspecialchars($campaign['platform']) ?></td>
                                         <td>Ksh. <?= number_format($campaign['budget'], 2) ?></td>
@@ -143,13 +159,38 @@ $coupons = $coupons_stmt->fetchAll(PDO::FETCH_ASSOC);
                                             <?= date('M d', strtotime($campaign['start_date'])) ?> - 
                                             <?= date('M d, Y', strtotime($campaign['end_date'])) ?>
                                         </td>
-                                        <td>
-                                            <button class="btn btn-sm btn-primary" 
-                                                    onclick="editCampaign(<?= htmlspecialchars(json_encode($campaign)) ?>)">
-                                                Edit
-                                            </button>
-                                            <a href="campaign_analytics.php?id=<?= $campaign['campaign_id'] ?>" 
-                                               class="btn btn-sm btn-info">Analytics</a>
+                                        <td class="text-end">
+                                            <div class="d-flex justify-content-end align-items-center gap-2">
+                                                <a href="campaign_analytics.php?id=<?= $campaign['campaign_id'] ?>" 
+                                                   class="btn btn-sm btn-view-analytics">
+                                                    <i class="fas fa-chart-line"></i> Analytics
+                                                </a>
+                                                <div class="dropdown">
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-actions"
+                                                            data-bs-toggle="dropdown"
+                                                            aria-expanded="false">
+                                                        <i class="fas fa-ellipsis-v"></i>
+                                                    </button>
+                                                    <ul class="dropdown-menu dropdown-menu-end">
+                                                        <li>
+                                                            <button type="button" 
+                                                                    class="dropdown-item" 
+                                                                    onclick="editCampaign(<?= htmlspecialchars(json_encode($campaign)) ?>)">
+                                                                <i class="fas fa-edit me-2"></i> Edit
+                                                            </button>
+                                                        </li>
+                                                        <li><hr class="dropdown-divider"></li>
+                                                        <li>
+                                                            <button type="button" 
+                                                                    class="dropdown-item text-danger" 
+                                                                    onclick="deleteCampaign(<?= $campaign['campaign_id'] ?>)">
+                                                                <i class="fas fa-trash-alt me-2"></i> Delete
+                                                            </button>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </div>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -216,7 +257,157 @@ $coupons = $coupons_stmt->fetchAll(PDO::FETCH_ASSOC);
     include 'includes/modals/new_coupon_modal.php';
     ?>
 
+    <!-- Add Edit Campaign Modal -->
+    <div class="modal fade" id="editCampaignModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Campaign</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="editCampaignForm" method="POST">
+                    <div class="modal-body">
+                        <input type="hidden" name="campaign_id" id="edit_campaign_id">
+                        <div class="mb-3">
+                            <label class="form-label">Campaign Name</label>
+                            <input type="text" class="form-control" id="edit_name" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" id="edit_status" name="status" required>
+                                <option value="active">Active</option>
+                                <option value="paused">Paused</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Budget (KSH)</label>
+                            <input type="number" class="form-control" id="edit_budget" name="budget" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">End Date</label>
+                            <input type="date" class="form-control" id="edit_end_date" name="end_date" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary" name="update_campaign">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteCampaignModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Campaign</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    Are you sure you want to delete this campaign? This action cannot be undone.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmDelete">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function editCampaign(campaign) {
+        document.getElementById('edit_campaign_id').value = campaign.campaign_id;
+        document.getElementById('edit_name').value = campaign.name;
+        document.getElementById('edit_status').value = campaign.status;
+        document.getElementById('edit_budget').value = campaign.budget;
+        document.getElementById('edit_end_date').value = campaign.end_date;
+        
+        new bootstrap.Modal(document.getElementById('editCampaignModal')).show();
+    }
+
+    function deleteCampaign(campaignId) {
+        if (confirm('Are you sure you want to delete this campaign?')) {
+            fetch('promotions.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'delete_campaign=1&campaign_id=' + campaignId
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Remove the row from the table
+                    const row = document.querySelector(`tr[data-campaign-id="${campaignId}"]`);
+                    if (row) row.remove();
+                    
+                    // Show success message
+                    const alert = document.createElement('div');
+                    alert.className = 'alert alert-success';
+                    alert.textContent = 'Campaign deleted successfully';
+                    document.querySelector('.container-fluid').prepend(alert);
+                    
+                    // Remove alert after 3 seconds
+                    setTimeout(() => alert.remove(), 3000);
+                } else {
+                    alert('Error: ' + (data.message || 'Failed to delete campaign'));
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+            });
+        }
+    }
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/js/promotions.js"></script>
 </body>
 </html>
+
+<style>
+/* Add this to your existing styles */
+.btn-outline-primary {
+    border-color: #2196F3;
+    color: #2196F3;
+    font-weight: 500;
+    padding: 0.25rem 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.btn-outline-primary:hover {
+    background-color: #2196F3;
+    color: white;
+}
+
+.btn-group {
+    display: inline-flex;
+    align-items: stretch;
+}
+
+.dropdown-toggle-split {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+.dropdown-menu {
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border: 1px solid rgba(0,0,0,0.08);
+}
+
+.dropdown-item {
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.dropdown-item i {
+    width: 1rem;
+    text-align: center;
+}
+</style>

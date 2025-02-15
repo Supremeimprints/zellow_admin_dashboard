@@ -4,12 +4,11 @@
  * Get status color for campaign badges
  */
 function getStatusColor($status) {
-    return match (strtolower($status)) {
+    return match ($status) {
         'active' => 'success',
         'paused' => 'warning',
-        'completed' => 'info',
-        'cancelled' => 'danger',
-        default => 'secondary'
+        'completed' => 'secondary',
+        default => 'primary'
     };
 }
 
@@ -98,4 +97,37 @@ function formatCampaignDuration($startDate, $endDate) {
     $start = date('M d', strtotime($startDate));
     $end = date('M d, Y', strtotime($endDate));
     return "$start - $end";
+}
+
+/**
+ * Calculate ROI
+ */
+function calculateROI($spend, $revenue) {
+    if (!$spend) return 0;
+    return (($revenue - $spend) / $spend) * 100;
+}
+
+/**
+ * Format currency
+ */
+function formatCurrency($amount) {
+    return 'KSH ' . number_format($amount, 2);
+}
+
+/**
+ * Get date range metrics
+ */
+function getDateRangeMetrics($db, $campaign_id, $start_date, $end_date) {
+    $query = "SELECT 
+        SUM(impressions) as total_impressions,
+        SUM(clicks) as total_clicks,
+        SUM(conversions) as total_conversions,
+        SUM(spend) as total_spend
+        FROM campaign_metrics 
+        WHERE campaign_id = ? 
+        AND created_at BETWEEN ? AND ?";
+    
+    $stmt = $db->prepare($query);
+    $stmt->execute([$campaign_id, $start_date, $end_date]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
 }
