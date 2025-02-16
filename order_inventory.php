@@ -1,6 +1,8 @@
 <?php
 session_start();
 require_once 'config/database.php';
+require_once 'includes/functions/email_functions.php';
+require_once 'config/mail.php'; // Add this line to include SMTP settings
 
 if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
     header('Location: login.php');
@@ -27,39 +29,48 @@ $products = $db->query($productsQuery)->fetchAll(PDO::FETCH_ASSOC);
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
-        $db->beginTransaction();
+        // Verify supplier email settings first
+        $validation = verifySupplierEmailSettings($db, $_POST['supplier_id']);
+        
+        if (!$validation['isValid']) {
+            throw new Exception("Email validation failed: " . implode(", ", $validation['errors']));
+        }
 
-        $id = $_POST['id'];
+        $supplier_id = $_POST['supplier_id'];
         $order_items = $_POST['items'];
         $total_amount = 0;
 
-        // Create purchase order
-        $stmt = $db->prepare("
-            INSERT INTO purchase_orders (
-                id, 
-                order_date, 
-                status, 
-                total_amount, 
-                created_by
-            ) VALUES (?, NOW(), 'pending', ?, ?)
-        ");
-
-        // Calculate total amount
+        // Calculate total amount before starting transaction
         foreach ($order_items as $item) {
             if (!empty($item['quantity']) && !empty($item['unit_price'])) {
                 $total_amount += $item['quantity'] * $item['unit_price'];
             }
         }
 
+        // Start transaction only when we're ready to insert data
+        $db->beginTransaction();
+        $transactionStarted = true;
+
+        // Create purchase order
+        $stmt = $db->prepare("
+            INSERT INTO purchase_orders (
+                supplier_id,
+                order_date,
+                status,
+                total_amount,
+                created_by
+            ) VALUES (?, NOW(), 'pending', ?, ?)
+        ");
+
         $stmt->execute([
-            $id,
+            $supplier_id,
             $total_amount,
             $_SESSION['id']
         ]);
 
         $purchase_order_id = $db->lastInsertId();
 
-        // Insert order items
+        // Insert order items with correct column names matching your existing table
         $itemStmt = $db->prepare("
             INSERT INTO purchase_order_items (
                 purchase_order_id,
@@ -80,11 +91,217 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        // Generate invoice number (e.g., INV-2023-001)
+        $invoice_number = 'INV-' . date('Y') . '-' . str_pad($purchase_order_id, 3, '0', STR_PAD_LEFT);
+
+        // Create invoice
+        $invoiceStmt = $db->prepare("
+            INSERT INTO invoices (
+                invoice_number,
+                supplier_id,
+                amount,
+                due_date,
+                status
+            ) VALUES (?, ?, ?, DATE_ADD(CURRENT_DATE, INTERVAL 30 DAY), 'Unpaid')
+        ");
+
+        $invoiceStmt->execute([
+            $invoice_number,
+            $supplier_id,
+            $total_amount
+        ]);
+
+        $invoice_id = $db->lastInsertId();
+
+        // Record expense
+        $expenseStmt = $db->prepare("
+            INSERT INTO expenses (
+                category,
+                amount,
+                expense_date,
+                description
+            ) VALUES ('Inventory Purchase', ?, CURRENT_DATE, ?)
+        ");
+
+        $expenseStmt->execute([
+            $total_amount,
+            "Purchase Order #$purchase_order_id - Invoice #$invoice_number"
+        ]);
+
+        // Create initial payment record in purchase_payments instead of payments
+        $paymentStmt = $db->prepare("
+            INSERT INTO purchase_payments (
+                purchase_order_id,
+                amount,
+                payment_method,
+                status,
+                transaction_id
+            ) VALUES (?, ?, 'Mpesa', 'Pending', ?)
+        ");
+
+        $transaction_id = 'TRX-' . date('YmdHis') . '-' . rand(1000, 9999);
+        
+        $paymentStmt->execute([
+            $purchase_order_id,
+            $total_amount,
+            $transaction_id
+        ]);
+
+        // Handle email sending outside of transaction
         $db->commit();
-        $success = "Purchase order created successfully! Order ID: " . $purchase_order_id;
+        $transactionStarted = false;
+
+        // Email sending code moved here, after successful commit
+        try {
+            require_once 'vendor/autoload.php';
+            $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+            
+            // Enable debug output
+            $mail->SMTPDebug = SMTP_DEBUG;
+            $mail->Debugoutput = 'error_log';
+            
+            // Server settings
+            $mail->isSMTP();
+            $mail->Host = SMTP_HOST;
+            $mail->SMTPAuth = true;
+            $mail->Username = SMTP_USER;
+            $mail->Password = SMTP_PASS;
+            $mail->SMTPSecure = SMTP_SECURE;
+            $mail->Port = SMTP_PORT;
+            
+            // Additional SMTP settings for Gmail
+            $mail->SMTPOptions = array(
+                'ssl' => array(
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                    'allow_self_signed' => true
+                )
+            );
+
+            // Get supplier details with error checking
+            $supplierStmt = $db->prepare("
+                SELECT company_name, email, contact_person 
+                FROM suppliers 
+                WHERE supplier_id = ?
+            ");
+            $supplierStmt->execute([$supplier_id]);
+            $supplier = $supplierStmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$supplier || empty($supplier['email'])) {
+                throw new Exception("Invalid supplier email");
+            }
+
+            // Setup email
+            $mail->setFrom(SMTP_USER, SMTP_FROM_NAME);
+            $mail->addAddress($supplier['email'], $supplier['company_name']);
+            
+            if (isset($_SESSION['email'])) {
+                $mail->addCC($_SESSION['email']); // Send copy to admin if session email exists
+            }
+
+            // Get product details for the email
+            $productDetailsQuery = "
+                SELECT p.product_name, poi.quantity, poi.unit_price
+                FROM purchase_order_items poi
+                JOIN products p ON poi.product_id = p.product_id
+                WHERE poi.purchase_order_id = ?
+            ";
+            $productStmt = $db->prepare($productDetailsQuery);
+            $productStmt->execute([$purchase_order_id]);
+            $orderProducts = $productStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Setup email
+            $mail->setFrom(SMTP_USER, 'Zellow Enterprises');
+            $mail->addAddress($supplier['email'], $supplier['company_name']);
+            $mail->addCC($_SESSION['email']); // Send copy to admin
+
+            $mail->isHTML(true);
+            $mail->Subject = "New Purchase Order #$purchase_order_id - $invoice_number";
+            
+            // Create email body with professional formatting
+            $mail->Body = "
+                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+                    <h2 style='color: #333; border-bottom: 2px solid #ddd; padding-bottom: 10px;'>Purchase Order Details</h2>
+                    
+                    <div style='background: #f9f9f9; padding: 15px; margin: 20px 0; border-radius: 5px;'>
+                        <h3 style='color: #444; margin-top: 0;'>Order Information</h3>
+                        <p><strong>Purchase Order:</strong> #$purchase_order_id</p>
+                        <p><strong>Invoice Number:</strong> $invoice_number</p>
+                        <p><strong>Order Date:</strong> " . date('Y-m-d') . "</p>
+                        <p><strong>Due Date:</strong> " . date('Y-m-d', strtotime('+30 days')) . "</p>
+                    </div>
+
+                    <div style='margin: 20px 0;'>
+                        <h3 style='color: #444;'>Order Items</h3>
+                        <table style='width: 100%; border-collapse: collapse; margin-top: 10px;'>
+                            <thead>
+                                <tr style='background: #eee;'>
+                                    <th style='padding: 10px; text-align: left; border: 1px solid #ddd;'>Product</th>
+                                    <th style='padding: 10px; text-align: right; border: 1px solid #ddd;'>Quantity</th>
+                                    <th style='padding: 10px; text-align: right; border: 1px solid #ddd;'>Unit Price</th>
+                                    <th style='padding: 10px; text-align: right; border: 1px solid #ddd;'>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>";
+
+            foreach ($orderProducts as $product) {
+                $itemTotal = $product['quantity'] * $product['unit_price'];
+                $mail->Body .= "
+                    <tr>
+                        <td style='padding: 10px; border: 1px solid #ddd;'>" . htmlspecialchars($product['product_name']) . "</td>
+                        <td style='padding: 10px; text-align: right; border: 1px solid #ddd;'>" . number_format($product['quantity']) . "</td>
+                        <td style='padding: 10px; text-align: right; border: 1px solid #ddd;'>Ksh. " . number_format($product['unit_price'], 2) . "</td>
+                        <td style='padding: 10px; text-align: right; border: 1px solid #ddd;'>Ksh. " . number_format($itemTotal, 2) . "</td>
+                    </tr>";
+            }
+
+            $mail->Body .= "
+                            <tr style='background: #f5f5f5;'>
+                                <td colspan='3' style='padding: 10px; text-align: right; border: 1px solid #ddd;'><strong>Total Amount:</strong></td>
+                                <td style='padding: 10px; text-align: right; border: 1px solid #ddd;'><strong>Ksh. " . number_format($total_amount, 2) . "</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style='margin-top: 20px; padding: 15px; background: #f9f9f9; border-radius: 5px;'>
+                    <p style='margin: 0;'><strong>Please Note:</strong></p>
+                    <ul style='margin: 10px 0;'>
+                        <li>Payment is due within 30 days</li>
+                        <li>Please reference the invoice number in all communications</li>
+                        <li>For any queries, please contact our purchasing department</li>
+                    </ul>
+                </div>
+
+                <div style='margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 12px;'>
+                    <p>This is an automated message from Zellow Enterprises. Please do not reply directly to this email.</p>
+                </div>
+            </div>";
+
+            // Plain text version
+            $mail->AltBody = "Purchase Order #$purchase_order_id\n"
+                . "Invoice Number: $invoice_number\n"
+                . "Total Amount: Ksh. " . number_format($total_amount, 2) . "\n"
+                . "Due Date: " . date('Y-m-d', strtotime('+30 days')) . "\n\n"
+                . "Please log in to your supplier portal for more details.";
+
+            $sent = $mail->send();
+            if (!$sent) {
+                throw new Exception("Mailer Error: " . $mail->ErrorInfo);
+            }
+            error_log("Email sent successfully to: " . $supplier['email']);
+            $success = "Purchase order created successfully! Order ID: $purchase_order_id, Invoice: $invoice_number";
+        } catch (Exception $e) {
+            error_log("Email sending failed: " . $e->getMessage());
+            $success = "Purchase order created successfully! Order ID: $purchase_order_id, Invoice: $invoice_number (Email notification failed: " . $e->getMessage() . ")";
+        }
+
     } catch (Exception $e) {
-        $db->rollBack();
-        $error = "Error creating order: " . $e->getMessage();
+        // Only rollback if transaction was started
+        if (isset($transactionStarted) && $transactionStarted) {
+            $db->rollBack();
+        }
+        $error = "Error creating purchase order: " . $e->getMessage();
     }
 }
 ?>
@@ -147,7 +364,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <div class="order-form">
-            <form method="POST" action="create_purchase_order.php">
+            <form method="POST">
                 <input type="hidden" name="supplier_id" value="<?= htmlspecialchars($_GET['supplier_id'] ?? '') ?>">
                 <div class="mb-4">
                     <label for="id" class="form-label">Select Supplier</label>
