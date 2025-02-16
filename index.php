@@ -702,4 +702,5 @@ $uniqueItems = $inventoryStats['unique_items'];
         });
     </script>
 </body>
+<?php include 'includes/nav/footer.php'; ?>
 </html>

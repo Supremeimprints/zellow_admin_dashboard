@@ -160,9 +160,9 @@ $coupons = $coupons_stmt->fetchAll(PDO::FETCH_ASSOC);
 <body>
 <div class="admin-layout"> 
 <?php include 'includes/theme.php'; ?>
-    <nav class="navbar">
+    <div class="navbar">
     <?php include 'includes/nav/collapsed.php'; ?>
-    </nav>
+</div>
     
         <div class="container-fluid p-3">
             <?php if (isset($error)): ?>

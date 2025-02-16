@@ -88,5 +88,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           </div>
     <script src="assets/js/sign_up.js"></script>
 </body>
-
+<?php include 'includes/nav/footer.php'; ?>
 </html>

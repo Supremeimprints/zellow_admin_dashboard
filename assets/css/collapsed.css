@@ -29,11 +29,11 @@ body {
 
 
 .navbar {
-  position: fixed;
+  position: fixed !important;
   left: 0;
   height: 100vh; /* Full height */
   width: 4.5rem; /* Ensure it matches collapsed width */
-  
+  top: 0 !important;
   display: flex;
   flex-direction: column;
   justify-content: space-between;

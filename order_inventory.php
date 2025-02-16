@@ -499,6 +499,5 @@ function updateTotal() {
 }
 </script>
 
-<?php include 'includes/nav/footer.php'; ?>
 </body>
 </html>

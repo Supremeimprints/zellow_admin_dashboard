@@ -72,6 +72,24 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <link href="assets/css/badges.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="assets/css/products.css" rel="stylesheet">
+    <style>
+        .action-buttons {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn i {
+            font-size: 1.1rem;
+        }
+    </style>
 </head>
 
 <body>
@@ -85,10 +103,16 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
        <div class="container mt-5">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2>Manage Products</h2>
-            <div class="d-flex gap-2 justify-content-end">
-                <a href="order_inventory.php" class="btn btn-primary">Update Stock</a>
-                <a href="add_product.php" class="btn btn-success">Add New Product</a>
-            </div>
+        </div>
+        <div class="action-buttons">
+            <a href="add_product.php" class="btn btn-primary">
+                <i class="fas fa-plus"></i>
+                Add New Product
+            </a>
+            <a href="order_inventory.php" class="btn btn-success">
+                <i class="fas fa-tags"></i>
+                Update Stock
+            </a>
         </div>
 
         <!-- Search Form -->

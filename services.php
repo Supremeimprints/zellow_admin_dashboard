@@ -97,6 +97,39 @@ $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .table td {
             vertical-align: middle;
         }
+        .action-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            width: 100%;
+        }
+        
+        .custom-btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        .custom-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .custom-btn i {
+            font-size: 1.1rem;
+        }
+        
+        .btn-start {
+            order: 2;  /* Makes this button appear second */
+        }
+        
+        .btn-end {
+            order: 1;  /* Makes this button appear first */
+        }
     </style>
 </head>
 
@@ -116,8 +149,18 @@ $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <?php if ($success): ?>
             <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
         <?php endif; ?>
-
-        <a href="add_services.php?action=add" class="btn btn-primary mb-3">Add New Service</a>
+<div class="action-buttons">
+<a href="service_requests.php" class="btn btn-danger custom-btn btn-start">
+        <i class="fas fa-arrow-left"></i>
+        Return to Service Requests
+    </a>
+    <a href="add_services.php?action=add" class="btn btn-primary custom-btn btn-end">
+        <i class="fas fa-plus"></i>
+        Add New Service
+    </a>
+    
+</div>
+        
 
         <table class="table table-striped">
             <thead>
@@ -173,7 +216,7 @@ $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
             </tbody>
         </table>
 
-        <a href="service_requests.php" class="btn btn-secondary mt-3">Return to Service Requests</a>
+        
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
