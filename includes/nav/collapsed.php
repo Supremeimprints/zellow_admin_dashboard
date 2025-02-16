@@ -111,13 +111,15 @@ function isActive($page) {
         </li>
         <!-- Profile and Logout Section -->
         <div class="navbar__profile">
-            <div class="profile-pic">
-                <img src="<?= htmlspecialchars($profile_photo) ?>" 
-                     alt="Profile"
-                     width="24"
-                     height="24"
-                     loading="lazy">
-            </div>
+            <a href="profile_settings.php" class="profile-link" aria-label="Profile Settings">
+                <div class="profile-pic">
+                    <img src="<?= htmlspecialchars($profile_photo) ?>" 
+                         alt="Profile"
+                         width="24"
+                         height="24"
+                         loading="lazy">
+                </div>
+            </a>
             <a href="logout.php" class="logout-btn" aria-label="Logout">
                 <i data-feather="log-out"></i>
             </a>
