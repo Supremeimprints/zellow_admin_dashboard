@@ -222,3 +222,31 @@ function getOrderTotals($order) {
 function formatOrderAmount($amount, $prefix = 'Ksh.') {
     return $prefix . ' ' . number_format($amount, 2);
 }
+
+function validateAndApplyCoupon($db, $couponCode, $userId, $orderTotal) {
+    $validator = new CouponValidator($db);
+    $result = $validator->validateCoupon($couponCode, $userId, $orderTotal);
+    
+    if (!$result['valid']) {
+        return [
+            'valid' => false,
+            'message' => $result['message']
+        ];
+    }
+    
+    $discountAmount = 0;
+    if ($result['discount_type'] === 'percentage') {
+        $discountAmount = ($orderTotal * $result['discount_value']) / 100;
+    } else {
+        $discountAmount = $result['discount_value'];
+    }
+    
+    return [
+        'valid' => true,
+        'message' => 'Coupon applied successfully',
+        'discount_amount' => $discountAmount,
+        'coupon_id' => $result['coupon_id'],
+        'discount_type' => $result['discount_type'],
+        'discount_value' => $result['discount_value']
+    ];
+}
