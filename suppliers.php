@@ -16,10 +16,10 @@ $successMsg = $errorMsg = '';
 $suppliers = [];
 
 // Handle supplier deletion
-if (isset($_POST['delete_supplier']) && isset($_POST['id'])) {
+if (isset($_POST['delete_supplier']) && isset($_POST['supplier_id'])) {
     try {
-        $stmt = $db->prepare("DELETE FROM suppliers WHERE id = ?");
-        $stmt->execute([$_POST['id']]);
+        $stmt = $db->prepare("DELETE FROM suppliers WHERE supplier_id = ?");
+        $stmt->execute([$_POST['supplier_id']]);
         $successMsg = "Supplier deleted successfully";
     } catch (PDOException $e) {
         $errorMsg = "Error deleting supplier: " . $e->getMessage();
@@ -41,13 +41,14 @@ try {
     $errorMsg = "Error fetching suppliers: " . $e->getMessage();
 }
 
-// Fetch invoices for each supplier
+// Fix invoices fetching for each supplier
 $supplierInvoices = [];
 try {
     $stmt = $db->query("SELECT * FROM invoices");
     $invoices = $stmt->fetchAll(PDO::FETCH_ASSOC);
     foreach ($invoices as $invoice) {
-        $supplierInvoices[$invoice['id']][] = $invoice;
+        // Change 'id' to 'supplier_id'
+        $supplierInvoices[$invoice['supplier_id']][] = $invoice;
     }
 } catch (PDOException $e) {
     $errorMsg = "Error fetching invoices: " . $e->getMessage();
@@ -58,13 +59,17 @@ if (isset($_POST['add_product'])) {
     try {
         $stmt = $db->prepare("
             INSERT INTO supplier_products (
-                id, product_name, description, 
-                unit_price, moq, lead_time
+                supplier_id,
+                product_name, 
+                description, 
+                unit_price, 
+                moq, 
+                lead_time
             ) VALUES (?, ?, ?, ?, ?, ?)
         ");
         
         $stmt->execute([
-            $_POST['id'],
+            $_POST['supplier_id'],
             $_POST['product_name'],
             $_POST['description'],
             $_POST['unit_price'],
@@ -148,6 +153,7 @@ if (isset($_POST['add_product'])) {
                         <table class="table table-hover">
                             <thead>
                                 <tr>
+                                    <th>Supplier ID</th>
                                     <th>Company Name</th>
                                     <th>Contact Person</th>
                                     <th>Email</th>
@@ -160,6 +166,7 @@ if (isset($_POST['add_product'])) {
                             <tbody>
                                 <?php foreach ($suppliers as $supplier): ?>
                                     <tr>
+                                        <td><?= htmlspecialchars($supplier['supplier_id']) ?></td>
                                         <td><?= htmlspecialchars($supplier['company_name']) ?></td>
                                         <td><?= htmlspecialchars($supplier['contact_person']) ?></td>
                                         <td><?= htmlspecialchars($supplier['email']) ?></td>
@@ -191,7 +198,7 @@ if (isset($_POST['add_product'])) {
                                                     <?php endif; ?>
                                                     <li><hr class="dropdown-divider"></li>
                                                     <li>
-                                                        <a class="dropdown-item text-primary" href="inventory.php?supplier_id=<?= $supplier['id'] ?>">
+                                                        <a class="dropdown-item text-primary" href="inventory.php?supplier_id=<?= $supplier['supplier_id'] ?>">
                                                             View in Inventory
                                                         </a>
                                                     </li>
@@ -200,7 +207,7 @@ if (isset($_POST['add_product'])) {
                                         </td>
                                         <td>
                                             <div class="btn-group">
-                                                <a href="edit_supplier.php?id=<?= $supplier['supplier_id'] ?>" 
+                                                <a href="edit_supplier.php?supplier_id=<?= $supplier['supplier_id'] ?>" 
                                                    class="btn btn-sm btn-outline-primary">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
@@ -250,7 +257,7 @@ if (isset($_POST['add_product'])) {
                 </div>
                 <div class="modal-footer">
                     <form method="POST">
-                        <input type="hidden" name="id" id="deleteSupplierID">
+                        <input type="hidden" name="supplier_id" id="deleteSupplierID">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" name="delete_supplier" class="btn btn-danger">Delete</button>
                     </form>
@@ -269,7 +276,7 @@ if (isset($_POST['add_product'])) {
                 </div>
                 <form method="POST">
                     <div class="modal-body">
-                        <input type="hidden" name="id" id="modalSupplierId">
+                        <input type="hidden" name="supplier_id" id="modalSupplierId">
                         <div class="mb-3">
                             <label class="form-label">Product Name</label>
                             <input type="text" name="product_name" class="form-control" required>
@@ -302,8 +309,8 @@ if (isset($_POST['add_product'])) {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function confirmDelete(id) {
-            document.getElementById('deleteSupplierID').value = id;
+        function confirmDelete(supplierId) {
+            document.getElementById('deleteSupplierID').value = supplierId;
             new bootstrap.Modal(document.getElementById('deleteModal')).show();
         }
 

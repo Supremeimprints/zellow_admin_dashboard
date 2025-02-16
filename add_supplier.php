@@ -15,16 +15,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $db->beginTransaction();
 
-        // Insert supplier
+        // Insert supplier with correct schema
         $stmt = $db->prepare("
             INSERT INTO suppliers (
-                company_name, 
-                contact_person, 
-                email, 
-                phone, 
-                address, 
+                company_name,
+                contact_person,
+                email,
+                phone,
+                address,
                 status
-            ) VALUES (?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, 'Active')
         ");
 
         $stmt->execute([
@@ -32,42 +32,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_POST['contact_person'],
             $_POST['email'],
             $_POST['phone'],
-            $_POST['address'],
-            'Active' // Default status
+            $_POST['address']
         ]);
 
-        $supplierId = $db->lastInsertId();
+        $supplier_id = $db->lastInsertId();
 
         // Handle supplier products if any were submitted
         if (!empty($_POST['products'])) {
             $productStmt = $db->prepare("
                 INSERT INTO supplier_products (
-                    id,
+                    supplier_id,
                     product_name,
                     description,
                     unit_price,
                     moq,
-                    lead_time,
-                    status
-                ) VALUES (?, ?, ?, ?, ?, ?, 'Active')
+                    lead_time
+                ) VALUES (?, ?, ?, ?, ?, ?)
             ");
 
             foreach ($_POST['products'] as $product) {
                 if (!empty($product['product_name'])) {
                     $productStmt->execute([
-                        $supplierId,
+                        $supplier_id, // Use supplier_id instead of id
                         $product['product_name'],
-                        $product['description'] ?? '',
+                        $product['description'] ?? null,
                         $product['unit_price'],
                         $product['moq'] ?? 1,
-                        $product['lead_time'] ?? 0
+                        $product['lead_time'] ?? null
                     ]);
                 }
             }
         }
 
         $db->commit();
-        $success = "Supplier added successfully!";
+        $_SESSION['success'] = "Supplier added successfully!";
         header("Location: suppliers.php");
         exit();
 
@@ -179,28 +177,32 @@ function addProductField() {
         <div class="row g-3">
             <div class="col-md-6">
                 <label class="form-label">Product Name</label>
-                <input type="text" name="products[${productCount}][product_name]" class="form-control" required>
+                <input type="text" name="products[${productCount}][product_name]" 
+                       class="form-control" required maxlength="255">
             </div>
             <div class="col-md-6">
                 <label class="form-label">Unit Price</label>
-                <input type="number" name="products[${productCount}][unit_price]" class="form-control" step="0.01" required>
+                <input type="number" name="products[${productCount}][unit_price]" 
+                       class="form-control" step="0.01" required min="0" max="9999999.99">
             </div>
             <div class="col-md-4">
                 <label class="form-label">Minimum Order Quantity</label>
-                <input type="number" name="products[${productCount}][moq]" class="form-control" value="1" min="1">
+                <input type="number" name="products[${productCount}][moq]" 
+                       class="form-control" value="1" min="1">
             </div>
             <div class="col-md-4">
                 <label class="form-label">Lead Time (days)</label>
-                <input type="number" name="products[${productCount}][lead_time]" class="form-control" value="0">
+                <input type="number" name="products[${productCount}][lead_time]" 
+                       class="form-control" value="0" min="0">
             </div>
             <div class="col-12">
                 <label class="form-label">Description</label>
-                <textarea name="products[${productCount}][description]" class="form-control" rows="2"></textarea>
+                <textarea name="products[${productCount}][description]" 
+                          class="form-control" rows="2"></textarea>
             </div>
-            <div class="col-12">
-                <button type="button" class="btn btn-danger btn-sm" onclick="removeProduct(this)">
-                    Remove Product
-                </button>
+            <div class="col-12 mt-2">
+                <button type="button" class="btn btn-danger btn-sm" 
+                        onclick="removeProduct(this)">Remove Product</button>
             </div>
         </div>
     `;

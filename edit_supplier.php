@@ -16,8 +16,8 @@ $successMsg = $errorMsg = '';
 $supplier = null;
 
 // Fetch supplier details
-if (isset($_GET['id'])) {
-    $supplier_id = $_GET['id'];
+if (isset($_GET['supplier_id'])) {
+    $supplier_id = $_GET['supplier_id'];
     
     $query = "SELECT * FROM suppliers WHERE supplier_id = ?";
     $stmt = $db->prepare($query);

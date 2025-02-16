@@ -15,10 +15,37 @@ $db = $database->getConnection();
 $successMsg = $errorMsg = '';
 $invoices = [];
 
-// Fetch all invoices
+// Get supplier_id from URL if provided
+$supplier_id = isset($_GET['supplier_id']) ? (int)$_GET['supplier_id'] : null;
+
+// Fetch invoices - either all or supplier specific
 try {
-    $stmt = $db->query("SELECT * FROM invoices ORDER BY due_date");
+    if ($supplier_id) {
+        // Query for specific supplier
+        $query = "SELECT i.*, s.company_name as supplier_name 
+                 FROM invoices i 
+                 LEFT JOIN suppliers s ON i.supplier_id = s.supplier_id 
+                 WHERE i.supplier_id = ?
+                 ORDER BY i.invoice_id DESC";
+        $stmt = $db->prepare($query);
+        $stmt->execute([$supplier_id]);
+    } else {
+        // Query for all invoices
+        $query = "SELECT i.*, s.company_name as supplier_name 
+                 FROM invoices i 
+                 LEFT JOIN suppliers s ON i.supplier_id = s.supplier_id 
+                 ORDER BY i.invoice_id DESC";
+        $stmt = $db->prepare($query);
+        $stmt->execute();
+    }
     $invoices = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // If viewing supplier-specific invoices, get supplier name
+    if ($supplier_id) {
+        $supplierStmt = $db->prepare("SELECT company_name FROM suppliers WHERE supplier_id = ?");
+        $supplierStmt->execute([$supplier_id]);
+        $supplierName = $supplierStmt->fetchColumn();
+    }
 } catch (PDOException $e) {
     $errorMsg = "Error fetching invoices: " . $e->getMessage();
 }
@@ -70,10 +97,27 @@ if (isset($_POST['settle_invoice']) && isset($_POST['invoice_id'])) {
     <div class="main-content">
         <div class="container mt-5">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2>Manage Invoices</h2>
-                <a href="generate_invoice.php" class="btn btn-primary">
-                    <i class="fas fa-plus me-2"></i>Generate New Invoice
-                </a>
+                <h2>
+                    <?php if (isset($supplierName)): ?>
+                        Invoices for <?= htmlspecialchars($supplierName) ?>
+                    <?php else: ?>
+                        Manage Invoices
+                    <?php endif; ?>
+                </h2>
+                <?php if (!$supplier_id): ?>
+                    <a href="generate_invoice.php" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Generate New Invoice
+                    </a>
+                <?php else: ?>
+                    <div>
+                        <a href="generate_invoice.php?supplier_id=<?= $supplier_id ?>" class="btn btn-primary me-2">
+                            <i class="fas fa-plus me-2"></i>New Invoice
+                        </a>
+                        <a href="suppliers.php" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Suppliers
+                        </a>
+                    </div>
+                <?php endif; ?>
             </div>
 
             <?php if ($successMsg): ?>
@@ -102,7 +146,7 @@ if (isset($_POST['settle_invoice']) && isset($_POST['invoice_id'])) {
                                 <?php foreach ($invoices as $invoice): ?>
                                     <tr>
                                         <td><?= htmlspecialchars($invoice['invoice_number']) ?></td>
-                                        <td><?= htmlspecialchars($invoice['supplier_name']) ?></td>
+                                        <td><?= htmlspecialchars($invoice['supplier_name'] ?? 'N/A') ?></td>
                                         <td><?= htmlspecialchars($invoice['amount']) ?></td>
                                         <td><?= htmlspecialchars($invoice['due_date']) ?></td>
                                         <td>
