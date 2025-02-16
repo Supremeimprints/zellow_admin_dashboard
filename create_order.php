@@ -9,8 +9,11 @@ if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
 require_once 'config/database.php';
 require_once 'includes/functions/order_functions.php';
 require_once 'includes/functions/shipping_functions.php';
+require_once 'includes/classes/CouponValidator.php';
 $database = new Database();
 $db = $database->getConnection();
+
+$couponValidator = new CouponValidator($db);
 
 $error = null;
 
@@ -50,6 +53,28 @@ try {
 $promotionsStmt = $db->query($promotionsQuery);
 
 $activePromotions = $promotionsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Add this to handle AJAX coupon validation
+if (isset($_POST['action']) && $_POST['action'] === 'validate_coupon') {
+    $couponCode = $_POST['coupon_code'] ?? '';
+    $orderTotal = floatval($_POST['order_total'] ?? 0);
+    $userId = $_SESSION['id'] ?? null;
+    
+    $result = $couponValidator->validateCoupon($couponCode, $userId, $orderTotal);
+    
+    if ($result['valid']) {
+        $_SESSION['valid_coupon'] = [
+            'code' => $couponCode,
+            'discount_type' => $result['discount_type'],
+            'discount_value' => $result['discount_value'],
+            'coupon_id' => $result['coupon_id']
+        ];
+    }
+    
+    header('Content-Type: application/json');
+    echo json_encode($result);
+    exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -130,28 +155,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Apply discount if coupon is valid
         if (!empty($_POST['coupon_code'])) {
-            // Check if the coupon exists in session and is still valid
-            if (!isset($_SESSION['valid_coupon']) || 
-                $_SESSION['valid_coupon']['code'] !== $_POST['coupon_code']) {
-                throw new Exception("Invalid or expired coupon code");
+            $result = $couponValidator->validateCoupon(
+                $_POST['coupon_code'], 
+                $customerId, 
+                $total_amount
+            );
+            
+            if (!$result['valid']) {
+                throw new Exception($result['message']);
             }
             
-            // Double-check coupon validity in database
-            $couponStmt = $db->prepare("
-                SELECT * FROM coupons 
-                WHERE code = ? 
-                AND expiration_date >= CURRENT_DATE()
-                AND status = 'active'
-            ");
-            $couponStmt->execute([$_POST['coupon_code']]);
-            $coupon = $couponStmt->fetch(PDO::FETCH_ASSOC);
-            
-            if (!$coupon) {
-                throw new Exception("Coupon is no longer valid");
+            // Calculate discount based on type
+            if ($result['discount_type'] === 'percentage') {
+                $discount_amount = ($total_amount * $result['discount_value']) / 100;
+            } else {
+                $discount_amount = $result['discount_value'];
             }
             
-            $discount_amount = ($total_amount * $coupon['discount_percentage']) / 100;
-            $coupon_id = $coupon['coupon_id'];
+            $coupon_id = $result['coupon_id'];
+            
+            // Record coupon usage after successful order creation
+            if (!$couponValidator->recordCouponUsage($coupon_id, $customerId, $orderId)) {
+                throw new Exception("Error recording coupon usage");
+            }
         }
 
         // Add shipping fee to total
@@ -593,49 +619,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Coupon handling
         function validateCoupon() {
             const couponCode = document.getElementById('couponCode').value;
-            const couponInput = document.getElementById('couponCode');
-            const feedback = document.getElementById('couponFeedback');
-            const submitButton = document.querySelector('button[type="submit"]');
+            const orderTotal = currentSubtotal;
+            const formData = new FormData();
+            
+            formData.append('action', 'validate_coupon');
+            formData.append('coupon_code', couponCode);
+            formData.append('order_total', orderTotal);
 
-            fetch('validate_coupon.php', {
+            fetch(window.location.href, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: 'coupon_code=' + encodeURIComponent(couponCode)
+                body: formData
             })
             .then(response => response.json())
             .then(data => {
-                couponInput.classList.remove('is-valid', 'is-invalid');
+                const feedback = document.getElementById('couponFeedback');
                 
                 if (data.valid) {
                     feedback.className = 'text-success';
-                    feedback.textContent = `${data.discount}% discount will be applied`;
-                    currentDiscount = (currentSubtotal * data.discount) / 100;
-                    couponInput.classList.add('is-valid');
-                    submitButton.disabled = false;
+                    feedback.textContent = data.message;
+                    
+                    if (data.discount_type === 'percentage') {
+                        updateOrderTotal(parseFloat(data.discount_value));
+                    } else {
+                        currentDiscount = parseFloat(data.discount_value);
+                        updateFinalTotal();
+                    }
+                    
+                    document.getElementById('couponCode').classList.add('is-valid');
+                    document.getElementById('couponCode').classList.remove('is-invalid');
                 } else {
                     feedback.className = 'text-danger';
                     feedback.textContent = data.message;
                     currentDiscount = 0;
-                    couponInput.classList.add('is-invalid');
-                    
-                    // Disable submit button if trying to use expired coupon
-                    if (data.status === 'expired') {
-                        submitButton.disabled = true;
-                    }
+                    discountRow.style.display = 'none';
+                    document.getElementById('couponCode').classList.add('is-invalid');
+                    document.getElementById('couponCode').classList.remove('is-valid');
                 }
                 
                 updateFinalTotal();
-                
-                // Show visual feedback
-                document.getElementById('discountRow').style.display = data.valid ? 'flex' : 'none';
             })
             .catch(error => {
-                feedback.className = 'text-danger';
-                feedback.textContent = 'Error validating coupon';
-                currentDiscount = 0;
-                updateFinalTotal();
+                console.error('Error:', error);
+                document.getElementById('couponFeedback').className = 'text-danger';
+                document.getElementById('couponFeedback').textContent = 'Error validating coupon';
             });
         }
 
@@ -645,8 +671,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         function updateOrderTotal(discountPercentage) {
-            // Add logic to update order total with discount
-            // ...
+            // Calculate subtotal from all products
+            const subtotal = currentSubtotal;
+            
+            // Calculate discount amount
+            currentDiscount = (subtotal * discountPercentage) / 100;
+            
+            // Update discount display
+            const discountRow = document.getElementById('discountRow');
+            const discountAmount = document.getElementById('discountAmount');
+            
+            if (currentDiscount > 0) {
+                discountRow.style.display = 'flex';
+                discountAmount.textContent = `-Ksh.${currentDiscount.toFixed(2)}`;
+            } else {
+                discountRow.style.display = 'none';
+                discountAmount.textContent = `-Ksh.0.00`;
+            }
+            
+            // Calculate final total (subtotal - discount + shipping)
+            const finalTotal = subtotal - currentDiscount + shippingFee;
+            
+            // Update all displays
+            document.getElementById('subtotal').textContent = `Ksh.${subtotal.toFixed(2)}`;
+            document.getElementById('finalTotal').textContent = `Ksh.${finalTotal.toFixed(2)}`;
+            
+            // If there's a hidden input for the total, update it
+            const totalInput = document.querySelector('input[name="total_amount"]');
+            if (totalInput) {
+                totalInput.value = finalTotal.toFixed(2);
+            }
+            
+            return finalTotal;
         }
 
         // Add shipping method change handler

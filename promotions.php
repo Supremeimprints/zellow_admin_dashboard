@@ -36,16 +36,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (isset($_POST['create_coupon'])) {
-            // Create new coupon
-            $stmt = $db->prepare("INSERT INTO coupons (code, discount_percentage, expiration_date) 
-                                VALUES (:code, :discount, :expiry)");
-            
-            $stmt->execute([
-                ':code' => strtoupper($_POST['code']),
-                ':discount' => $_POST['discount'],
-                ':expiry' => $_POST['expiration_date']
-            ]);
-            $success = "Coupon created successfully!";
+            try {
+                // Validate dates
+                $startDate = new DateTime($_POST['start_date'] ?? 'now');
+                $endDate = new DateTime($_POST['expiration_date']);
+                $today = new DateTime();
+                
+                if ($endDate <= $today) {
+                    throw new Exception("Expiration date must be in the future");
+                }
+                
+                if ($startDate > $endDate) {
+                    throw new Exception("Start date cannot be after expiration date");
+                }
+                
+                // Generate unique coupon code if not provided
+                $code = !empty($_POST['code']) ? strtoupper($_POST['code']) : 
+                       'ZELLOW-' . strtoupper(substr(uniqid(), -6));
+                
+                // Validate discount value
+                $discountValue = floatval($_POST['discount_value']);
+                if ($discountValue <= 0) {
+                    throw new Exception("Discount value must be greater than 0");
+                }
+                
+                if ($_POST['discount_type'] === 'percentage' && $discountValue > 100) {
+                    throw new Exception("Percentage discount cannot exceed 100%");
+                }
+                
+                $stmt = $db->prepare("
+                    INSERT INTO coupons (
+                        code, 
+                        discount_type,
+                        discount_value,
+                        discount_percentage,
+                        start_date,
+                        expiration_date,
+                        min_order_amount,
+                        usage_limit_total,
+                        usage_limit_per_user,
+                        status
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+                ");
+                
+                $stmt->execute([
+                    $code,
+                    $_POST['discount_type'],
+                    $discountValue,
+                    $_POST['discount_type'] === 'percentage' ? $discountValue : null,
+                    $startDate->format('Y-m-d'),
+                    $endDate->format('Y-m-d'),
+                    floatval($_POST['min_order_amount'] ?? 0),
+                    intval($_POST['usage_limit_total'] ?? 0),
+                    intval($_POST['usage_limit_per_user'] ?? 0)
+                ]);
+                
+                $success = "Coupon created successfully! Code: $code";
+            } catch (Exception $e) {
+                $error = $e->getMessage();
+            }
         }
 
         if (isset($_POST['update_campaign'])) {
@@ -203,6 +252,79 @@ $coupons = $coupons_stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add this after the coupons table section -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Coupon Analytics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body">
+                                    <h6>Total Coupons Used</h6>
+                                    <?php
+                                    $stmt = $db->query("SELECT COUNT(*) FROM coupon_usage");
+                                    echo "<h3>" . $stmt->fetchColumn() . "</h3>";
+                                    ?>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-success text-white">
+                                <div class="card-body">
+                                    <h6>Active Coupons</h6>
+                                    <?php
+                                    $stmt = $db->query("SELECT COUNT(*) FROM coupons 
+                                        WHERE status = 'active' 
+                                        AND (end_date >= CURRENT_DATE OR end_date IS NULL)");
+                                    echo "<h3>" . $stmt->fetchColumn() . "</h3>";
+                                    ?>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6>Most Used Coupons</h6>
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Code</th>
+                                                <th>Uses</th>
+                                                <th>Total Discount</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php
+                                            $stmt = $db->query("
+                                                SELECT c.code, 
+                                                    COUNT(cu.usage_id) as usage_count,
+                                                    SUM(o.discount_amount) as total_discount
+                                                FROM coupons c
+                                                LEFT JOIN coupon_usage cu ON c.coupon_id = cu.coupon_id
+                                                LEFT JOIN orders o ON cu.order_id = o.order_id
+                                                GROUP BY c.coupon_id
+                                                ORDER BY usage_count DESC
+                                                LIMIT 5
+                                            ");
+                                            while ($row = $stmt->fetch()) {
+                                                echo "<tr>
+                                                    <td>{$row['code']}</td>
+                                                    <td>{$row['usage_count']}</td>
+                                                    <td>Ksh. " . number_format($row['total_discount'], 2) . "</td>
+                                                </tr>";
+                                            }
+                                            ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
