@@ -9,18 +9,18 @@ body {
     min-height: 100vh;
 }
 
-.container {
-    padding: 20px 15px;
-}
+
 
 /* Common table styles */
 .table-responsive {
-    border: 1px solid #e4e7f1;
+    border: 1px solid #e4e7f1;      
     border-radius: 8px;
     overflow: hidden;
     margin: 20px 0;
     background-color: #fff;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    max-width: 100%;
+    margin: 0 0 3rem 0;
 }
 
 .table {
@@ -142,6 +142,7 @@ h2 {
     font-weight: 700;
     margin-bottom: 1.5rem;
     font-size: 1.75rem;
+    padding-left: 15px;
 }
 
 /* Responsive adjustments */
@@ -166,6 +167,15 @@ h2 {
     .btn {
         padding: 0.25rem 0.5rem;
         font-size: 0.75rem;
+    }
+
+    .content-wrapper {
+        padding: 1rem;
+    }
+    
+    .container {
+        max-width: 100%;
+        padding: 0 10px;
     }
 }
 
@@ -192,8 +202,8 @@ h2 {
 
 /* Table Styling */
 .table-responsive {
-    max-width: 80%;
-    margin: 20px auto;
+    max-width: 100%;
+    margin: 0 0 3rem 0;
 }
 
 .table {
@@ -233,4 +243,88 @@ h2 {
 
 [data-bs-theme="dark"] .table tbody td {
     border-color: var(--border-color);
+}
+
+/* Content Layout Styles */
+.content-wrapper {
+    padding: 2rem;
+    max-width: 100%;
+}
+
+.card {
+    border: none;
+    border-radius: 8px;
+    background-color: #fff;
+    margin-bottom: 20px;
+}
+
+.card-header {
+    background-color: #f8f9fc;
+    padding: 15px 20px;
+    border-bottom: 1px solid #e3e6f0;
+}
+
+.card-title {
+    color: #4e73df;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.card-body {
+    padding: 20px;
+}
+
+/* Dark mode additions */
+[data-bs-theme="dark"] .card {
+    background-color: var(--container-bg);
+}
+
+[data-bs-theme="dark"] .card-header {
+    background-color: var(--input-bg);
+    border-color: var(--border-color);
+}
+
+[data-bs-theme="dark"] .card-title {
+    color: var(--text-color);
+}
+
+/* Updated Table Layout Styles */
+.table-section {
+    margin: 0 auto;
+    width: 95%;
+    max-width: 1400px;
+}
+
+.section-title {
+    color: #4a5568;
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+}
+
+.table-responsive {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    margin-bottom: 3rem;
+}
+
+/* Dark mode adjustments */
+[data-bs-theme="dark"] .section-title {
+    color: var(--text-color);
+}
+
+[data-bs-theme="dark"] .table-responsive {
+    background-color: var(--container-bg);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .content-wrapper {
+        padding: 1rem;
+    }
+
+    .table-section {
+        width: 100%;
+    }
 }

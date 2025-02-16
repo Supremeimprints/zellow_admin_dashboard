@@ -4,6 +4,7 @@ body {
     overflow-x: hidden;
     background-color: #f8f9fa;
     font-family: 'Montserrat', sans-serif;
+    
 }
 
 /* Layout Components */
@@ -63,6 +64,7 @@ body {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
+    text-decoration: none;
 }
 
 .clickable-card:hover {
@@ -108,6 +110,7 @@ body {
     margin-bottom: 0.5rem;
     border: 1px solid rgba(0, 0, 0, 0.08);
     transition: all 0.2s ease;
+    text-decoration: none;
 }
 
 .list-group-item.bg-light {

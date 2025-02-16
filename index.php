@@ -343,7 +343,10 @@ $uniqueItems = $inventoryStats['unique_items'];
                                                 <a href="admins.php"
                                                     class="card quick-action-card bg-danger text-white text-center py-2 clickable-card">
                                                     <div class="card-body">
-                                                        <i class="fas fa-users fa-2x mb-2"></i>
+                                                    <i class="fas fa-user-tie fa-2x mb-2"></i>
+
+
+
                                                         <div class="small">Employees</div>
                                                     </div>
                                                 </a>
@@ -359,9 +362,9 @@ $uniqueItems = $inventoryStats['unique_items'];
                                             </div>
                                             <div class="col-6 col-md-2">
                                                 <a href="reports.php"
-                                                    class="card quick-action-card bg-warning text-dark text-center py-2 clickable-card">
+                                                    class="card quick-action-card bg-warning text-white text-center py-2 clickable-card">
                                                     <div class="card-body">
-                                                        <i class="fas fa-chart-bar fa-2x mb-2"></i>
+                                                    <i class="fas fa-pie-chart fa-2x mb-2"></i>
                                                         <div class="small">Reports</div>
                                                     </div>
                                                 </a>
@@ -540,6 +543,7 @@ $uniqueItems = $inventoryStats['unique_items'];
                             </div>
                         </div>
 
+                        
 
                         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
                         <script>

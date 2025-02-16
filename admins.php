@@ -207,7 +207,8 @@ $drivers = $driverStmt->fetchAll(PDO::FETCH_ASSOC);
     <!-- Existing stylesheets -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="assets/css/index.css">
+    <link rel="stylesheet" href="assets/css/themes.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
     <link rel="stylesheet" href="assets/css/badges.css">
     <link rel="stylesheet" href="assets/css/orders.css">
     <link rel="stylesheet" href="assets/css/collapsed.css">
@@ -216,148 +217,111 @@ $drivers = $driverStmt->fetchAll(PDO::FETCH_ASSOC);
     <link href="assets/css/badges.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/orders.css">
+    <link href="assets/css/admins.css" rel="stylesheet">
 </head>
-<body><div class="admin-layout"> 
-<?php include 'includes/theme.php'; ?>
+<body>
+<div class="admin-layout"> 
+    <?php include 'includes/theme.php'; ?>
     <nav class="navbar">
-    <?php include 'includes/nav/collapsed.php'; ?>
+        <?php include 'includes/nav/collapsed.php'; ?>
     </nav>
-<div class="container mt-5">
-    <h2>Employee Management</h2>
 
-    <a href="add_admin.php" class="btn btn-primary mb-3">Add New Employee</a>
-
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Employee Number</th>
-                <th>Username</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Created At</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php foreach ($admins as $admin): ?>
-                <tr>
-                    <td><?php echo htmlspecialchars($admin['employee_number']); ?></td>
-                    <td><?php echo htmlspecialchars($admin['username']); ?></td>
-                    <td><?php echo htmlspecialchars($admin['email']); ?></td>
-                    <td><?php echo htmlspecialchars($admin['role']); ?></td>
-                    <td><?php echo $admin['is_active'] ? 'Active' : 'Inactive'; ?></td>
-                    <td><?php echo htmlspecialchars($admin['created_at']); ?></td>
-                    <td>
-                        <a href="edit_admin.php?id=<?php echo htmlspecialchars($admin['id']); ?>" 
-                           class="btn btn-warning btn-sm">Edit</a>
-                        <a href="delete_admin.php?action=delete&id=<?php echo $admin['id']; ?>" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this admin?');">Delete</a>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
-</div>
- <!-- Enhanced Drivers Table -->
- <div class="container mt-5">
-    <h2>Manage Drivers </h2>
-        <div>
-            <a href="create_driver.php" class="btn btn-primary mb-2">
-                <i class="bi bi-person-plus"></i> Create New Driver
-            </a>
-        </div>
-        <div class="table table-striped">
-            <table class="table table-striped table-hover">
-                <thead>
-                    <tr>
-                        <th>Driver ID</th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Phone</th>
-                        <th>Driver Status</th>
-                        <th>Vehicle Type</th>
-                        <th>Vehicle Status</th>
-                        <th>Vehicle Model</th>
-                        <th>Registration</th>
-                        <th class="text-end pe-4">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (empty($drivers)): ?>
+    <div class="content-wrapper">
+        <!-- Admins Table Section -->
+        <div class="container mt-5">
+            <h2>Staff</h2>
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead>
                         <tr>
-                            <td colspan="10" class="text-center">No drivers available</td>
+                            <th>Employee Number</th>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Created At</th>
+                            <th>Actions</th>
                         </tr>
-                    <?php else: ?>
-                        <?php foreach ($drivers as $driver): ?>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($admins as $admin): ?>
                             <tr>
-                                <td><?= $driver['driver_id'] ?></td>
-                                <td><?= htmlspecialchars($driver['name']) ?></td>
-                                <td><?= htmlspecialchars($driver['email']) ?></td>
-                                <td><?= htmlspecialchars($driver['phone_number']) ?></td>
+                                <td><?php echo htmlspecialchars($admin['employee_number']); ?></td>
+                                <td><?php echo htmlspecialchars($admin['username']); ?></td>
+                                <td><?php echo htmlspecialchars($admin['email']); ?></td>
+                                <td><?php echo htmlspecialchars($admin['role']); ?></td>
+                                <td><?php echo $admin['is_active'] ? 'Active' : 'Inactive'; ?></td>
+                                <td><?php echo htmlspecialchars($admin['created_at']); ?></td>
                                 <td>
-                                    <span class="badge bg-<?= $driver['status'] === 'Active' ? 'success' : 'danger' ?>">
-                                        <?= $driver['status'] ?>
-                                    </span>
-                                </td>
-                                <td><?= htmlspecialchars($driver['vehicle_type'] ?? 'N/A') ?></td>
-                                <td>
-                                    <?php if ($driver['vehicle_status'] ?? false): ?>
-                                        <span class="badge bg-<?= getVehicleStatusColor($driver['vehicle_status']) ?>">
-                                            <?= $driver['vehicle_status'] ?>
-                                        </span>
-                                    <?php endif; ?>
-                                </td>
-                                <td><?= htmlspecialchars($driver['vehicle_model'] ?? 'N/A') ?></td>
-                                <td><?= htmlspecialchars($driver['registration_number'] ?? 'N/A') ?></td>
-                                <td>
-                                    <div class="dropdown">
-                                        <button class="btn btn-link btn-sm p-0 opacity-75" type="button"
-                                            data-bs-toggle="dropdown" aria-expanded="false">
-                                            <i class="bi bi-three-dots-vertical fs-5"></i>
-                                        </button>
-                                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border">
-                                            <li>
-                                                <a class="dropdown-item py-2 px-3"
-                                                    href="edit_driver.php?driver_id=<?= $driver['driver_id'] ?>">
-                                                    <i class="bi bi-pencil me-2"></i>Edit Driver
-                                                </a>
-                                            </li>
-                                            <li>
-                                                <a class="dropdown-item py-2 px-3"
-                                                    href="update_vehicle.php?driver_id=<?= $driver['driver_id'] ?>">
-                                                    <i class="bi bi-truck me-2"></i>Update Vehicle
-                                                </a>
-                                            </li>
-                                            <li>
-                                                <form method="POST" action="update_driver.php" class="dropdown-item p-0">
-                                                    <input type="hidden" name="driver_id" value="<?= $driver['driver_id'] ?>">
-                                                    <button type="submit" class="dropdown-item py-2 px-3">
-                                                        <i class="bi bi-arrow-repeat me-2"></i>Driver Status
-                                                    </button>
-                                                </form>
-                                            </li>
-                                            <li>
-                                                <hr class="dropdown-divider my-1">
-                                            </li>
-                                            <li>
-                                                <form method="POST"
-                                                    onsubmit="return confirm('Are you sure you want to delete this driver?');">
-                                                    <input type="hidden" name="driver_id" value="<?= $driver['driver_id'] ?>">
-                                                    <button type="submit" class="bi bi-trash"
-                                                        name="delete_driver">Delete</button>
-                                                </form>
-
-                                            </li>
-                                        </ul>
-                                    </div>
+                                    <a href="edit_admin.php?id=<?php echo htmlspecialchars($admin['id']); ?>" 
+                                    class="btn btn-warning btn-sm">Edit</a>
+                                    <a href="delete_admin.php?action=delete&id=<?php echo $admin['id']; ?>" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this admin?');">Delete</a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
-                    <?php endif; ?>
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
+            </div>
         </div>
+
+        <!-- Drivers Table Section -->
+        <div class="container mt-5">
+            <h2>Riders</h2>
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead>
+                        <tr>
+                            <th>Driver ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Driver Status</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Model</th>
+                            <th>Registration</th>
+                            
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($drivers)): ?>
+                            <tr>
+                                <td colspan="10" class="text-center">No drivers available</td>
+                            </tr>
+                        <?php else: ?>
+                            <?php foreach ($drivers as $driver): ?>
+                                <tr>
+                                    <td><?= $driver['driver_id'] ?></td>
+                                    <td><?= htmlspecialchars($driver['name']) ?></td>
+                                    <td><?= htmlspecialchars($driver['email']) ?></td>
+                                    <td><?= htmlspecialchars($driver['phone_number']) ?></td>
+                                    <td>
+                                        <span class="badge bg-<?= $driver['status'] === 'Active' ? 'success' : 'danger' ?>">
+                                            <?= $driver['status'] ?>
+                                        </span>
+                                    </td>
+                                    <td><?= htmlspecialchars($driver['vehicle_type'] ?? 'N/A') ?></td>
+                                    <td>
+                                        <?php if ($driver['vehicle_status'] ?? false): ?>
+                                            <span class="badge bg-<?= getVehicleStatusColor($driver['vehicle_status']) ?>">
+                                                <?= $driver['vehicle_status'] ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?= htmlspecialchars($driver['vehicle_model'] ?? 'N/A') ?></td>
+                                    <td><?= htmlspecialchars($driver['registration_number'] ?? 'N/A') ?></td>
+                                    
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ...existing scripts and footer... -->
+</body>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
