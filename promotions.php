@@ -2,6 +2,7 @@
 session_start();
 require_once 'config/database.php';
 require_once __DIR__ . '/includes/functions/marketing_functions.php';
+require_once 'includes/functions/coupon_functions.php';
 
 if (!isset($_SESSION['id'])) {
     header('Location: login.php');
@@ -143,6 +144,12 @@ $campaigns = $campaigns_stmt->fetchAll(PDO::FETCH_ASSOC);
 $coupons_query = "SELECT * FROM coupons WHERE expiration_date >= CURDATE() ORDER BY created_at DESC";
 $coupons_stmt = $db->query($coupons_query);
 $coupons = $coupons_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Update coupon metrics before displaying
+updateCouponMetrics($db);
+
+// Get coupon usage statistics
+$couponStats = calculateCouponSavings($db);
 ?>
 
 <!DOCTYPE html>
@@ -297,75 +304,178 @@ $coupons = $coupons_stmt->fetchAll(PDO::FETCH_ASSOC);
                 </div>
             </div>
 
-            <!-- Add this after the coupons table section -->
+            <!-- Replace the old coupon analytics section with this new one -->
             <div class="card mt-4">
                 <div class="card-header">
                     <h5 class="mb-0">Coupon Analytics</h5>
                 </div>
                 <div class="card-body">
-                    <div class="row">
+                    <div class="row g-4">
                         <div class="col-md-3">
                             <div class="card bg-primary text-white">
                                 <div class="card-body">
-                                    <h6>Total Coupons Used</h6>
-                                    <?php
-                                    $stmt = $db->query("SELECT COUNT(*) FROM coupon_usage");
-                                    echo "<h3>" . $stmt->fetchColumn() . "</h3>";
-                                    ?>
+                                    <div class="d-flex align-items-center">
+                                        <div class="icon-box me-3">
+                                            <i class="fas fa-ticket-alt fa-2x"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="text-white-50 mb-1">Total Coupons Used</h6>
+                                            <h3 class="mb-0">
+                                                <?php
+                                                $stmt = $db->query("SELECT COUNT(*) FROM coupon_usage");
+                                                echo number_format($stmt->fetchColumn());
+                                                ?>
+                                            </h3>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                        
                         <div class="col-md-3">
                             <div class="card bg-success text-white">
                                 <div class="card-body">
-                                    <h6>Active Coupons</h6>
-                                    <?php
-                                    $stmt = $db->query("SELECT COUNT(*) FROM coupons 
-                                        WHERE status = 'active' 
-                                        AND (end_date >= CURRENT_DATE OR end_date IS NULL)");
-                                    echo "<h3>" . $stmt->fetchColumn() . "</h3>";
-                                    ?>
+                                    <div class="d-flex align-items-center">
+                                        <div class="icon-box me-3">
+                                            <i class="fas fa-check-circle fa-2x"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="text-white-50 mb-1">Active Coupons</h6>
+                                            <h3 class="mb-0">
+                                                <?php
+                                                $stmt = $db->query("SELECT COUNT(*) FROM coupons 
+                                                    WHERE status = 'active' 
+                                                    AND expiration_date >= CURRENT_DATE");
+                                                echo number_format($stmt->fetchColumn());
+                                                ?>
+                                            </h3>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="card">
+
+                        <div class="col-md-3">
+                            <div class="card bg-info text-white">
                                 <div class="card-body">
-                                    <h6>Most Used Coupons</h6>
-                                    <table class="table table-sm">
-                                        <thead>
-                                            <tr>
-                                                <th>Code</th>
-                                                <th>Uses</th>
-                                                <th>Total Discount</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php
-                                            $stmt = $db->query("
-                                                SELECT c.code, 
-                                                    COUNT(cu.usage_id) as usage_count,
-                                                    SUM(o.discount_amount) as total_discount
-                                                FROM coupons c
-                                                LEFT JOIN coupon_usage cu ON c.coupon_id = cu.coupon_id
-                                                LEFT JOIN orders o ON cu.order_id = o.order_id
-                                                GROUP BY c.coupon_id
-                                                ORDER BY usage_count DESC
-                                                LIMIT 5
-                                            ");
-                                            while ($row = $stmt->fetch()) {
-                                                echo "<tr>
-                                                    <td>{$row['code']}</td>
-                                                    <td>{$row['usage_count']}</td>
-                                                    <td>Ksh. " . number_format($row['total_discount'], 2) . "</td>
-                                                </tr>";
-                                            }
-                                            ?>
-                                        </tbody>
-                                    </table>
+                                    <div class="d-flex align-items-center">
+                                        <div class="icon-box me-3">
+                                            <i class="fas fa-dollar-sign fa-2x"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="text-white-50 mb-1">Total Savings</h6>
+                                            <h3 class="mb-0">
+                                                <?php
+                                                $stmt = $db->query("
+                                                    SELECT COALESCE(SUM(discount_amount), 0) 
+                                                    FROM orders 
+                                                    WHERE payment_status = 'Paid'
+                                                ");
+                                                echo "Ksh. " . number_format($stmt->fetchColumn(), 2);
+                                                ?>
+                                            </h3>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+
+                        <div class="col-md-3">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="icon-box me-3">
+                                            <i class="fas fa-chart-line fa-2x"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="text-white-50 mb-1">Avg. Discount</h6>
+                                            <h3 class="mb-0">
+                                                <?php
+                                                $stmt = $db->query("
+                                                    SELECT COALESCE(AVG(discount_amount), 0) 
+                                                    FROM orders 
+                                                    WHERE payment_status = 'Paid' 
+                                                    AND discount_amount > 0
+                                                ");
+                                                echo "Ksh. " . number_format($stmt->fetchColumn(), 2);
+                                                ?>
+                                            </h3>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add CSS for icon box -->
+                    <style>
+                        .icon-box {
+                            width: 48px;
+                            height: 48px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            border-radius: 12px;
+                            background: rgba(255, 255, 255, 0.2);
+                        }
+                        .card {
+                            border: none;
+                            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                            transition: transform 0.2s;
+                        }
+                        .card:hover {
+                            transform: translateY(-5px);
+                        }
+                        .text-white-50 {
+                            font-size: 0.875rem;
+                            font-weight: 500;
+                        }
+                        .bg-primary { background: linear-gradient(45deg, #4e73df, #224abe) !important; }
+                        .bg-success { background: linear-gradient(45deg, #1cc88a, #169b6b) !important; }
+                        .bg-info { background: linear-gradient(45deg, #36b9cc, #258391) !important; }
+                        .bg-warning { background: linear-gradient(45deg, #f6c23e, #dda20a) !important; }
+                    </style>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Most Used Coupons</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Type</th>
+                                    <th>Value</th>
+                                    <th>Uses</th>
+                                    <th>Total Order Value</th>
+                                    <th>Total Savings</th>
+                                    <th>Average Savings/Order</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($couponStats as $stat): ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($stat['code']) ?></td>
+                                        <td><?= htmlspecialchars($stat['discount_type']) ?></td>
+                                        <td>
+                                            <?php if ($stat['discount_type'] === 'percentage'): ?>
+                                                <?= $stat['discount_percentage'] ?>%
+                                            <?php else: ?>
+                                                Ksh.<?= number_format($stat['discount_value'], 2) ?>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td><?= number_format($stat['total_uses']) ?></td>
+                                        <td>Ksh.<?= number_format($stat['total_order_amount'], 2) ?></td>
+                                        <td class="text-danger">Ksh.<?= number_format($stat['total_savings'], 2) ?></td>
+                                        <td>Ksh.<?= number_format($stat['total_savings'] / $stat['total_uses'], 2) ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>

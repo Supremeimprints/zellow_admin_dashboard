@@ -83,6 +83,12 @@ JOIN products p ON i.product_id = p.product_id
 WHERE i.stock_quantity < i.min_stock_level";
 $stmt = $db->query($query);
 $reportData['low_stock'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Add this before the HTML output to count unread notifications
+$unreadQuery = "SELECT COUNT(*) FROM messages WHERE recipient_id = ? AND is_read = 0";
+$stmt = $db->prepare($unreadQuery);
+$stmt->execute([$_SESSION['id']]);
+$unreadCount = $stmt->fetchColumn();
 ?>
 
 <!DOCTYPE html>
@@ -112,6 +118,121 @@ $reportData['low_stock'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <nav class="navbar">
     <?php include 'includes/nav/collapsed.php'; ?>
     </nav>
+<!-- Add the alerts container -->
+<div class="alerts-container">
+    <?php if (isset($_SESSION['success'])): ?>
+        <div class="alert custom-alert success">
+            <div class="alert-content">
+                <i class="fas fa-check-circle alert-icon"></i>
+                <span><?= $_SESSION['success']; unset($_SESSION['success']); ?></span>
+            </div>
+            <button type="button" class="alert-close" onclick="this.parentElement.remove();">×</button>
+        </div>
+    <?php endif; ?>
+
+    <?php if (isset($_SESSION['error'])): ?>
+        <div class="alert custom-alert error">
+            <div class="alert-content">
+                <i class="fas fa-exclamation-circle alert-icon"></i>
+                <span><?= $_SESSION['error']; unset($_SESSION['error']); ?></span>
+            </div>
+            <button type="button" class="alert-close" onclick="this.parentElement.remove();">×</button>
+        </div>
+    <?php endif; ?>
+</div>
+
+<!-- Add these styles to the existing <style> section or your CSS file -->
+<style>
+.alerts-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1050;
+    width: 400px;
+}
+
+.custom-alert {
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    animation: slideIn 0.3s ease-out;
+}
+
+.alert-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.alert-icon {
+    font-size: 1.2rem;
+}
+
+.alert-close {
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 1.2rem;
+    opacity: 0.7;
+    cursor: pointer;
+    padding: 0 5px;
+}
+
+.alert-close:hover {
+    opacity: 1;
+}
+
+.custom-alert.success {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+.custom-alert.error {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Auto-dismiss animation */
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+.alert-dismissing {
+    animation: fadeOut 0.5s ease-out forwards;
+}
+</style>
+
+<script>
+// Auto-dismiss alerts after 5 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    const alerts = document.querySelectorAll('.custom-alert');
+    alerts.forEach(alert => {
+        setTimeout(() => {
+            alert.classList.add('alert-dismissing');
+            setTimeout(() => alert.remove(), 500);
+        }, 5000);
+    });
+});
+</script>
+
 <?php
 // Display Messages
 if (isset($_SESSION['success'])): ?>

@@ -186,6 +186,61 @@ foreach ($statusResults as $result) {
         $orderCounts[$result['status']] = (int) $result['count'];
     }
 }
+
+// Handle shipping status update
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_shipping'])) {
+    try {
+        $db->beginTransaction();
+
+        // Remove updated_at from the query
+        $stmt = $db->prepare("
+            UPDATE orders 
+            SET 
+                status = ?,
+                tracking_number = ?,
+                driver_id = ?
+            WHERE order_id = ?
+        ");
+
+        $stmt->execute([
+            $_POST['shipping_status'],
+            $_POST['tracking_number'],
+            $_POST['driver_id'],
+            $_POST['order_id']
+        ]);
+
+        // Log the change with current timestamp
+        $logStmt = $db->prepare("
+            INSERT INTO shipping_status_history (
+                order_id,
+                status,
+                driver_id,
+                tracking_number,
+                updated_by,
+                notes,
+                created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ");
+
+        $logStmt->execute([
+            $_POST['order_id'],
+            $_POST['shipping_status'],
+            $_POST['driver_id'],
+            $_POST['tracking_number'],
+            $_SESSION['id'],
+            $_POST['notes'] ?? null
+        ]);
+
+        $db->commit();
+        $_SESSION['success'] = "Shipping status updated successfully";
+        header("Location: dispatch.php");
+        exit();
+
+    } catch (Exception $e) {
+        $db->rollBack();
+        $error = $e->getMessage();
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -202,7 +257,6 @@ foreach ($statusResults as $result) {
     <!-- Existing stylesheets -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="assets/css/index.css">
     <link rel="stylesheet" href="assets/css/badges.css">
     <link rel="stylesheet" href="assets/css/orders.css">
     <link rel="stylesheet" href="assets/css/collapsed.css">
@@ -239,8 +293,11 @@ foreach ($statusResults as $result) {
         <nav class="navbar">
             <?php include 'includes/nav/collapsed.php'; ?>
         </nav>
-
-        <div class="main-content container mt-5">
+        <div class="main-content">
+       
+       <div class="row g-3">
+           <div class="col-12">
+        <div class="container mt-5">
             <!-- Remove extra container and adjust structure -->
             <h2>Dispatch & Logistics Summary</h2>
 

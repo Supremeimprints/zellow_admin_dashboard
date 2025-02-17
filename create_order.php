@@ -87,13 +87,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $username = filter_var($_POST['username'], FILTER_SANITIZE_STRING);
         if (empty($username)) throw new Exception("Username is required");
 
-        $shippingMethod = $_POST['shipping_method'] ?? 'Standard';
-        $allowedShippingMethods = ['Standard', 'Express', 'Next Day'];
-        if (!in_array($shippingMethod, $allowedShippingMethods)) {
-            throw new Exception("Invalid shipping method");
+        // Update shipping method validation
+        $shippingMethodId = filter_var($_POST['shipping_method'] ?? null, FILTER_VALIDATE_INT);
+        if (!$shippingMethodId) {
+            throw new Exception("Please select a valid shipping method");
         }
 
-        $paymentMethod = $_POST['payment_method'] ?? 'Mpesa';
+        $regionId = filter_var($_POST['region_id'] ?? null, FILTER_VALIDATE_INT);
+        if (!$regionId) {
+            throw new Exception("Please select a valid delivery region");
+        }
+
+        // Validate shipping method exists for region
+        if (!isValidShippingMethod($db, $shippingMethodId, $regionId)) {
+            throw new Exception("Selected shipping method is not available for this region");
+        }
+
+        $paymentMethod = $_POST['payment_method'] ?? null;
         $allowedPaymentMethods = ['Mpesa', 'Airtel Money', 'Credit Card', 'Cash On Delivery'];
         if (!in_array($paymentMethod, $allowedPaymentMethods)) {
             throw new Exception("Invalid payment method");
@@ -146,8 +156,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $totalItems += $quantity;
         }
 
-        // Calculate shipping fee
-        $shipping_fee = calculateShippingFee($db, $_POST['shipping_method'], $total_amount, $totalItems);
+        // Validate shipping method and region
+        $regionId = filter_var($_POST['region_id'], FILTER_VALIDATE_INT);
+        $shippingMethodId = filter_var($_POST['shipping_method'], FILTER_VALIDATE_INT);
+        
+        if (!$regionId || !$shippingMethodId) {
+            throw new Exception("Invalid shipping region or method");
+        }
+
+        // Validate shipping method exists for region
+        if (!isValidShippingMethod($db, $shippingMethodId, $regionId)) {
+            throw new Exception("Selected shipping method is not available for this region");
+        }
+
+        // Get shipping rate details
+        $shippingRate = getShippingRate($db, $shippingMethodId, $regionId);
+        if (!$shippingRate) {
+            throw new Exception("Could not determine shipping rate");
+        }
+
+        // Calculate total items for shipping
+        $totalItems = 0;
+        foreach ($_POST['products'] as $product) {
+            $totalItems += (int)$product['quantity'];
+        }
+
+        // Calculate shipping cost using the proper rate
+        $shipping_fee = calculateShippingCost($db, $shippingMethodId, $regionId, $totalItems);
+        if ($shipping_fee === null) {
+            throw new Exception("Could not calculate shipping cost");
+        }
 
         // Initialize discount variables
         $discount_amount = 0;
@@ -173,17 +211,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             $coupon_id = $result['coupon_id'];
-            
-            // Record coupon usage after successful order creation
-            if (!$couponValidator->recordCouponUsage($coupon_id, $customerId, $orderId)) {
-                throw new Exception("Error recording coupon usage");
-            }
         }
 
         // Add shipping fee to total
         $final_total = $total_amount - $discount_amount + $shipping_fee;
 
-        // Create order with discount information
+        // Create order with both old and new shipping fields
         $orderStmt = $db->prepare("INSERT INTO orders (
             id, 
             email,
@@ -196,10 +229,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             tracking_number,
             payment_status,
             shipping_method,
+            shipping_method_id,
+            shipping_region_id,
             payment_method,
-            coupon_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            coupon_id,
+            product_id,
+            quantity,
+            price
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
+        // Get shipping method name from ID
+        $methodStmt = $db->prepare("SELECT name FROM shipping_methods WHERE id = ?");
+        $methodStmt->execute([$shippingMethodId]);
+        $methodName = $methodStmt->fetchColumn();
+
+        // Get first product's details for the main order record
+        $firstProduct = $_POST['products'][0];
+        
         $orderStmt->execute([
             $customerId,
             $email,
@@ -211,12 +257,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_POST['shipping_address'],
             generateTrackingNumber(),
             'Pending',
-            $_POST['shipping_method'],
+            $methodName,          // Keep original shipping_method field
+            $shippingMethodId,    // New shipping_method_id field
+            $regionId,            // New shipping_region_id field
             $_POST['payment_method'],
-            $coupon_id
+            $coupon_id,
+            $firstProduct['product_id'],  // First product details
+            $firstProduct['quantity'],
+            $firstProduct['unit_price']
         ]);
 
         $orderId = $db->lastInsertId();
+
+        // If there are additional products, create additional order records
+        if (count($_POST['products']) > 1) {
+            $additionalOrderStmt = $db->prepare("INSERT INTO orders (
+                order_id,
+                id,
+                email,
+                username,
+                product_id,
+                quantity,
+                price,
+                status,
+                payment_status,
+                shipping_method_id,
+                shipping_region_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
+            for ($i = 1; $i < count($_POST['products']); $i++) {
+                $product = $_POST['products'][$i];
+                $additionalOrderStmt->execute([
+                    $orderId,
+                    $customerId,
+                    $email,
+                    $username,
+                    $product['product_id'],
+                    $product['quantity'],
+                    $product['unit_price'],
+                    'Pending',
+                    'Pending',
+                    $shippingMethodId,
+                    $regionId
+                ]);
+            }
+        }
+
+        // Now record the coupon usage with the valid order ID
+        if ($coupon_id) {
+            if (!$couponValidator->recordCouponUsage($coupon_id, $customerId, $orderId)) {
+                throw new Exception("Error recording coupon usage");
+            }
+        }
 
         // Insert order items with correct fields
         foreach ($_POST['products'] as $product) {
@@ -329,7 +421,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
 
                         <div class="form-section">
-                            <h4 class="mb-3">Order Details</h4>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h4 class="mb-0">Order Details</h4>
+                                <button type="button" id="add-product" class="btn btn-secondary">Add Another Product</button>
+                            </div>
                             <div id="products-container">
                                 <div class="row g-3 product-item">
                                     <div class="col-md-6">
@@ -353,13 +448,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <label for="unit_price" class="form-label">Price per Unit</label>
                                         <input type="number" name="products[0][unit_price]" class="form-control unit-price-input" step="0.01" required>
                                     </div>
-                                    <div class="d-flex justify-content-between">
-                                    <button type="button" id="add-product" class="btn btn-secondary mt-3">Add Another Product</button>
-                                        <button type="button" class="btn btn-danger remove-product mt-3">Remove</button>
+                                    <div class="col-md-12 text-end">
+                                        <button type="button" class="btn btn-danger remove-product">Remove</button>
                                     </div>
                                 </div>
                             </div>
-                            
                         </div>
 
                         <div class="row mt-3">
@@ -370,9 +463,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                             <span class="text-muted">Subtotal:</span>
                                             <span class="text-muted" id="subtotal">Ksh. 0.00</span>
                                         </div>
-                                        <div class="d-flex justify-content-between mb-2" id="discountRow" style="display: none !important;">
+                                        <div class="d-flex justify-content-between mb-2" id="discountRow" style="display: none;">
                                             <span class="text-danger">Discount:</span>
-                                            <span class="text-danger" id="discountAmount">-Ksh. 0.00</span>
+                                            <span class="text-danger" id="discount">-Ksh. 0.00</span>
                                         </div>
                                         <div class="d-flex justify-content-between mb-2">
                                             <span class="text-muted">Shipping Fee:</span>
@@ -380,7 +473,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         </div>
                                         <div class="d-flex justify-content-between">
                                             <strong>Total:</strong>
-                                            <strong id="finalTotal">Ksh. 0.00</strong>
+                                            <strong id="total">Ksh. 0.00</strong>
                                         </div>
                                     </div>
                                 </div>
@@ -400,12 +493,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     </select>
                                 </div>
                                 <div class="col-md-4">
+                                    <label for="region_id" class="form-label">Delivery Region</label>
+                                    <?php echo renderRegionDropdown($db); ?>
+                                </div>
+                                <div class="col-md-4">
                                     <label for="shipping_method" class="form-label">Shipping Method</label>
-                                    <select name="shipping_method" id="shipping_method" class="form-select" required>
-                                        <option value="Standard">Standard (3-5 days)</option>
-                                        <option value="Express">Express (2 days)</option>
-                                        <option value="Next Day">Next Day</option>
+                                    <select name="shipping_method" id="shipping_method" class="form-select" required disabled>
+                                        <option value="">Select Region First</option>
                                     </select>
+                                    <div class="form-text">Shipping fee will be calculated based on region and items</div>
                                 </div>
                                 <div class="col-md-12">
                                     <label for="shipping_address" class="form-label">Shipping Address</label>
@@ -437,6 +533,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <button class="btn btn-outline-secondary" type="button" onclick="validateCoupon()">Apply</button>
                                     </div>
                                     <div id="couponFeedback" class="form-text"></div>
+                                    <div id="couponError" class="invalid-feedback"></div>
+                                    <div id="couponSuccess" class="valid-feedback"></div>
                                 </div>
                             </div>
                             <div class="mt-3">
@@ -533,12 +631,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         function updateFinalTotal() {
-            const finalTotal = currentSubtotal - currentDiscount + shippingFee;
-            document.getElementById('finalTotal').textContent = `Ksh. ${finalTotal.toFixed(2)}`;
+            currentSubtotal = Array.from(document.querySelectorAll('.product-item')).reduce((sum, item) => {
+                const quantity = parseInt(item.querySelector('.quantity-input').value) || 0;
+                const price = parseFloat(item.querySelector('.unit-price-input').value) || 0;
+                return sum + (quantity * price);
+            }, 0);
+
+            const finalTotal = currentSubtotal - (currentDiscount || 0) + (shippingFee || 0);
             
-            // Update summary display
             document.getElementById('subtotal').textContent = `Ksh. ${currentSubtotal.toFixed(2)}`;
-            document.getElementById('discount').textContent = currentDiscount > 0 ? `-Ksh. ${currentDiscount.toFixed(2)}` : '-';
+            document.getElementById('shipping_fee').textContent = `Ksh. ${(shippingFee || 0).toFixed(2)}`;
             document.getElementById('total').textContent = `Ksh. ${finalTotal.toFixed(2)}`;
         }
 
@@ -618,10 +720,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Coupon handling
         function validateCoupon() {
-            const couponCode = document.getElementById('couponCode').value;
+            // Get required elements
+            const couponInput = document.getElementById('couponCode');
+            const feedback = document.getElementById('couponFeedback');
+            const discountRow = document.getElementById('discountRow');
+            const discountElement = document.getElementById('discount');
+            const errorElement = document.getElementById('couponError');
+            const successElement = document.getElementById('couponSuccess');
+
+            // Verify all required elements exist
+            if (!couponInput || !feedback || !discountRow || !discountElement) {
+                console.error('Required DOM elements for coupon validation not found');
+                return;
+            }
+
+            const couponCode = couponInput.value.trim();
             const orderTotal = currentSubtotal;
+
+            if (!couponCode) {
+                feedback.className = 'text-danger';
+                feedback.textContent = 'Please enter a coupon code';
+                return;
+            }
+
+            // Show loading state
+            feedback.className = 'text-muted';
+            feedback.textContent = 'Validating coupon...';
+
             const formData = new FormData();
-            
             formData.append('action', 'validate_coupon');
             formData.append('coupon_code', couponCode);
             formData.append('order_total', orderTotal);
@@ -630,38 +756,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
-                const feedback = document.getElementById('couponFeedback');
-                
                 if (data.valid) {
+                    // Success case
                     feedback.className = 'text-success';
                     feedback.textContent = data.message;
+                    discountRow.style.display = 'flex';
                     
                     if (data.discount_type === 'percentage') {
-                        updateOrderTotal(parseFloat(data.discount_value));
+                        currentDiscount = (currentSubtotal * parseFloat(data.discount_value)) / 100;
                     } else {
                         currentDiscount = parseFloat(data.discount_value);
-                        updateFinalTotal();
                     }
                     
-                    document.getElementById('couponCode').classList.add('is-valid');
-                    document.getElementById('couponCode').classList.remove('is-invalid');
+                    couponInput.classList.add('is-valid');
+                    couponInput.classList.remove('is-invalid');
+                    
+                    if (successElement) {
+                        successElement.textContent = data.message;
+                    }
                 } else {
+                    // Error case
                     feedback.className = 'text-danger';
-                    feedback.textContent = data.message;
-                    currentDiscount = 0;
+                    feedback.textContent = data.message || 'Invalid coupon';
                     discountRow.style.display = 'none';
-                    document.getElementById('couponCode').classList.add('is-invalid');
-                    document.getElementById('couponCode').classList.remove('is-valid');
+                    currentDiscount = 0;
+                    
+                    couponInput.classList.add('is-invalid');
+                    couponInput.classList.remove('is-valid');
+                    
+                    if (errorElement) {
+                        errorElement.textContent = data.message || 'Invalid coupon';
+                    }
                 }
                 
+                // Update the discount display
+                discountElement.textContent = currentDiscount > 0 ? 
+                    `-Ksh. ${currentDiscount.toFixed(2)}` : '-Ksh. 0.00';
+                
+                // Update final total
                 updateFinalTotal();
             })
             .catch(error => {
                 console.error('Error:', error);
-                document.getElementById('couponFeedback').className = 'text-danger';
-                document.getElementById('couponFeedback').textContent = 'Error validating coupon';
+                feedback.className = 'text-danger';
+                feedback.textContent = 'Error validating coupon. Please try again.';
+                
+                if (errorElement) {
+                    errorElement.textContent = error.message;
+                }
             });
         }
 
@@ -706,7 +855,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Add shipping method change handler
-        document.getElementById('shipping_method').addEventListener('change', calculateTotal);
+        document.getElementById('shipping_method').addEventListener('change', calculateShippingFee);
         
         // Add form submission validation
         document.querySelector('form').addEventListener('submit', function(e) {
@@ -715,6 +864,131 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 e.preventDefault();
                 alert('Please use a valid coupon code or remove it before submitting.');
             }
+        });
+
+        // Update the shipping fee calculation
+        async function calculateShippingFee() {
+            const methodId = document.getElementById('shipping_method').value;
+            const regionId = document.getElementById('region_id').value;
+            const totalItems = Array.from(document.querySelectorAll('.quantity-input'))
+                .reduce((sum, input) => sum + parseInt(input.value || 0), 0);
+
+            if (!methodId || !regionId) {
+                document.getElementById('shipping_fee').textContent = 'Ksh. 0.00';
+                updateFinalTotal();
+                return;
+            }
+
+            try {
+                const response = await fetch('ajax/calculate_shipping.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        methodId: methodId,
+                        regionId: regionId,
+                        itemCount: totalItems,
+                        subtotal: currentSubtotal
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    shippingFee = parseFloat(data.fee) || 0;
+                    document.getElementById('shipping_fee').textContent = `Ksh. ${shippingFee.toFixed(2)}`;
+                } else {
+                    console.error('Shipping calculation failed:', data.error);
+                    shippingFee = 0;
+                    document.getElementById('shipping_fee').textContent = 'Ksh. 0.00';
+                }
+            } catch (error) {
+                console.error('Error calculating shipping:', error);
+                shippingFee = 0;
+                document.getElementById('shipping_fee').textContent = 'Ksh. 0.00';
+            }
+            
+            updateFinalTotal();
+        }
+
+        // Update the updateFinalTotal function
+        function updateFinalTotal() {
+            currentSubtotal = Array.from(document.querySelectorAll('.product-item')).reduce((sum, item) => {
+                const quantity = parseInt(item.querySelector('.quantity-input').value) || 0;
+                const price = parseFloat(item.querySelector('.unit-price-input').value) || 0;
+                return sum + (quantity * price);
+            }, 0);
+
+            const finalTotal = currentSubtotal - (currentDiscount || 0) + (shippingFee || 0);
+            
+            document.getElementById('subtotal').textContent = `Ksh. ${currentSubtotal.toFixed(2)}`;
+            document.getElementById('shipping_fee').textContent = `Ksh. ${(shippingFee || 0).toFixed(2)}`;
+            document.getElementById('total').textContent = `Ksh. ${finalTotal.toFixed(2)}`;
+        }
+
+        // Update event listeners
+        document.getElementById('shipping_method').addEventListener('change', calculateShippingFee);
+        document.getElementById('region_id').addEventListener('change', function() {
+            const methodSelect = document.getElementById('shipping_method');
+            methodSelect.value = '';
+            shippingFee = 0;
+            updateShippingMethods(this.value);
+            updateFinalTotal();
+        });
+
+        // Replace the updateShippingMethods function in your JavaScript
+        function updateShippingMethods(regionId) {
+            const methodSelect = document.getElementById('shipping_method');
+            methodSelect.disabled = true;
+            methodSelect.innerHTML = '<option value="">Loading...</option>';
+
+            if (!regionId) {
+                methodSelect.innerHTML = '<option value="">Select Region First</option>';
+                methodSelect.disabled = true;
+                return;
+            }
+
+            fetch(`ajax/get_shipping_methods.php?region_id=${regionId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    methodSelect.innerHTML = '<option value="">Select Shipping Method</option>';
+                    
+                    if (data.success) {
+                        if (data.methods && data.methods.length > 0) {
+                            data.methods.forEach(method => {
+                                const baseRate = parseFloat(method.base_rate).toFixed(2);
+                                const perItem = parseFloat(method.per_item_fee).toFixed(2);
+                                methodSelect.innerHTML += `
+                                    <option value="${method.id}">
+                                        ${method.display_name} 
+                                        (Base: KSH ${baseRate}, Per extra item: KSH ${perItem})
+                                    </option>
+                                `;
+                            });
+                            methodSelect.disabled = false;
+                        } else {
+                            methodSelect.innerHTML = '<option value="">No shipping methods available for this region</option>';
+                            methodSelect.disabled = true;
+                        }
+                    } else {
+                        throw new Error(data.error || 'Failed to load shipping methods');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    methodSelect.innerHTML = '<option value="">Error loading shipping methods</option>';
+                    methodSelect.disabled = true;
+                });
+        }
+
+        // Add region change event listener
+        document.getElementById('region_id').addEventListener('change', function() {
+            updateShippingMethods(this.value);
         });
     </script>
 </body>

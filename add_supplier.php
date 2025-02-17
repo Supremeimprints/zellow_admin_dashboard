@@ -83,15 +83,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Add New Supplier</title>
     <!-- Include your existing CSS files -->
+     <!-- Feather Icons - Add this line -->
+     <script src="https://unpkg.com/feather-icons"></script>
+    
+    <!-- Existing stylesheets -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/index.css">
+    <link rel="stylesheet" href="assets/css/badges.css">
+    <link rel="stylesheet" href="assets/css/orders.css">
+    <link rel="stylesheet" href="assets/css/collapsed.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/css/orders.css" rel="stylesheet">
+    <link href="assets/css/badges.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/index.css">
     <link rel="stylesheet" href="assets/css/collapsed.css">
     <style>
         .product-entry {
-            background: #f8f9fa;
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 15px;
+            transition: background-color 0.3s ease;
+        }
+        
+        /* Light mode styles */
+        :root {
+            --product-entry-bg: #f8f9fa;
+            --product-entry-border: #dee2e6;
+        }
+        
+        /* Dark mode styles */
+        [data-bs-theme="dark"] {
+            --product-entry-bg: #2b3035;
+            --product-entry-border: #444;
+        }
+        
+        .product-entry {
+            background-color: var(--product-entry-bg);
+            border: 1px solid var(--product-entry-border);
         }
     </style>
 </head>
@@ -173,6 +205,8 @@ function addProductField() {
     const container = document.getElementById('productsContainer');
     const productDiv = document.createElement('div');
     productDiv.className = 'product-entry';
+    
+    // Update input classes to support dark mode
     productDiv.innerHTML = `
         <div class="row g-3">
             <div class="col-md-6">
@@ -210,9 +244,27 @@ function addProductField() {
     productCount++;
 }
 
-function removeProduct(button) {
-    button.closest('.product-entry').remove();
-}
+// Add dark mode observer to handle theme changes
+const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'data-bs-theme') {
+            // Update product entries when theme changes
+            const productEntries = document.querySelectorAll('.product-entry');
+            productEntries.forEach(entry => {
+                entry.style.backgroundColor = getComputedStyle(document.documentElement)
+                    .getPropertyValue('--product-entry-bg');
+            });
+        }
+    });
+});
+
+// Start observing theme changes
+document.addEventListener('DOMContentLoaded', function() {
+    observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-bs-theme']
+    });
+});
 
 // Add at least one product field by default
 document.addEventListener('DOMContentLoaded', function() {

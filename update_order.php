@@ -58,78 +58,50 @@ $error = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $db->beginTransaction();
-        
-        $oldStatus = $order['status'];
-        $newStatus = $_POST['status'];
-        $oldDriverId = $order['driver_id'] ?? null;
 
-        // Update order without updated_at field
-        $updateOrderQuery = "UPDATE orders 
-                           SET status = :status,
-                               payment_status = :payment_status,
-                               payment_method = :payment_method,
-                               shipping_method = :shipping_method,
-                               shipping_address = :shipping_address,
-                               delivery_date = :delivery_date,
-                               total_amount = :total_amount
-                           WHERE order_id = :order_id";
-        
-        $stmt = $db->prepare($updateOrderQuery);
+        // Remove updated_at from the query
+        $stmt = $db->prepare("
+            UPDATE orders 
+            SET 
+                status = ?,
+                payment_status = ?
+            WHERE order_id = ?
+        ");
+
         $stmt->execute([
-            ':status' => $newStatus,
-            ':payment_status' => $_POST['payment_status'],
-            ':payment_method' => $_POST['payment_method'],
-            ':shipping_method' => $_POST['shipping_method'],
-            ':shipping_address' => $_POST['shipping_address'],
-            ':delivery_date' => $_POST['delivery_date'],
-            ':total_amount' => $_POST['total_amount'],
-            ':order_id' => $orderId
+            $_POST['status'],
+            $_POST['payment_status'],
+            $orderId
         ]);
 
-        // If order is marked as Delivered or Cancelled, update driver's vehicle status
-        if (($newStatus === 'Delivered' || $newStatus === 'Cancelled') && $oldDriverId) {
-            $updateVehicleQuery = "UPDATE vehicles 
-                                 SET vehicle_status = 'Available'
-                                 WHERE driver_id = :driver_id";
-            $stmt = $db->prepare($updateVehicleQuery);
-            $stmt->execute([':driver_id' => $oldDriverId]);
-        }
+        // Log the status change
+        $logStmt = $db->prepare("
+            INSERT INTO order_status_history (
+                order_id, 
+                status, 
+                payment_status,
+                updated_by,
+                notes,
+                created_at
+            ) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ");
 
-        // Update transaction status
-        if (isset($_POST['payment_status'])) {
-            $updateTransactionQuery = "UPDATE transactions 
-                                     SET payment_status = :payment_status
-                                     WHERE order_id = :order_id";
-            $stmt = $db->prepare($updateTransactionQuery);
-            $stmt->execute([
-                ':payment_status' => $_POST['payment_status'],
-                ':order_id' => $orderId
-            ]);
-        }
-
-        // Update order items
-        $stmt = $db->prepare("DELETE FROM order_items WHERE order_id = ?");
-        $stmt->execute([$orderId]);
-
-        foreach ($_POST['products'] as $item) {
-            $stmt = $db->prepare("INSERT INTO order_items (order_id, product_id, quantity, unit_price, subtotal) 
-                                VALUES (:order_id, :product_id, :quantity, :unit_price, :subtotal)");
-            $subtotal = $item['quantity'] * $item['unit_price'];
-            $stmt->execute([
-                ':order_id' => $orderId,
-                ':product_id' => $item['product_id'],
-                ':quantity' => $item['quantity'],
-                ':unit_price' => $item['unit_price'],
-                ':subtotal' => $subtotal
-            ]);
-        }
+        $logStmt->execute([
+            $orderId,
+            $_POST['status'],
+            $_POST['payment_status'],
+            $_SESSION['id'],
+            $_POST['notes'] ?? null
+        ]);
 
         $db->commit();
-        header('Location: orders.php?success=Order updated successfully');
+        $_SESSION['success'] = "Order status updated successfully";
+        header("Location: orders.php");
         exit();
+
     } catch (Exception $e) {
         $db->rollBack();
-        $error = "Error updating order: " . $e->getMessage();
+        $error = $e->getMessage();
     }
 }
 ?>

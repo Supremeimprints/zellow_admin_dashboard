@@ -67,7 +67,8 @@ $prefix = match ($role) {
 // Generate a random alphanumeric string (e.g., "5GB72PLK9")
 $characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 $randomString = '';
-for ($i = 0; $i < 8; $i++) {
+// Fix the for loop syntax
+for ($i = 0; $i < 8; $i++) {  // Changed from i++ to $i++
     $randomString .= $characters[random_int(0, strlen($characters) - 1)];
 }
 
@@ -105,26 +106,23 @@ if ($action === 'delete') {
     $id = (int)$_GET['id'];
 
     try {
-        // Start transaction
         $db->beginTransaction();
-
-        // 1. Handle messages table constraints first
+        
+        // 1. First handle messages - softly update them
         $messageQueries = [
-            "UPDATE messages SET recipient_id = NULL WHERE recipient_id = ?",
-            "UPDATE messages SET sender_id = NULL WHERE sender_id = ?",
-            "DELETE FROM messages WHERE sender_id IS NULL AND recipient_id IS NULL"
+            "UPDATE messages SET sender_deleted = 1 WHERE sender_id = ?",
+            "UPDATE messages SET recipient_deleted = 1 WHERE recipient_id = ?"
         ];
-
+        
         foreach ($messageQueries as $query) {
             $stmt = $db->prepare($query);
             $stmt->execute([$id]);
         }
 
-        // 2. Handle notifications
+        // 2. Handle notifications - softly update them
         $notificationQueries = [
-            "UPDATE notifications SET sender_id = NULL WHERE sender_id = ?",
-            "UPDATE notifications SET recipient_id = NULL WHERE recipient_id = ?",
-            "DELETE FROM notifications WHERE sender_id IS NULL AND recipient_id IS NULL"
+            "UPDATE notifications SET is_deleted = 1 WHERE sender_id = ?",
+            "UPDATE notifications SET is_deleted = 1 WHERE recipient_id = ?"
         ];
 
         foreach ($notificationQueries as $query) {
@@ -132,42 +130,58 @@ if ($action === 'delete') {
             $stmt->execute([$id]);
         }
 
-        // 3. Delete from related tables
-        $relatedTables = [
-            'activity_logs' => 'id',
-            'user_sessions' => 'id',
-            'user_permissions' => 'id'
-        ];
+        // 3. Update orders to maintain referential integrity
+        $orderQuery = "UPDATE orders SET admin_id = NULL WHERE admin_id = ?";
+        $stmt = $db->prepare($orderQuery);
+        $stmt->execute([$id]);
 
-        foreach ($relatedTables as $table => $column) {
-            $query = "DELETE FROM {$table} WHERE {$column} = ?";
-            $stmt = $db->prepare($query);
-            $stmt->execute([$id]);
-        }
+        // 4. Update activity logs to maintain history
+        $logsQuery = "UPDATE activity_logs SET user_id = NULL WHERE user_id = ?";
+        $stmt = $db->prepare($logsQuery);
+        $stmt->execute([$id]);
 
-        // 4. Finally delete the user
-        $deleteQuery = "DELETE FROM users WHERE id = ? AND role IN ('admin', 'finance_manager', 'supply_manager', 'inventory_manager', 'dispatch_manager', 'service_manager')";
-        $stmt = $db->prepare($deleteQuery);
-        $result = $stmt->execute([$id]);
+        // 5. Clean up any user sessions
+        $sessionQuery = "DELETE FROM user_sessions WHERE user_id = ?";
+        $stmt = $db->prepare($sessionQuery);
+        $stmt->execute([$id]);
+
+        // 6. Remove user permissions
+        $permissionQuery = "DELETE FROM user_permissions WHERE user_id = ?";
+        $stmt = $db->prepare($permissionQuery);
+        $stmt->execute([$id]);
+
+        // 7. Finally deactivate the user instead of deleting
+        $deactivateQuery = "UPDATE users SET 
+                            is_active = 0, 
+                            status = 'inactive',
+                            deactivated_at = CURRENT_TIMESTAMP,
+                            deactivated_by = ?
+                          WHERE id = ? AND role IN (
+                            'admin', 
+                            'finance_manager', 
+                            'supply_manager', 
+                            'inventory_manager', 
+                            'dispatch_manager', 
+                            'service_manager'
+                          )";
+        
+        $stmt = $db->prepare($deactivateQuery);
+        $result = $stmt->execute([$_SESSION['id'], $id]);
 
         if (!$result) {
-            throw new PDOException("Failed to delete user record");
+            throw new PDOException("Failed to deactivate user");
         }
 
-        // Commit transaction
         $db->commit();
+        $_SESSION['success'] = "Admin deactivated successfully";
         
-        $_SESSION['success'] = "Admin deleted successfully";
-        header('Location: admins.php');
-        exit();
-
     } catch (PDOException $e) {
-        // Rollback transaction on error
         $db->rollBack();
-        $_SESSION['error'] = "Error deleting admin: " . $e->getMessage();
-        header('Location: admins.php');
-        exit();
+        $_SESSION['error'] = "Error processing request: " . $e->getMessage();
     }
+    
+    header('Location: admins.php');
+    exit();
 }
 
 // Fetch only admin users
@@ -227,9 +241,16 @@ $drivers = $driverStmt->fetchAll(PDO::FETCH_ASSOC);
     </nav>
 
     <div class="content-wrapper">
-        <!-- Admins Table Section -->
+        <!-- Add Employee Button -->
         <div class="container mt-5">
-            <h2>Staff</h2>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Staff</h2>
+                <a href="add_admin.php" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Employee
+                </a>
+            </div>
+
+            <!-- Admins Table Section -->
             <div class="table-responsive">
                 <table class="table table-hover table-striped">
                     <thead>
@@ -246,16 +267,35 @@ $drivers = $driverStmt->fetchAll(PDO::FETCH_ASSOC);
                     <tbody>
                         <?php foreach ($admins as $admin): ?>
                             <tr>
-                                <td><?php echo htmlspecialchars($admin['employee_number']); ?></td>
-                                <td><?php echo htmlspecialchars($admin['username']); ?></td>
-                                <td><?php echo htmlspecialchars($admin['email']); ?></td>
-                                <td><?php echo htmlspecialchars($admin['role']); ?></td>
-                                <td><?php echo $admin['is_active'] ? 'Active' : 'Inactive'; ?></td>
-                                <td><?php echo htmlspecialchars($admin['created_at']); ?></td>
+                                <td><?= htmlspecialchars($admin['employee_number'] ?? 'N/A') ?></td>
+                                <td><?= htmlspecialchars($admin['username']) ?></td>
+                                <td><?= htmlspecialchars($admin['email']) ?></td>
+                                <td><?= htmlspecialchars($admin['role']) ?></td>
                                 <td>
-                                    <a href="edit_admin.php?id=<?php echo htmlspecialchars($admin['id']); ?>" 
-                                    class="btn btn-warning btn-sm">Edit</a>
-                                    <a href="delete_admin.php?action=delete&id=<?php echo $admin['id']; ?>" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this admin?');">Delete</a>
+                                    <span class="badge bg-<?= $admin['is_active'] ? 'success' : 'danger' ?>">
+                                        <?= $admin['is_active'] ? 'Active' : 'Inactive' ?>
+                                    </span>
+                                </td>
+                                <td><?= htmlspecialchars($admin['created_at']) ?></td>
+                                <td>
+                                    <div class="btn-group">
+                                        <?php
+                                            // Debug output of admin data
+                                            $debug_data = json_encode($admin);
+                                            echo "<!-- Debug: Admin Data for ID {$admin['id']}: $debug_data -->";
+                                        ?>
+                                        <a class="btn btn-sm btn-warning py-2 px-3" 
+                                           href="edit_admin.php?id=<?= $admin['id'] ?>">
+                                            <i class="bi bi-pencil me-2"></i>Edit Employee
+                                        </a>
+                                        <?php if ($admin['id'] !== $_SESSION['id']): ?>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-danger" 
+                                                    onclick="confirmDelete(<?= $admin['id'] ?>)">
+                                                <i class="bi bi-trash me-2"></i>Delete
+                                            </button>
+                                        <?php endif; ?>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -343,6 +383,9 @@ $drivers = $driverStmt->fetchAll(PDO::FETCH_ASSOC);
                         });
                 }
             }
+
+            // Add this to debug the issue
+            console.log('Current admin IDs:', <?= json_encode(array_column($admins, 'id')) ?>);
         </script>
 
         <?php 

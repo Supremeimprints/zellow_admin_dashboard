@@ -116,54 +116,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $db->beginTransaction();
 
-        $driver_id = $_POST['driver_id'] ?? '';
-        if (empty($driver_id)) {
-            throw new Exception("Please select a driver");
-        }
-
-        // Update order status without updated_at fieldd driver_id
+        // Remove updated_at from the query
         $stmt = $db->prepare("
             UPDATE orders 
-            SET status = 'Shipped',
-                driver_id = :driver_id
-            WHERE order_id = :order_id
+            SET 
+                status = ?,
+                driver_id = ?,
+                tracking_number = ?,
+                delivery_date = ?
+            WHERE order_id = ?
         ");
 
         $stmt->execute([
-            ':driver_id' => $driver_id,
-            ':order_id' => $orderId
+            $_POST['status'],
+            $_POST['driver_id'],
+            $_POST['tracking_number'],
+            $_POST['delivery_date'],
+            $orderId
         ]);
 
-        // Update vehicle status
-        $stmt = $db->prepare("
-            UPDATE vehicles 
-            SET vehicle_status = 'In Use'
-            WHERE driver_id = :driver_id
+        // Log with current timestamp
+        $logStmt = $db->prepare("
+            INSERT INTO dispatch_history (
+                order_id,
+                driver_id,
+                status,
+                tracking_number,
+                assigned_by,
+                scheduled_delivery,
+                notes,
+                created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ");
-        $stmt->execute([':driver_id' => $driver_id]);
 
-        // Update inventory and create transaction record
-        foreach ($inventory as $item) {
-            $productId = $item['product_id'];
-            $orderItemStmt = $db->prepare("SELECT quantity FROM order_items WHERE order_id = :order_id AND product_id = :product_id");
-            $orderItemStmt->bindParam(':order_id', $orderId);
-            $orderItemStmt->bindParam(':product_id', $productId);
-            $orderItemStmt->execute();
-            $orderItem = $orderItemStmt->fetch(PDO::FETCH_ASSOC);
-
-            $updateInventoryStmt = $db->prepare("UPDATE inventory SET stock_quantity = stock_quantity - :quantity WHERE product_id = :product_id");
-            $updateInventoryStmt->bindParam(':quantity', $orderItem['quantity']);
-            $updateInventoryStmt->bindParam(':product_id', $productId);
-            $updateInventoryStmt->execute();
-        }
+        $logStmt->execute([
+            $orderId,
+            $_POST['driver_id'],
+            $_POST['status'],
+            $_POST['tracking_number'],
+            $_SESSION['id'],
+            $_POST['delivery_date'],
+            $_POST['notes'] ?? null
+        ]);
 
         $db->commit();
-        $_SESSION['success'] = "Order #$orderId has been dispatched successfully!";
-        header('Location: dispatch.php');
+        $_SESSION['success'] = "Order dispatched successfully";
+        header("Location: dispatch.php");
         exit();
+
     } catch (Exception $e) {
         $db->rollBack();
-        $error = "Error dispatching order: " . $e->getMessage();
+        $error = $e->getMessage();
     }
 }
 
@@ -266,9 +269,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <!-- Existing stylesheets -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="assets/css/index.css">
-    <link rel="stylesheet" href="assets/css/badges.css">
-    <link rel="stylesheet" href="assets/css/orders.css">
+   
     <link rel="stylesheet" href="assets/css/collapsed.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="assets/css/orders.css" rel="stylesheet">

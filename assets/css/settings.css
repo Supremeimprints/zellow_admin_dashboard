@@ -613,3 +613,33 @@
     padding-top: 1rem;
     border-top: 1px solid var(--border-color);
 }
+
+/* ... existing styles ... */
+
+.shipping-rates-table {
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+.shipping-rates-table th,
+.shipping-rates-table td {
+    padding: 0.5rem;
+    vertical-align: middle;
+}
+
+.shipping-rates-table input[type="number"] {
+    width: 120px;
+}
+
+.region-card {
+    border: 1px solid rgba(0,0,0,.125);
+    border-radius: .25rem;
+    margin-bottom: 1rem;
+}
+
+.region-card .card-header {
+    background-color: rgba(0,0,0,.03);
+    padding: .75rem 1.25rem;
+}
+
+/* ... rest of existing styles ... */

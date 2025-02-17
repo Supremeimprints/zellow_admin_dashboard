@@ -44,51 +44,136 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <!-- Existing stylesheets -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="assets/css/index.css">
-    <link rel="stylesheet" href="assets/css/badges.css">
-    <link rel="stylesheet" href="assets/css/orders.css">
+
     <link rel="stylesheet" href="assets/css/collapsed.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="assets/css/orders.css" rel="stylesheet">
+    <link href="assets/css/admins.css" rel="stylesheet">
     <link href="assets/css/badges.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="assets/css/services.css" rel="stylesheet">
+    
+    <style>
+        .content-wrapper {
+            padding: 1rem;
+            display: flex;
+            justify-content: center;
+            margin-left: 78px;
+            width: calc(100% - 78px);
+            transition: all 0.3s ease;
+        }
+        
+        .form-card {
+            width: 100%;
+            overflow: visible;
+            margin: 20px auto;
+            background: none;
+            border: none;
+        }
+
+        .card-header {
+            background: none;
+            border-bottom: 1px solid var(--form-border);
+            padding: 1rem 0;
+        }
+
+        .card-body {
+            padding: 2rem 0;
+        }
+
+        :root {
+            --form-border: #dee2e6;
+            --input-bg: #ffffff;
+            --input-border: #ced4da;
+        }
+
+        [data-bs-theme="dark"] {
+            --form-border: #444;
+            --input-bg: #1a1d20;
+            --input-border: #444;
+        }
+
+        .form-control {
+            background-color: var(--input-bg);
+            border-color: var(--input-border);
+        }
+    </style>
 </head>
 <body>
 <div class="admin-layout"> 
 <?php include 'includes/theme.php'; ?>
-    <nav class="navbar">
-    <?php include 'includes/nav/collapsed.php'; ?>
-    </nav>
-<div class="container mt-5">
-    <h2>Add New Service</h2>
+<?php include 'includes/nav/collapsed.php'; ?>
 
-    <?php if ($error): ?>
-        <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
-    <?php endif; ?>
-    <?php if ($success): ?>
-        <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
-    <?php endif; ?>
+    <div class="content-wrapper">
+        <div class="form-card card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Add New Service</h5>
+                    <a href="services.php" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <?php if ($error): ?>
+                    <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+                <?php endif; ?>
+                <?php if ($success): ?>
+                    <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
+                <?php endif; ?>
 
-    <form method="POST" action="add_services.php">
-        <div class="mb-3">
-            <label for="name" class="form-label">Service Name</label>
-            <input type="text" class="form-control" id="name" name="name" required>
-        </div>
-        <div class="mb-3">
-            <label for="description" class="form-label">Description</label>
-            <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
-        </div>
-        <div class="mb-3">
-            <label for="price" class="form-label">Price (Ksh.)</label>
-            <input type="number" class="form-control" id="price" name="price" required>
-        </div>
-        <button type="submit" class="btn btn-primary">Add Service</button>
-    </form>
+                <form method="POST" class="needs-validation" novalidate>
+                    <div class="mb-4">
+                        <label for="name" class="form-label">Service Name</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
 
-    <a href="services.php" class="btn btn-secondary mt-3">Return to Services</a>
+                    <div class="mb-4">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" 
+                                  rows="4" required></textarea>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="price" class="form-label">Price (Ksh.)</label>
+                        <input type="number" class="form-control" id="price" name="price" 
+                               required min="0" step="0.01">
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="services.php" class="btn btn-danger">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Add Service</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 
+<script>
+// Same theme observer script as edit_services.php
+const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'data-bs-theme') {
+            updateThemeStyles();
+        }
+    });
+});
+
+function updateThemeStyles() {
+    const root = document.documentElement;
+    document.querySelectorAll('.form-card').forEach(card => {
+        card.style.backgroundColor = getComputedStyle(root).getPropertyValue('--form-bg');
+        card.style.borderColor = getComputedStyle(root).getPropertyValue('--form-border');
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-bs-theme']
+    });
+    updateThemeStyles();
+});
+</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 <?php include 'includes/nav/footer.php'; ?>

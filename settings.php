@@ -3,7 +3,7 @@ session_start();
 require_once 'config/database.php';
 require_once 'includes/theme.php';
 require_once 'includes/functions/settings_helpers.php';
-
+require_once 'includes/functions/shipping_functions.php';
 // Authentication check
 if (!isset($_SESSION['id'])) {
     header('Location: login.php');
@@ -101,6 +101,80 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        // Add new shipping region
+        if (isset($_POST['add_region'])) {
+            try {
+                $stmt = $db->prepare("INSERT INTO shipping_regions (name, description) VALUES (?, ?)");
+                $stmt->execute([$_POST['region_name'], $_POST['region_description']]);
+                $_SESSION['success'] = "Region added successfully";
+            } catch (Exception $e) {
+                $_SESSION['error'] = "Error adding region: " . $e->getMessage();
+            }
+        }
+
+        // Update region shipping rates
+        if (isset($_POST['update_region_rates'])) {
+            try {
+                $db->beginTransaction();
+                
+                $regionId = $_POST['region_id'];
+                foreach ($_POST['rates'] as $methodId => $rate) {
+                    // Insert or update rates
+                    $stmt = $db->prepare("
+                        INSERT INTO region_shipping_rates (region_id, shipping_method_id, base_rate, per_item_fee)
+                        VALUES (?, ?, ?, ?)
+                        ON DUPLICATE KEY UPDATE base_rate = ?, per_item_fee = ?
+                    ");
+                    $stmt->execute([
+                        $regionId,
+                        $methodId,
+                        $rate['base'],
+                        $rate['per_item'],
+                        $rate['base'],
+                        $rate['per_item']
+                    ]);
+                }
+                
+                $db->commit();
+                $_SESSION['success'] = "Shipping rates updated successfully";
+            } catch (Exception $e) {
+                $db->rollBack();
+                $_SESSION['error'] = "Error updating rates: " . $e->getMessage();
+            }
+        }
+
+        // Handle region status toggle
+        if (isset($_POST['toggle_region'])) {
+            try {
+                if (toggleRegionStatus($db, $_POST['region_id'])) {
+                    $_SESSION['success'] = "Region status updated successfully";
+                } else {
+                    throw new Exception("Failed to update region status");
+                }
+            } catch (Exception $e) {
+                $_SESSION['error'] = "Error updating region status: " . $e->getMessage();
+            }
+            header('Location: ' . $_SERVER['PHP_SELF']);
+            exit;
+        }
+
+        // Add new shipping zone
+        if (isset($_POST['add_zone'])) {
+            try {
+                $stmt = $db->prepare("
+                    INSERT INTO shipping_zones (zone_name, zone_regions) 
+                    VALUES (?, ?)
+                ");
+                $stmt->execute([
+                    $_POST['zone_name'],
+                    $_POST['zone_regions']
+                ]);
+                $_SESSION['success'] = "Zone added successfully";
+            } catch (Exception $e) {
+                $_SESSION['error'] = "Error adding zone: " . $e->getMessage();
+            }
+        }
+
     } catch (Exception $e) {
         $error = "Error: " . $e->getMessage();
     }
@@ -110,6 +184,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $marketing_settings = get_all_settings($db, 'marketing');
 $payment_gateways = get_payment_gateways($db);
 $shipping_zones = get_shipping_zones($db);
+$regions = getRegions($db, false);
+$shippingMethods = getShippingMethods($db, false);
 
 // Get gateway configs
 $stripe_config = array_filter($payment_gateways, fn($g) => $g['gateway_code'] === 'stripe')[0] ?? null;
@@ -280,111 +356,136 @@ $mpesa_config = array_filter($payment_gateways, fn($g) => $g['gateway_code'] ===
                 </div>
             </div>
 
-            <!-- Shipping Zones and Rates -->
+            <!-- Shipping Regions and Rates -->
             <div class="col-12 mt-4">
                 <div class="settings-card">
-                    <h2 class="settings-title">Shipping Zones & Rates</h2>
+                    <h2 class="settings-title">Shipping Regions & Rates</h2>
                     
-                    <!-- Add New Zone Form -->
-                    <div class="mb-4">
-                        <h3>Add New Shipping Zone</h3>
-                        <form method="POST" class="row g-3">
-                            <div class="col-md-5">
-                                <label class="form-label">Zone Name</label>
-                                <input type="text" class="form-control" name="zone_name" required>
+                    <!-- Add New Region Form -->
+                    <form method="POST" class="mb-4">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Region Name</label>
+                                <input type="text" name="region_name" class="form-control" required>
                             </div>
-                            <div class="col-md-5">
-                                <label class="form-label">Regions (comma-separated)</label>
-                                <input type="text" class="form-control" name="zone_regions" 
-                                       placeholder="Region 1, Region 2, Region 3" required>
+                            <div class="col-md-6">
+                                <label class="form-label">Description</label>
+                                <input type="text" name="region_description" class="form-control">
                             </div>
                             <div class="col-md-2">
-                                <label class="form-label">&nbsp;</label>
-                                <button type="submit" name="add_zone" class="btn btn-primary w-100">
-                                    Add Zone
-                                </button>
+                                <label class="form-label d-block">&nbsp;</label>
+                                <button type="submit" name="add_region" class="btn btn-primary">Add Region</button>
                             </div>
-                        </form>
-                    </div>
+                        </div>
+                    </form>
 
-                    <!-- Existing Zones and Rates -->
-                    <?php foreach ($shipping_zones as $zone): ?>
-                        <div class="zone-section mb-4">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h3><?= htmlspecialchars($zone['zone_name']) ?></h3>
-                                <span class="badge bg-info">
-                                    <?= count(json_decode($zone['zone_regions'], true)) ?> regions
-                                </span>
+                    <!-- Add New Zone Form -->
+                    <form method="POST" class="mb-4 border-top pt-4">
+                        <h5>Add Delivery Zone</h5>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Zone Name</label>
+                                <input type="text" name="zone_name" class="form-control" required>
                             </div>
-                            
-                            <!-- Regions List -->
-                            <div class="mb-3">
-                                <small class="text-muted">Regions: </small>
-                                <?php foreach (json_decode($zone['zone_regions'], true) as $region): ?>
-                                    <span class="badge bg-secondary me-1">
-                                        <?= htmlspecialchars($region) ?>
-                                    </span>
-                                <?php endforeach; ?>
+                            <div class="col-md-6">
+                                <label class="form-label">Areas (comma separated)</label>
+                                <input type="text" name="zone_regions" class="form-control" 
+                                       placeholder="e.g. Kilimani, Kileleshwa, Lavington">
                             </div>
+                            <div class="col-md-2">
+                                <label class="form-label d-block">&nbsp;</label>
+                                <button type="submit" name="add_zone" class="btn btn-primary">Add Zone</button>
+                            </div>
+                        </div>
+                    </form>
 
-                            <!-- Add New Rate Form -->
-                            <div class="mb-3">
-                                <form method="POST" class="row g-3 align-items-end">
-                                    <div class="col-md-3">
-                                        <label class="form-label">Shipping Method</label>
-                                        <input type="text" class="form-control" name="shipping_method" required>
+                    <!-- Regions List -->
+                    <?php foreach ($regions as $region): 
+                        $zones = getRegionZones($db, $region['id']);
+                    ?>
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-0"><?= htmlspecialchars($region['name']) ?></h6>
+                                        <small class="text-muted"><?= htmlspecialchars($region['description']) ?></small>
                                     </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label">Base Rate (KSH)</label>
-                                        <input type="number" class="form-control" name="base_rate" 
-                                               step="0.01" min="0" required>
+                                    <div class="d-flex align-items-center">
+                                        <form method="POST" class="me-2">
+                                            <input type="hidden" name="region_id" value="<?= $region['id'] ?>">
+                                            <button type="submit" name="toggle_region" 
+                                                    class="btn btn-sm btn-<?= $region['is_active'] ? 'success' : 'danger' ?>">
+                                                <?= $region['is_active'] ? 'Active' : 'Inactive' ?>
+                                            </button>
+                                        </form>
                                     </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Description</label>
-                                        <input type="text" class="form-control" name="description">
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <!-- Zones for this region -->
+                                <?php if (!empty($zones)): ?>
+                                    <div class="mb-3">
+                                        <label class="form-label">Delivery Zones:</label>
+                                        <div>
+                                            <?php foreach ($zones as $zone): ?>
+                                                <span class="badge bg-info me-1 mb-1">
+                                                    <?= htmlspecialchars($zone['zone_name']) ?>
+                                                    <span class="text-muted small">
+                                                        (<?= htmlspecialchars($zone['zone_regions']) ?>)
+                                                    </span>
+                                                </span>
+                                            <?php endforeach; ?>
+                                        </div>
                                     </div>
-                                    <div class="col-md-2">
-                                        <input type="hidden" name="zone_id" value="<?= $zone['zone_id'] ?>">
-                                        <button type="submit" name="add_rate" class="btn btn-outline-primary w-100">
-                                            Add Rate
+                                <?php endif; ?>
+
+                                <!-- Shipping Rates Table -->
+                                <form method="POST">
+                                    <input type="hidden" name="region_id" value="<?= $region['id'] ?>">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>Shipping Method</th>
+                                                    <th>Base Rate (Ksh)</th>
+                                                    <th>Per Additional Item (Ksh)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php 
+                                                $regionRates = getRegionRates($db, $region['id']);
+                                                $ratesMap = array_column($regionRates, null, 'shipping_method_id');
+                                                
+                                                foreach ($shippingMethods as $method): 
+                                                    $rate = $ratesMap[$method['id']] ?? ['base_rate' => 0, 'per_item_fee' => 0];
+                                                ?>
+                                                    <tr>
+                                                        <td><?= htmlspecialchars($method['display_name']) ?></td>
+                                                        <td>
+                                                            <input type="number" 
+                                                                   name="rates[<?= $method['id'] ?>][base]" 
+                                                                   class="form-control form-control-sm"
+                                                                   value="<?= $rate['base_rate'] ?>"
+                                                                   step="0.01" min="0" required>
+                                                        </td>
+                                                        <td>
+                                                            <input type="number" 
+                                                                   name="rates[<?= $method['id'] ?>][per_item]" 
+                                                                   class="form-control form-control-sm"
+                                                                   value="<?= $rate['per_item_fee'] ?>"
+                                                                   step="0.01" min="0" required>
+                                                        </td>
+                                                    </tr>
+                                                <?php endforeach; ?>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="text-end mt-3">
+                                        <button type="submit" name="update_region_rates" class="btn btn-primary btn-sm">
+                                            Update Rates
                                         </button>
                                     </div>
                                 </form>
-                            </div>
-
-                            <!-- Existing Rates -->
-                            <div class="existing-rates">
-                                <?php 
-                                $rates = get_zone_rates($db, $zone['zone_id']);
-                                foreach ($rates as $rate): ?>
-                                    <form method="POST" class="rate-form mb-2">
-                                        <div class="row align-items-center">
-                                            <div class="col-md-3">
-                                                <strong><?= htmlspecialchars($rate['shipping_method']) ?></strong>
-                                            </div>
-                                            <div class="col-md-3">
-                                                <div class="input-group">
-                                                    <span class="input-group-text">KSH</span>
-                                                    <input type="number" name="rate" class="form-control"
-                                                           value="<?= number_format($rate['base_rate'], 2) ?>"
-                                                           step="0.01" min="0" required>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <small class="text-muted">
-                                                    <?= htmlspecialchars($rate['description'] ?? '') ?>
-                                                </small>
-                                            </div>
-                                            <div class="col-md-2">
-                                                <input type="hidden" name="rate_id" value="<?= $rate['id'] ?>">
-                                                <button type="submit" name="update_shipping_rate" 
-                                                        class="btn btn-sm btn-primary w-100">
-                                                    Update
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </form>
-                                <?php endforeach; ?>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -397,3 +498,14 @@ $mpesa_config = array_filter($payment_gateways, fn($g) => $g['gateway_code'] ===
 <?php include 'includes/nav/footer.php'; ?>
 </body>
 </html>
+
+<!-- Add some CSS for the zones -->
+<style>
+.badge {
+    font-size: 0.85em;
+    padding: 8px 12px;
+}
+.badge .text-muted {
+    opacity: 0.7;
+}
+</style>
