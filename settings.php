@@ -4,6 +4,7 @@ require_once 'config/database.php';
 require_once 'includes/theme.php';
 require_once 'includes/functions/settings_helpers.php';
 require_once 'includes/functions/shipping_functions.php';
+
 // Authentication check
 if (!isset($_SESSION['id'])) {
     header('Location: login.php');
@@ -104,8 +105,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Add new shipping region
         if (isset($_POST['add_region'])) {
             try {
-                $stmt = $db->prepare("INSERT INTO shipping_regions (name, description) VALUES (?, ?)");
-                $stmt->execute([$_POST['region_name'], $_POST['region_description']]);
+                $stmt = $db->prepare("INSERT INTO shipping_regions (name, zone_regions) VALUES (?, ?)");
+                $stmt->execute([
+                    $_POST['region_name'],
+                    $_POST['zone_regions']
+                ]);
                 $_SESSION['success'] = "Region added successfully";
             } catch (Exception $e) {
                 $_SESSION['error'] = "Error adding region: " . $e->getMessage();
@@ -369,8 +373,9 @@ $mpesa_config = array_filter($payment_gateways, fn($g) => $g['gateway_code'] ===
                                 <input type="text" name="region_name" class="form-control" required>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Description</label>
-                                <input type="text" name="region_description" class="form-control">
+                                <label class="form-label">Region Zones</label>
+                                <input type="text" name="zone_regions" class="form-control" 
+                                       placeholder="e.g. Kilimani, Kileleshwa, Lavington" required>
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label d-block">&nbsp;</label>
@@ -379,116 +384,56 @@ $mpesa_config = array_filter($payment_gateways, fn($g) => $g['gateway_code'] ===
                         </div>
                     </form>
 
-                    <!-- Add New Zone Form -->
-                    <form method="POST" class="mb-4 border-top pt-4">
-                        <h5>Add Delivery Zone</h5>
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="form-label">Zone Name</label>
-                                <input type="text" name="zone_name" class="form-control" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Areas (comma separated)</label>
-                                <input type="text" name="zone_regions" class="form-control" 
-                                       placeholder="e.g. Kilimani, Kileleshwa, Lavington">
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label d-block">&nbsp;</label>
-                                <button type="submit" name="add_zone" class="btn btn-primary">Add Zone</button>
-                            </div>
-                        </div>
-                    </form>
-
                     <!-- Regions List -->
-                    <?php foreach ($regions as $region): 
-                        $zones = getRegionZones($db, $region['id']);
-                    ?>
-                        <div class="card mb-3">
-                            <div class="card-header">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <h6 class="mb-0"><?= htmlspecialchars($region['name']) ?></h6>
-                                        <small class="text-muted"><?= htmlspecialchars($region['description']) ?></small>
-                                    </div>
-                                    <div class="d-flex align-items-center">
-                                        <form method="POST" class="me-2">
-                                            <input type="hidden" name="region_id" value="<?= $region['id'] ?>">
-                                            <button type="submit" name="toggle_region" 
-                                                    class="btn btn-sm btn-<?= $region['is_active'] ? 'success' : 'danger' ?>">
-                                                <?= $region['is_active'] ? 'Active' : 'Inactive' ?>
-                                            </button>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                <!-- Zones for this region -->
-                                <?php if (!empty($zones)): ?>
-                                    <div class="mb-3">
-                                        <label class="form-label">Delivery Zones:</label>
+                    <div id="regions-container">
+                        <?php foreach ($regions as $region): ?>
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <div class="d-flex justify-content-between align-items-center">
                                         <div>
-                                            <?php foreach ($zones as $zone): ?>
-                                                <span class="badge bg-info me-1 mb-1">
-                                                    <?= htmlspecialchars($zone['zone_name']) ?>
-                                                    <span class="text-muted small">
-                                                        (<?= htmlspecialchars($zone['zone_regions']) ?>)
-                                                    </span>
-                                                </span>
-                                            <?php endforeach; ?>
+                                            <h6 class="mb-0"><?= htmlspecialchars($region['name']) ?></h6>
+                                        </div>
+                                        <div class="d-flex align-items-center">
+                                            <div class="form-check form-switch me-3">
+                                                <input type="checkbox" class="form-check-input region-status-toggle" 
+                                                       data-region-id="<?= $region['id'] ?>"
+                                                       <?= $region['is_active'] ? 'checked' : '' ?>>
+                                                <label class="form-check-label status-label">
+                                                    <?= $region['is_active'] ? 'Active' : 'Inactive' ?>
+                                                </label>
+                                            </div>
+                                            <button type="button" 
+                                                    class="btn btn-danger btn-sm delete-region" 
+                                                    data-region-id="<?= $region['id'] ?>">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
                                         </div>
                                     </div>
-                                <?php endif; ?>
+                                </div>
+                                <div class="card-body">
+                                    <?php if (!empty($region['zone_regions'])): ?>
+                                        <div class="zones-container mb-3">
+                                            <?php 
+                                            $zones = array_filter(array_map('trim', explode(',', $region['zone_regions'])));
+                                            if (!empty($zones)):
+                                                foreach ($zones as $zone): 
+                                            ?>
+                                                <span class="badge bg-info me-1 mb-1">
+                                                    <?= htmlspecialchars($zone) ?>
+                                                </span>
+                                            <?php 
+                                                endforeach;
+                                            endif;
+                                            ?>
+                                        </div>
+                                    <?php endif; ?>
 
-                                <!-- Shipping Rates Table -->
-                                <form method="POST">
-                                    <input type="hidden" name="region_id" value="<?= $region['id'] ?>">
-                                    <div class="table-responsive">
-                                        <table class="table table-sm">
-                                            <thead>
-                                                <tr>
-                                                    <th>Shipping Method</th>
-                                                    <th>Base Rate (Ksh)</th>
-                                                    <th>Per Additional Item (Ksh)</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <?php 
-                                                $regionRates = getRegionRates($db, $region['id']);
-                                                $ratesMap = array_column($regionRates, null, 'shipping_method_id');
-                                                
-                                                foreach ($shippingMethods as $method): 
-                                                    $rate = $ratesMap[$method['id']] ?? ['base_rate' => 0, 'per_item_fee' => 0];
-                                                ?>
-                                                    <tr>
-                                                        <td><?= htmlspecialchars($method['display_name']) ?></td>
-                                                        <td>
-                                                            <input type="number" 
-                                                                   name="rates[<?= $method['id'] ?>][base]" 
-                                                                   class="form-control form-control-sm"
-                                                                   value="<?= $rate['base_rate'] ?>"
-                                                                   step="0.01" min="0" required>
-                                                        </td>
-                                                        <td>
-                                                            <input type="number" 
-                                                                   name="rates[<?= $method['id'] ?>][per_item]" 
-                                                                   class="form-control form-control-sm"
-                                                                   value="<?= $rate['per_item_fee'] ?>"
-                                                                   step="0.01" min="0" required>
-                                                        </td>
-                                                    </tr>
-                                                <?php endforeach; ?>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <div class="text-end mt-3">
-                                        <button type="submit" name="update_region_rates" class="btn btn-primary btn-sm">
-                                            Update Rates
-                                        </button>
-                                    </div>
-                                </form>
+                                    <!-- Shipping Rates Table -->
+                                    <?php include 'includes/shipping_rates_table.php'; ?>
+                                </div>
                             </div>
-                        </div>
-                    <?php endforeach; ?>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
             </div>
         </div>
@@ -507,5 +452,154 @@ $mpesa_config = array_filter($payment_gateways, fn($g) => $g['gateway_code'] ===
 }
 .badge .text-muted {
     opacity: 0.7;
+}
+</style>
+
+<!-- Add this JavaScript at the bottom of the file -->
+<script>
+document.querySelectorAll('.region-status-toggle').forEach(toggle => {
+    toggle.addEventListener('change', async function(e) {
+        // Prevent the default checkbox behavior until we confirm the update
+        e.preventDefault();
+        
+        const regionId = this.dataset.regionId;
+        const statusLabel = this.closest('.form-switch').querySelector('.status-label');
+        const currentStatus = this.checked;
+        
+        try {
+            const response = await fetch('ajax/toggle_region.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    region_id: regionId,
+                    new_status: currentStatus
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                // Update the toggle and label
+                this.checked = data.is_active;
+                statusLabel.textContent = data.is_active ? 'Active' : 'Inactive';
+                
+                // Show success message
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success alert-dismissible fade show';
+                alertDiv.innerHTML = `
+                    Region ${data.is_active ? 'activated' : 'deactivated'} successfully
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.querySelector('.container-fluid').insertBefore(
+                    alertDiv, 
+                    document.querySelector('.container-fluid').firstChild
+                );
+                
+                // Auto dismiss after 3 seconds
+                setTimeout(() => {
+                    alertDiv.remove();
+                }, 3000);
+                
+            } else {
+                throw new Error(data.error || 'Failed to update status');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            
+            // Revert the toggle to its previous state
+            this.checked = !currentStatus;
+            statusLabel.textContent = !currentStatus ? 'Active' : 'Inactive';
+            
+            // Show error message
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+            alertDiv.innerHTML = `
+                Error updating region status: ${error.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.querySelector('.container-fluid').insertBefore(
+                alertDiv, 
+                document.querySelector('.container-fluid').firstChild
+            );
+        }
+    });
+});
+
+document.querySelectorAll('.delete-region').forEach(button => {
+    button.addEventListener('click', async function() {
+        if (!confirm('Are you sure you want to delete this region? This action cannot be undone.')) {
+            return;
+        }
+
+        const regionId = this.dataset.regionId;
+        const card = this.closest('.card');
+
+        try {
+            const response = await fetch('ajax/delete_region.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    region_id: regionId
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                card.remove();
+                
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success alert-dismissible fade show';
+                alertDiv.innerHTML = `
+                    Region deleted successfully
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.querySelector('.container-fluid').insertBefore(
+                    alertDiv, 
+                    document.querySelector('.container-fluid').firstChild
+                );
+                
+                setTimeout(() => alertDiv.remove(), 3000);
+            } else {
+                throw new Error(data.error || 'Failed to delete region');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+            alertDiv.innerHTML = `
+                Error deleting region: ${error.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.querySelector('.container-fluid').insertBefore(
+                alertDiv, 
+                document.querySelector('.container-fluid').firstChild
+            );
+        }
+    });
+});
+</script>
+
+<!-- Add this CSS -->
+<style>
+.form-check.form-switch {
+    padding-left: 2.5em;
+}
+.form-switch .form-check-input {
+    width: 3em;
+}
+.status-label {
+    margin-left: 0.5em;
+}
+.zones-container {
+    margin-top: -0.5rem;
+}
+.badge {
+    font-size: 0.85em;
+    padding: 0.5em 0.8em;
 }
 </style>

@@ -926,16 +926,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             document.getElementById('total').textContent = `Ksh. ${finalTotal.toFixed(2)}`;
         }
 
-        // Update event listeners
-        document.getElementById('shipping_method').addEventListener('change', calculateShippingFee);
-        document.getElementById('region_id').addEventListener('change', function() {
-            const methodSelect = document.getElementById('shipping_method');
-            methodSelect.value = '';
-            shippingFee = 0;
-            updateShippingMethods(this.value);
-            updateFinalTotal();
-        });
-
         // Replace the updateShippingMethods function in your JavaScript
         function updateShippingMethods(regionId) {
             const methodSelect = document.getElementById('shipping_method');
@@ -961,12 +951,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if (data.success) {
                         if (data.methods && data.methods.length > 0) {
                             data.methods.forEach(method => {
-                                const baseRate = parseFloat(method.base_rate).toFixed(2);
-                                const perItem = parseFloat(method.per_item_fee).toFixed(2);
                                 methodSelect.innerHTML += `
                                     <option value="${method.id}">
-                                        ${method.display_name} 
-                                        (Base: KSH ${baseRate}, Per extra item: KSH ${perItem})
+                                        ${method.display_name}
                                     </option>
                                 `;
                             });

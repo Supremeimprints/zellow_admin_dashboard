@@ -204,13 +204,33 @@ function getRegionZones($db, $regionId) {
  * Toggle region status
  */
 function toggleRegionStatus($db, $regionId) {
-    $stmt = $db->prepare("
-        UPDATE shipping_regions 
-        SET is_active = NOT is_active,
-        updated_at = CURRENT_TIMESTAMP 
-        WHERE id = ?
-    ");
-    return $stmt->execute([$regionId]);
+    try {
+        // First check if region exists
+        $checkStmt = $db->prepare("SELECT id, is_active FROM shipping_regions WHERE id = ?");
+        $checkStmt->execute([$regionId]);
+        $region = $checkStmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$region) {
+            error_log("Region not found: " . $regionId);
+            return false;
+        }
+        
+        // Toggle the status
+        $stmt = $db->prepare("
+            UPDATE shipping_regions 
+            SET is_active = NOT is_active,
+            updated_at = CURRENT_TIMESTAMP 
+            WHERE id = ?
+        ");
+        
+        $result = $stmt->execute([$regionId]);
+        error_log("Toggle result for region {$regionId}: " . var_export($result, true));
+        return $result;
+        
+    } catch (PDOException $e) {
+        error_log("Error in toggleRegionStatus: " . $e->getMessage());
+        return false;
+    }
 }
 
 /**
@@ -301,6 +321,34 @@ function getShippingRate($db, $methodId, $regionId) {
     } catch (PDOException $e) {
         error_log("Error getting shipping rate: " . $e->getMessage());
         return null;
+    }
+}
+
+/**
+ * Delete a shipping region and all its related records
+ * @param PDO $db Database connection
+ * @param int $regionId Region ID to delete
+ * @return bool Success status
+ */
+function deleteShippingRegion($db, $regionId) {
+    try {
+        $db->beginTransaction();
+
+        // Delete the region (cascade will handle related records)
+        $stmt = $db->prepare("DELETE FROM shipping_regions WHERE id = ?");
+        $result = $stmt->execute([$regionId]);
+
+        if ($result) {
+            $db->commit();
+            return true;
+        }
+
+        $db->rollBack();
+        return false;
+    } catch (PDOException $e) {
+        $db->rollBack();
+        error_log("Error deleting shipping region: " . $e->getMessage());
+        return false;
     }
 }
 
