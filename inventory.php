@@ -208,63 +208,76 @@ try {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="assets/css/inventory.css" rel="stylesheet">
     <style>
-        .summary-card {
-            background: white;
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
-            margin-bottom: 1.5rem;
-            border: 1px solid #e5e7eb;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        .summary-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
-        }
-        .summary-card h6 {
-            color: #6b7280;
-            font-size: 0.875rem;
-            font-weight: 600;
-            margin-bottom: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        .summary-card h3 {
-            color: #111827;
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-        }
-        .progress {
-            height: 0.5rem;
-            border-radius: 1rem;
-            background-color: #e5e7eb;
-        }
-        .progress-bar {
-            background-color: #10b981;
-            border-radius: 1rem;
-        }
-        .supplier-card {
-            background: linear-gradient(to bottom right, #ffffff, #f9fafb);
-        }
-        .supplier-card h6 {
-            color: #374151;
-            border-bottom: 2px solid #10b981;
-            padding-bottom: 0.5rem;
-            display: inline-block;
-        }
-        .supplier-card p {
-            color: #6b7280;
-            margin-bottom: 0.5rem;
-        }
-        .supplier-card small {
-            color: #4b5563;
-        }
-        .supplier-card hr {
-            margin: 1rem 0;
-            border-color: #e5e7eb;
-        }
-    </style>
+    .summary-card {
+        background: -var(--bs-light);
+        border-radius: 10px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        margin-bottom: 1.5rem;
+        transition: transform 0.2s ease;
+    }
+
+    .summary-card:hover {
+        transform: translateY(-3px);
+    }
+
+    .summary-card .icon-box {
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+    }
+
+    .summary-card h6 {
+        color: #6b7280;
+        font-size: 0.875rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .summary-card h3 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .supplier-card {
+        background: linear-gradient(145deg, #ffffff, #f8fafc);
+    }
+
+    .supplier-card .progress {
+        height: 6px;
+        border-radius: 3px;
+    }
+
+    .supplier-card .progress-bar {
+        background: linear-gradient(45deg, #3b82f6, #60a5fa);
+    }
+
+    .stock-alert {
+        display: block;
+        margin-top: 0.5rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        width: fit-content;
+    }
+
+    tr.out-of-stock {
+        background-color: rgba(239, 68, 68, 0.1) !important;
+    }
+
+    tr.low-stock {
+        background-color: rgba(245, 158, 11, 0.1) !important;
+    }
+
+    .asset-icon { background-color: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+    .stock-icon { background-color: rgba(16, 185, 129, 0.1); color: #10b981; }
+    .warning-icon { background-color: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+    .danger-icon { background-color: rgba(239, 68, 68, 0.1); color: #ef4444; }
+</style>
 </head>
 <body>
 <div class="admin-layout"> 
@@ -279,42 +292,42 @@ try {
         <div class="row mb-4">
             <div class="col-md-3">
                 <div class="summary-card">
+                    <div class="icon-box stock-icon">
+                        <i class="fas fa-box fa-lg"></i>
+                    </div>
                     <h6>Available Products</h6>
                     <h3><?= $stats['total'] - $stats['low_stock'] - $stats['out_of_stock'] ?></h3>
-                    <div class="d-flex align-items-center mt-2">
-                        <i class="fas fa-box text-success me-2"></i>
-                        <span class="text-success">In Stock</span>
-                    </div>
+                    <small class="text-success">In Stock</small>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="summary-card">
+                    <div class="icon-box warning-icon">
+                        <i class="fas fa-exclamation-triangle fa-lg"></i>
+                    </div>
                     <h6>Low Stock Items</h6>
                     <h3 class="text-warning"><?= $stats['low_stock'] ?></h3>
-                    <div class="d-flex align-items-center mt-2">
-                        <i class="fas fa-exclamation-triangle text-warning me-2"></i>
-                        <span class="text-warning">Need Attention</span>
-                    </div>
+                    <small class="text-warning">Needs Attention</small>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="summary-card">
+                    <div class="icon-box danger-icon">
+                        <i class="fas fa-times-circle fa-lg"></i>
+                    </div>
                     <h6>Out of Stock</h6>
                     <h3 class="text-danger"><?= $stats['out_of_stock'] ?></h3>
-                    <div class="d-flex align-items-center mt-2">
-                        <i class="fas fa-times-circle text-danger me-2"></i>
-                        <span class="text-danger">Requires Action</span>
-                    </div>
+                    <small class="text-danger">Requires Action</small>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="summary-card">
+                    <div class="icon-box asset-icon">
+                        <i class="fas fa-chart-line fa-lg"></i>
+                    </div>
                     <h6>Total Inventory Value</h6>
                     <h3>Ksh. <?= number_format($stats['total_value'], 2) ?></h3>
-                    <div class="d-flex align-items-center mt-2">
-                        <i class="fas fa-chart-line text-primary me-2"></i>
-                        <span class="text-primary">Asset Value</span>
-                    </div>
+                    <small class="text-primary">Asset Value</small>
                 </div>
             </div>
         </div>
@@ -326,36 +339,22 @@ try {
                     <div class="col-md-4 mb-3">
                         <div class="summary-card supplier-card">
                             <h6><?= htmlspecialchars($supplier['company_name']) ?></h6>
-                            <p class="mt-3">
-                                <i class="fas fa-boxes me-2"></i>
-                                Products: <?= $supplier['product_count'] ?>
-                            </p>
-                            <p class="mb-1">Order Fulfillment:</p>
-                            <?php 
-                            $ordered = $supplier['ordered_quantity'] ?? 0;
-                            $received = $supplier['received_quantity'] ?? 0;
-                            $percentage = $ordered > 0 ? ($received / $ordered) * 100 : 0;
-                            ?>
-                            <div class="progress mb-2">
-                                <div class="progress-bar" role="progressbar" 
-                                     style="width: <?= $percentage ?>%"
-                                     aria-valuenow="<?= $percentage ?>" 
-                                     aria-valuemin="0" 
-                                     aria-valuemax="100">
-                                    <?= round($percentage) ?>%
+                            <div class="mt-3">
+                                <p class="mb-2">Order Fulfillment</p>
+                                <?php 
+                                $ordered = $supplier['ordered_quantity'] ?? 0;
+                                $received = $supplier['received_quantity'] ?? 0;
+                                $percentage = $ordered > 0 ? ($received / $ordered) * 100 : 0;
+                                ?>
+                                <div class="progress mb-2">
+                                    <div class="progress-bar" role="progressbar" 
+                                         style="width: <?= $percentage ?>%">
+                                    </div>
                                 </div>
+                                <small class="text-muted">
+                                    <?= number_format($received) ?> / <?= number_format($ordered) ?> items
+                                </small>
                             </div>
-                            <small>
-                                <i class="fas fa-truck me-2"></i>
-                                Received: <?= number_format($received) ?> / 
-                                Ordered: <?= number_format($ordered) ?>
-                            </small>
-                            <hr>
-                            <p class="mb-0">
-                                <i class="fas fa-money-bill-wave me-2 text-success"></i>
-                                <strong>Total Payments:</strong> 
-                                <span class="text-success">Ksh. <?= number_format($supplier['total_payments'], 2) ?></span>
-                            </p>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -421,20 +420,19 @@ try {
                         </tr>
                     <?php else: ?>
                         <?php foreach ($inventory as $item): ?>
-                            <tr>
-                                <td class="<?= $item['stock_status'] === 'out_of_stock' ? 'text-danger' : ($item['stock_status'] === 'low' ? 'text-warning' : '') ?>">
-                                    <?= htmlspecialchars($item['product_name']) ?>
-                                </td>
+                            <tr class="<?= $item['stock_status'] === 'out_of_stock' ? 'out-of-stock' : 
+                                           ($item['stock_status'] === 'low' ? 'low-stock' : '') ?>">
+                                <td><?= htmlspecialchars($item['product_name']) ?></td>
                                 <td>
                                     <?= htmlspecialchars($item['supplier_name'] ?? 'No Supplier') ?>
                                     <?php if ($item['stock_status'] === 'out_of_stock'): ?>
-                                        <span class="low-stock-warning">
-                                            <i class="fas fa-exclamation-circle"></i> Out of Stock
-                                        </span>
+                                        <div class="stock-alert bg-danger">
+                                            <i class="fas fa-exclamation-circle"></i>Out of Stock
+                                        </div>
                                     <?php elseif ($item['stock_status'] === 'low'): ?>
-                                        <span class="low-stock-warning" style="color: #f59e0b;">
-                                            <i class="fas fa-exclamation-triangle"></i> Low Stock
-                                        </span>
+                                        <div class="stock-alert bg-warning">
+                                            <i class="fas fa-exclamation-triangle"></i>Low Stock
+                                        </div>
                                     <?php endif; ?>
                                 </td>
                                 <td><?= htmlspecialchars($item['stock_quantity']); ?></td>

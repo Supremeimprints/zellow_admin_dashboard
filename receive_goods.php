@@ -63,14 +63,15 @@ try {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="assets/css/settings.css">
     <link rel="stylesheet" href="assets/css/badges.css">
-    <link rel="stylesheet" href="assets/css/orders.css">
+    
+    <link rel="stylesheet" href="assets/css/inventory.css">
     <link rel="stylesheet" href="assets/css/collapsed.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/styles.css">
     <style>
         .order-card {
-            background: white;
+            background: -var(--bs-light);
             border-radius: 12px;
             padding: 1.5rem;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
