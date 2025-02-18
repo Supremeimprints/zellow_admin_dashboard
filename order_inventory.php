@@ -17,14 +17,32 @@ $error = $success = '';
 $suppliersQuery = "SELECT supplier_id, company_name, email, phone FROM suppliers WHERE status = 'active'";
 $suppliers = $db->query($suppliersQuery)->fetchAll(PDO::FETCH_ASSOC);
 
-// Fetch products with low stock
+// Update the products query to include supplier info
 $productsQuery = "
-    SELECT p.product_id, p.product_name, i.stock_quantity, i.min_stock_level 
+    SELECT 
+        p.product_id, 
+        p.product_name, 
+        p.price as unit_price,
+        i.stock_quantity, 
+        i.min_stock_level,
+        s.supplier_id,
+        s.company_name as supplier_name,
+        s.email as supplier_email
     FROM products p 
     LEFT JOIN inventory i ON p.product_id = i.product_id 
+    LEFT JOIN suppliers s ON p.supplier_id = s.supplier_id
     WHERE i.stock_quantity <= i.min_stock_level
+        AND s.status = 'Active'
+        AND s.is_active = 1
     ORDER BY p.product_name";
+
 $products = $db->query($productsQuery)->fetchAll(PDO::FETCH_ASSOC);
+
+// Group products by supplier for easier handling
+$productsBySupplier = [];
+foreach ($products as $product) {
+    $productsBySupplier[$product['supplier_id']][] = $product;
+}
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -352,7 +370,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         [data-bs-theme="dark"] .form-select option {
             background-color: var(--bg-dark);
-            color: var(--text-dark);
+            color: var (--text-dark);
         }
     </style>
 </head>
@@ -367,7 +385,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="container mt-5">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h2>Order Inventory from Suppliers</h2>
-                <a href="inventory.php" class="btn btn-secondary">Back to Inventory</a>
+                <div>
+                    <a href="inventory.php" class="btn btn-secondary me-2">
+                    <i data-feather="archive"></i> Inventory
+                    </a>
+                    <a href="receive_goods.php" class="btn btn-info">
+                    <i data-feather="arrow-down-circle" style="color: white;"></i> Receive Goods
+                    </a>
+                </div>
             </div>
 
             <?php if ($error): ?>
@@ -378,60 +403,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
 
         <div class="order-form">
-            <form method="POST">
-                <input type="hidden" name="supplier_id" value="<?= htmlspecialchars($_GET['supplier_id'] ?? '') ?>">
+            <form method="POST" id="orderForm">
                 <div class="mb-4">
-                    <label for="id" class="form-label">Select Supplier</label>
+                    <label for="supplier_id" class="form-label">Select Supplier</label>
                     <select name="supplier_id" id="supplier_id" class="form-select" required>
                         <option value="">Choose a supplier...</option>
-                        <?php foreach ($suppliers as $supplier): ?>
-                            <option value="<?= $supplier['supplier_id'] ?>">
-                                <?= htmlspecialchars($supplier['company_name']) ?>
+                        <?php foreach ($productsBySupplier as $supplierId => $products): 
+                            $supplier = $products[0]; // All products in group have same supplier
+                        ?>
+                            <option value="<?= $supplierId ?>" 
+                                    data-email="<?= htmlspecialchars($supplier['supplier_email']) ?>">
+                                <?= htmlspecialchars($supplier['supplier_name']) ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
                 </div>
 
-                    <div class="mb-4">
-                        <h5>Order Items</h5>
-                        <div id="orderItems">
-                            <!-- Items will be added here -->
-                            <div class="row mb-3 order-item">
-                                <div class="col-md-4">
-                                    <select name="items[0][product_id]" class="form-select" required>
-                                        <option value="">Select Product...</option>
-                                        <?php foreach ($products as $product): ?>
-                                            <option value="<?= $product['product_id'] ?>" 
-                                                    data-stock="<?= $product['stock_quantity'] ?>"
-                                                    data-min="<?= $product['min_stock_level'] ?>">
-                                                <?= htmlspecialchars($product['product_name']) ?>
-                                                (Stock: <?= $product['stock_quantity'] ?>)
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <input type="number" name="items[0][quantity]" 
-                                           class="form-control" placeholder="Quantity" required>
-                                </div>
-                                <div class="col-md-3">
-                                    <input type="number" name="items[0][unit_price]" 
-                                           class="form-control" placeholder="Unit Price" required>
-                                </div>
-                                <div class="col-md-2">
-                                    <button type="button" class="btn btn-danger remove-item">Remove</button>
-                                </div>
+                <div class="mb-4">
+                    <h5>Order Items</h5>
+                    <div id="orderItems">
+                        <div class="row mb-3 order-item">
+                            <div class="col-md-4">
+                                <select name="items[0][product_id]" class="form-select product-select" required>
+                                    <option value="">Select Product...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="number" name="items[0][quantity]" 
+                                       class="form-control quantity-input" placeholder="Quantity" required>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="number" name="items[0][unit_price]" 
+                                       class="form-control unit-price" placeholder="Unit Price" readonly>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="button" class="btn btn-danger remove-item">Remove</button>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-secondary" id="addItem">+ Add Item</button>
                     </div>
+                    <button type="button" class="btn btn-secondary" id="addItem">+ Add Item</button>
+                </div>
 
-                    <div class="d-flex justify-content-between">
-                        <button type="submit" class="btn btn-primary">Create Purchase Order</button>
-                        <div class="h4">Total: Ksh. <span id="orderTotal">0.00</span></div>
-                    </div>
-                </form>
-            </div>
+                <div class="d-flex justify-content-between">
+                    <button type="submit" class="btn btn-primary">Create Purchase Order</button>
+                    <div class="h4">Total: Ksh. <span id="orderTotal">0.00</span></div>
+                </div>
+            </form>
+        </div>
         </div>
         <?php include 'includes/nav/footer.php'; ?>
     </main>
@@ -440,39 +458,84 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <script>
 let itemCount = 1;
 
+// Store products data for JavaScript use
+const productsBySupplier = <?= json_encode($productsBySupplier) ?>;
+
+document.getElementById('supplier_id').addEventListener('change', function() {
+    updateProductOptions();
+});
+
+function updateProductOptions() {
+    const supplierId = document.getElementById('supplier_id').value;
+    const products = productsBySupplier[supplierId] || [];
+    
+    document.querySelectorAll('.product-select').forEach(select => {
+        // Save current value
+        const currentValue = select.value;
+        
+        // Clear and rebuild options
+        select.innerHTML = '<option value="">Select Product...</option>';
+        
+        products.forEach(product => {
+            const option = new Option(
+                `${product.product_name} (Stock: ${product.stock_quantity})`,
+                product.product_id
+            );
+            option.dataset.price = product.unit_price;
+            option.dataset.stock = product.stock_quantity;
+            select.add(option);
+        });
+        
+        // Restore value if product still exists for new supplier
+        if (currentValue && products.some(p => p.product_id === currentValue)) {
+            select.value = currentValue;
+        }
+    });
+}
+
+// Update price when product is selected
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('product-select')) {
+        const row = e.target.closest('.row');
+        const priceInput = row.querySelector('.unit-price');
+        const option = e.target.selectedOptions[0];
+        
+        if (option && option.dataset.price) {
+            priceInput.value = option.dataset.price;
+        } else {
+            priceInput.value = '';
+        }
+    }
+});
+
+// Modified addItem function
 document.getElementById('addItem').addEventListener('click', function() {
     const container = document.getElementById('orderItems');
-    const newItem = document.createElement('div');
-    newItem.className = 'row mb-3 order-item';
-    newItem.innerHTML = `
+    const newRow = document.createElement('div');
+    newRow.className = 'row mb-3 order-item';
+    newRow.innerHTML = `
         <div class="col-md-4">
-            <select name="items[${itemCount}][product_id]" class="form-select" required>
+            <select name="items[${itemCount}][product_id]" class="form-select product-select" required>
                 <option value="">Select Product...</option>
-                <?php foreach ($products as $product): ?>
-                    <option value="<?= $product['product_id'] ?>"
-                            data-stock="<?= $product['stock_quantity'] ?>"
-                            data-min="<?= $product['min_stock_level'] ?>">
-                        <?= htmlspecialchars($product['product_name']) ?>
-                        (Stock: <?= $product['stock_quantity'] ?>)
-                    </option>
-                <?php endforeach; ?>
             </select>
         </div>
         <div class="col-md-3">
             <input type="number" name="items[${itemCount}][quantity]" 
-                   class="form-control" placeholder="Quantity" required>
+                   class="form-control quantity-input" placeholder="Quantity" required>
         </div>
         <div class="col-md-3">
             <input type="number" name="items[${itemCount}][unit_price]" 
-                   class="form-control" placeholder="Unit Price" required>
+                   class="form-control unit-price" placeholder="Unit Price" readonly>
         </div>
         <div class="col-md-2">
             <button type="button" class="btn btn-danger remove-item">Remove</button>
         </div>
     `;
-    container.appendChild(newItem);
+    container.appendChild(newRow);
     itemCount++;
-    updateTotal();
+    
+    // Update product options for new row
+    updateProductOptions();
 });
 
 document.addEventListener('click', function(e) {

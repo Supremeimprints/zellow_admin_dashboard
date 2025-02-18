@@ -144,6 +144,46 @@ try {
     $errorMessage = "Error fetching inventory: " . $e->getMessage();
 }
 
+// Update the supplier statistics query to correctly count active orders
+$supplierStatsQuery = "
+    SELECT 
+        s.company_name,
+        COUNT(DISTINCT p.product_id) as product_count,
+        (
+            SELECT SUM(poi.quantity)
+            FROM purchase_orders po 
+            JOIN purchase_order_items poi ON po.purchase_order_id = poi.purchase_order_id
+            WHERE po.supplier_id = s.supplier_id 
+            AND po.is_fulfilled = FALSE
+        ) as ordered_quantity,
+        (
+            SELECT SUM(poi.received_quantity)
+            FROM purchase_orders po 
+            JOIN purchase_order_items poi ON po.purchase_order_id = poi.purchase_order_id
+            WHERE po.supplier_id = s.supplier_id 
+            AND po.is_fulfilled = FALSE
+        ) as received_quantity,
+        (
+            SELECT SUM(pp.amount)
+            FROM purchase_payments pp
+            JOIN purchase_orders po ON pp.purchase_order_id = po.purchase_order_id
+            WHERE po.supplier_id = s.supplier_id
+            AND pp.status = 'Completed'
+        ) as total_payments
+    FROM suppliers s
+    LEFT JOIN products p ON s.supplier_id = p.supplier_id
+    WHERE s.status = 'Active' 
+    AND s.is_active = 1
+    GROUP BY s.supplier_id, s.company_name
+";
+
+try {
+    $supplierStmt = $db->query($supplierStatsQuery);
+    $supplierStats = $supplierStmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    $errorMessage = "Error fetching supplier statistics: " . $e->getMessage();
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -292,9 +332,9 @@ try {
                             </p>
                             <p class="mb-1">Order Fulfillment:</p>
                             <?php 
-                            $percentage = $supplier['ordered_quantity'] > 0 
-                                ? ($supplier['received_quantity'] / $supplier['ordered_quantity']) * 100 
-                                : 0;
+                            $ordered = $supplier['ordered_quantity'] ?? 0;
+                            $received = $supplier['received_quantity'] ?? 0;
+                            $percentage = $ordered > 0 ? ($received / $ordered) * 100 : 0;
                             ?>
                             <div class="progress mb-2">
                                 <div class="progress-bar" role="progressbar" 
@@ -307,8 +347,8 @@ try {
                             </div>
                             <small>
                                 <i class="fas fa-truck me-2"></i>
-                                Received: <?= number_format($supplier['total_received']) ?> / 
-                                Ordered: <?= number_format($supplier['ordered_quantity']) ?>
+                                Received: <?= number_format($received) ?> / 
+                                Ordered: <?= number_format($ordered) ?>
                             </small>
                             <hr>
                             <p class="mb-0">
