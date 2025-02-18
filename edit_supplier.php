@@ -2,7 +2,6 @@
 session_start();
 require_once 'config/database.php';
 
-// Check for admin authentication
 if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
     header('Location: login.php');
     exit();
@@ -10,57 +9,88 @@ if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
 
 $database = new Database();
 $db = $database->getConnection();
+$error = $success = '';
 
-// Initialize variables
-$successMsg = $errorMsg = '';
-$supplier = null;
+// Initialize message variables
+$successMsg = $_SESSION['success'] ?? '';
+$errorMsg = $_SESSION['error'] ?? '';
+unset($_SESSION['success'], $_SESSION['error']);
 
 // Fetch supplier details
-if (isset($_GET['supplier_id'])) {
-    $supplier_id = $_GET['supplier_id'];
+if (!isset($_GET['supplier_id']) || !is_numeric($_GET['supplier_id'])) {
+    header('Location: suppliers.php');
+    exit();
+}
+
+$supplier_id = (int)$_GET['supplier_id'];
+
+try {
+    // Fetch supplier data
+    $stmt = $db->prepare("
+        SELECT 
+            supplier_id,
+            company_name,
+            contact_person,
+            email,
+            phone,
+            address,
+            status,
+            created_at
+        FROM suppliers 
+        WHERE supplier_id = ? 
+        AND is_active = 1
+        LIMIT 1
+    ");
     
-    $query = "SELECT * FROM suppliers WHERE supplier_id = ?";
-    $stmt = $db->prepare($query);
     $stmt->execute([$supplier_id]);
     $supplier = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$supplier) {
-        echo "Supplier not found.";
+        $_SESSION['error'] = "Supplier not found";
+        header('Location: suppliers.php');
         exit();
     }
-} else {
-    echo "Invalid Supplier ID.";
+
+} catch (PDOException $e) {
+    $_SESSION['error'] = "Database error: " . $e->getMessage();
+    header('Location: suppliers.php');
     exit();
 }
 
-// Handle supplier update
+// Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $db->beginTransaction();
 
         $stmt = $db->prepare("
             UPDATE suppliers 
-            SET company_name = ?, 
-                contact_person = ?, 
-                email = ?, 
-                phone = ?, 
-                address = ?, 
-                status = ?
-            WHERE supplier_id = ?
+            SET 
+                company_name = :company_name,
+                contact_person = :contact_person,
+                email = :email,
+                phone = :phone,
+                address = :address,
+                status = :status,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE supplier_id = :supplier_id
         ");
-        
-        $stmt->execute([
-            $_POST['company_name'],
-            $_POST['contact_person'],
-            $_POST['email'],
-            $_POST['phone'],
-            $_POST['address'],
-            $_POST['status'],
-            $supplier_id
+
+        $result = $stmt->execute([
+            ':company_name' => $_POST['company_name'],
+            ':contact_person' => $_POST['contact_person'],
+            ':email' => $_POST['email'],
+            ':phone' => $_POST['phone'],
+            ':address' => $_POST['address'],
+            ':status' => $_POST['status'],
+            ':supplier_id' => $supplier_id
         ]);
 
+        if (!$result) {
+            throw new Exception("Failed to update supplier");
+        }
+
         $db->commit();
-        $_SESSION['success'] = "Supplier updated successfully!";
+        $_SESSION['success'] = "Supplier updated successfully";
         header("Location: suppliers.php");
         exit();
 
@@ -155,37 +185,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <form method="POST">
                             <input type="hidden" name="supplier_id" value="<?= htmlspecialchars($supplier['supplier_id']) ?>">
                             
-                            <div class="mb-3">
-                                <label for="company_name" class="form-label">Company Name</label>
-                                <input type="text" class="form-control" id="company_name" name="company_name" value="<?= htmlspecialchars($supplier['company_name']) ?>" required>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Company Name</label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           name="company_name" 
+                                           value="<?= htmlspecialchars($supplier['company_name']) ?>" 
+                                           required>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label">Contact Person</label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           name="contact_person" 
+                                           value="<?= htmlspecialchars($supplier['contact_person'] ?? '') ?>">
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" 
+                                           class="form-control" 
+                                           name="email" 
+                                           value="<?= htmlspecialchars($supplier['email'] ?? '') ?>">
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label">Phone</label>
+                                    <input type="tel" 
+                                           class="form-control" 
+                                           name="phone" 
+                                           value="<?= htmlspecialchars($supplier['phone'] ?? '') ?>">
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label">Address</label>
+                                    <textarea class="form-control" 
+                                              name="address" 
+                                              rows="3"><?= htmlspecialchars($supplier['address'] ?? '') ?></textarea>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label">Status</label>
+                                    <select class="form-select" name="status" required>
+                                        <option value="Active" <?= $supplier['status'] === 'Active' ? 'selected' : '' ?>>Active</option>
+                                        <option value="Inactive" <?= $supplier['status'] === 'Inactive' ? 'selected' : '' ?>>Inactive</option>
+                                    </select>
+                                </div>
                             </div>
 
-                            <div class="mb-3">
-                                <label for="contact_person" class="form-label">Contact Person</label>
-                                <input type="text" class="form-control" id="contact_person" name="contact_person" value="<?= htmlspecialchars($supplier['contact_person']) ?>">
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="email" class="form-label">Email</label>
-                                <input type="email" class="form-control" id="email" name="email" value="<?= htmlspecialchars($supplier['email']) ?>">
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="phone" class="form-label">Phone</label>
-                                <input type="text" class="form-control" id="phone" name="phone" value="<?= htmlspecialchars($supplier['phone']) ?>">
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="status" class="form-label">Status</label>
-                                <select class="form-select" id="status" name="status">
-                                    <option value="Active" <?= $supplier['status'] === 'Active' ? 'selected' : '' ?>>Active</option>
-                                    <option value="Inactive" <?= $supplier['status'] === 'Inactive' ? 'selected' : '' ?>>Inactive</option>
-                                </select>
-                            </div>
-
-                            <div class="card-footer">
-                                <button type="submit" name="update_supplier" class="btn btn-primary" style="align-self: flex-start;">Update Supplier</button>
-                                <a href="suppliers.php" class="btn btn-danger" style="align-self: flex-end;">Cancel</a>
+                            <div class="card-footer mt-4">
+                                <button type="submit" class="btn btn-primary">Update Supplier</button>
+                                <a href="suppliers.php" class="btn btn-danger">Cancel</a>
                             </div>
                         </form>
                     </div>

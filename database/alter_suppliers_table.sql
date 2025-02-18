@@ -1,0 +1,4 @@
+ALTER TABLE suppliers
+ADD COLUMN is_active TINYINT(1) DEFAULT 1,
+ADD COLUMN deactivated_at TIMESTAMP NULL DEFAULT NULL,
+ADD COLUMN deactivated_by INT NULL;

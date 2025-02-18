@@ -142,7 +142,7 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <tbody>
                     <?php if (!empty($products)): ?>
                         <?php foreach ($products as $product): ?>
-                            <tr>
+                            <tr data-product-id="<?= htmlspecialchars($product['product_id']); ?>">
                                 <td><?= htmlspecialchars($product['product_id']); ?></td>
                                 <td>
                                     <?php if (!empty($product['main_image'])): ?>
@@ -162,7 +162,7 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <td>
                                     <a href="edit_product.php?id=<?= $product['product_id']; ?>"
                                         class="btn btn-warning btn-sm">Edit</a>
-                                    <a href="delete_product.php?id=<?= $product['product_id']; ?>" class="btn btn-danger btn-sm">Delete</a>
+                                    <button onclick="deleteProduct(<?= $product['product_id']; ?>)" class="btn btn-danger btn-sm">Delete</button>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -176,6 +176,44 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+        function deleteProduct(productId) {
+            if (!productId) {
+                alert('Invalid product ID');
+                return;
+            }
+            
+            if (confirm('Are you sure you want to delete this product?')) {
+                const formData = new URLSearchParams();
+                formData.append('product_id', productId);
+
+                fetch('delete_product.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: formData.toString()
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Delete response:', data); // Debug log
+                    if (data.success) {
+                        const row = document.querySelector(`tr[data-product-id="${productId}"]`);
+                        if (row) {
+                            row.remove();
+                        }
+                        alert('Product deleted successfully');
+                    } else {
+                        throw new Error(data.message || 'Failed to delete product');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert(error.message || 'Error deleting product');
+                });
+            }
+        }
+        </script>
 </body>
 <?php include 'includes/nav/footer.php'; ?>
 

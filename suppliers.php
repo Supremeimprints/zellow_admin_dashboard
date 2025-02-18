@@ -26,19 +26,25 @@ if (isset($_POST['delete_supplier']) && isset($_POST['supplier_id'])) {
     }
 }
 
-// Update the supplier query to use supplier_id instead of id
+// Update the suppliers fetch query to show only essential columns
+$query = "
+    SELECT 
+        s.supplier_id,
+        s.company_name,
+        s.status,
+        s.is_active,
+        s.created_at
+    FROM suppliers s
+    WHERE s.is_active = 1
+    ORDER BY s.created_at DESC";
+
 try {
-    $stmt = $db->query("
-        SELECT s.*, 
-               COUNT(p.product_id) as product_count,
-               GROUP_CONCAT(p.product_name) as supplied_products
-        FROM suppliers s
-        LEFT JOIN products p ON s.supplier_id = p.supplier_id
-        GROUP BY s.supplier_id
-        ORDER BY s.company_name");
+    $stmt = $db->query($query);
     $suppliers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     $errorMsg = "Error fetching suppliers: " . $e->getMessage();
+    // Add debug information
+    error_log("Query error: " . $e->getMessage());
 }
 
 // Fix invoices fetching for each supplier
@@ -120,6 +126,85 @@ if (isset($_POST['add_product'])) {
             background: var(--bs-primary);
             color: var(--bs-white);
         }
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .action-buttons .btn {
+            padding: 0.4rem 0.6rem;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            border: none;
+            font-size: 0.875rem;
+        }
+
+        .btn-soft-primary {
+            color: #0d6efd !important;
+            background-color: rgba(13, 110, 253, 0.1) !important;
+        }
+
+        .btn-soft-primary:hover {
+            color: #fff;
+            background-color: #0d6efd !important;
+        }
+
+        .btn-soft-warning {
+            color: #ffc107 !important;
+            background-color: rgba(255, 193, 7, 0.1) !important;
+        }
+
+        .btn-soft-warning:hover {
+            color: #fff !important;
+            background-color: #ffc107 !important;
+        }
+
+        .btn-soft-danger {
+            color: #dc3545 !important;
+            background-color: rgba(220, 53, 69, 0.1) !important;
+        }
+
+        .btn-soft-danger:hover {
+            color: #fff !important;
+            background-color: #dc3545 !important;
+        }
+
+        /* Dark mode adjustments */
+        [data-bs-theme="dark"] .btn-soft-primary {
+            color: #4d94ff !important;
+            background-color: rgba(77, 148, 255, 0.15) !important;
+        }
+
+        [data-bs-theme="dark"] .btn-soft-warning {
+            color: #ffcd39;
+            background-color: rgba(255, 205, 57, 0.15);
+        }
+
+        [data-bs-theme="dark"] .btn-soft-danger {
+            color: #ff4d4d;
+            background-color: rgba(255, 77, 77, 0.15);
+        }
+
+        [data-bs-theme="dark"] .btn-soft-primary:hover {
+            background-color: #4d94ff;
+            color: #fff;
+        }
+
+        [data-bs-theme="dark"] .btn-soft-warning:hover {
+            background-color: #ffcd39;
+            color: #fff;
+        }
+
+        [data-bs-theme="dark"] .btn-soft-danger:hover {
+            background-color: #ff4d4d;
+            color: #fff;
+        }
+
+        .table td {
+            vertical-align: middle;
+            padding: 1rem 0.75rem;
+        }
     </style>
 </head>
 <?php include 'includes/theme.php'; ?>
@@ -153,71 +238,38 @@ if (isset($_POST['add_product'])) {
                         <table class="table table-hover">
                             <thead>
                                 <tr>
-                                    <th>Supplier ID</th>
+                                    <th>ID</th>
                                     <th>Company Name</th>
-                                    <th>Contact Person</th>
-                                    <th>Email</th>
-                                    <th>Phone</th>
                                     <th>Status</th>
-                                    <th>Products</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($suppliers as $supplier): ?>
-                                    <tr>
+                                    <tr data-supplier-id="<?= $supplier['supplier_id'] ?>">
                                         <td><?= htmlspecialchars($supplier['supplier_id']) ?></td>
                                         <td><?= htmlspecialchars($supplier['company_name']) ?></td>
-                                        <td><?= htmlspecialchars($supplier['contact_person']) ?></td>
-                                        <td><?= htmlspecialchars($supplier['email']) ?></td>
-                                        <td><?= htmlspecialchars($supplier['phone']) ?></td>
                                         <td>
                                             <span class="badge bg-<?= $supplier['status'] === 'Active' ? 'success' : 'danger' ?>">
                                                 <?= htmlspecialchars($supplier['status']) ?>
                                             </span>
                                         </td>
                                         <td>
-                                            <div class="btn-group">
-                                                <button class="btn btn-sm btn-outline-primary dropdown-toggle" 
-                                                        type="button" 
-                                                        data-bs-toggle="dropdown">
-                                                    Products (<?= $supplier['product_count'] ?>)
-                                                </button>
-                                                <ul class="dropdown-menu">
-                                                    <?php 
-                                                    if ($supplier['product_count'] > 0):
-                                                        $products = explode(',', $supplier['supplied_products']);
-                                                        foreach ($products as $product): 
-                                                    ?>
-                                                        <li><span class="dropdown-item"><?= htmlspecialchars(trim($product)) ?></span></li>
-                                                    <?php 
-                                                        endforeach; 
-                                                    else:
-                                                    ?>
-                                                        <li><span class="dropdown-item text-muted">No products</span></li>
-                                                    <?php endif; ?>
-                                                    <li><hr class="dropdown-divider"></li>
-                                                    <li>
-                                                        <a class="dropdown-item text-primary" href="inventory.php?supplier_id=<?= $supplier['supplier_id'] ?>">
-                                                            View in Inventory
-                                                        </a>
-                                                    </li>
-                                                </ul>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="btn-group">
+                                            <div class="btn-group action-buttons" role="group">
+                                                <a href="supplier_products.php?id=<?= $supplier['supplier_id'] ?>" 
+                                                   class="btn btn-soft-primary"
+                                                   title="Manage Products">
+                                                    <i class="fas fa-box"></i>
+                                                </a>
                                                 <a href="edit_supplier.php?supplier_id=<?= $supplier['supplier_id'] ?>" 
-                                                   class="btn btn-sm btn-outline-primary">
+                                                   class="btn btn-soft-warning"
+                                                   title="Edit Supplier">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
-                                                <a href="invoices.php?supplier_id=<?= $supplier['supplier_id'] ?>" 
-                                                   class="btn btn-sm btn-outline-info">
-                                                    <i class="fas fa-file-invoice"></i>
-                                                </a>
                                                 <button type="button" 
-                                                        class="btn btn-sm btn-outline-danger"
-                                                        onclick="confirmDelete(<?= $supplier['supplier_id'] ?>)">
+                                                        class="btn btn-soft-danger"
+                                                        title="Remove Supplier"
+                                                        onclick="deactivateSupplier(<?= $supplier['supplier_id'] ?>)">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
                                             </div>
@@ -322,6 +374,31 @@ if (isset($_POST['add_product'])) {
         function editProduct(product) {
             // Implement edit functionality
             console.log('Edit product:', product);
+        }
+
+        function deactivateSupplier(supplierId) {
+            if (confirm('Are you sure you want to remove this supplier?')) {
+                fetch('delete_supplier.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `supplier_id=${supplierId}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Remove the row from the table
+                        document.querySelector(`tr[data-supplier-id="${supplierId}"]`).remove();
+                    } else {
+                        alert(data.message || 'Error deactivating supplier');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error processing request');
+                });
+            }
         }
     </script>
 </body>
