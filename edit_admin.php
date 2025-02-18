@@ -17,16 +17,6 @@ $success = $_SESSION['success'] ?? '';
 // Clear session messages after retrieving them
 unset($_SESSION['error'], $_SESSION['success']);
 
-// Get the ID from URL using isset
-if (!isset($_GET['id'])) {
-    $_SESSION['error'] = "No user ID provided";
-    header('Location: admins.php');
-    exit();
-}
-
-$id = $_GET['id'];
-error_log("Editing user ID: " . $id);
-
 // Define valid roles before the database query
 $validRoles = [
     'admin' => 'Admin',
@@ -37,40 +27,49 @@ $validRoles = [
     'service_manager' => 'Service Manager'
 ];
 
-// Fetch admin details with proper ID field and null checks
-try {
-    $stmt = $db->prepare("
-        SELECT 
-            id,
-            employee_number,
-            username,
-            email,
-            role,
-            is_active
-        FROM users 
-        WHERE id = :id
-        AND role IN ('" . implode("','", array_keys($validRoles)) . "')
-        LIMIT 1
-    ");
-
-    $stmt->bindParam(':id', $id);
-    $stmt->execute();
-    $admin = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    // Check if admin data exists and contains required fields
-    if (!$admin || !isset($admin['id'], $admin['username'], $admin['email'], $admin['role'])) {
-        throw new Exception("Invalid or incomplete admin data");
+// Replace the existing admin fetching logic with this:
+if (isset($_GET['id']) && is_numeric($_GET['id'])) {
+    $id = (int)$_GET['id'];
+    
+    try {
+        $stmt = $db->prepare("
+            SELECT 
+                id,
+                username,
+                email,
+                phone,
+                address,
+                role,
+                is_active,
+                employee_number,
+            FROM users 
+            WHERE id = ?
+            AND role IN ('" . implode("','", array_keys($validRoles)) . "')
+            LIMIT 1
+        ");
+        
+        $stmt->execute([$id]);
+        $admin = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$admin) {
+            $_SESSION['error'] = "Employee not found";
+            header('Location: admins.php');
+            exit();
+        }
+        
+        // Set default values for optional fields
+        $admin['phone'] = $admin['phone'] ?? '';
+        $admin['address'] = $admin['address'] ?? '';
+        $admin['profile_photo'] = $admin['profile_photo'] ?? '';
+        $admin['is_active'] = isset($admin['is_active']) ? (int)$admin['is_active'] : 0;
+        
+    } catch (PDOException $e) {
+        $_SESSION['error'] = "Database error: " . $e->getMessage();
+        header('Location: admins.php');
+        exit();
     }
-
-    // Set default values for optional fields
-    $admin['employee_number'] = $admin['employee_number'] ?? 'Not Assigned';
-    $admin['is_active'] = isset($admin['is_active']) ? (int)$admin['is_active'] : 0;
-
-    // Debug output
-    error_log("Fetched admin data: " . print_r($admin, true));
-
-} catch (Exception $e) {
-    $_SESSION['error'] = "Error loading admin data: " . $e->getMessage();
+} else {
+    $_SESSION['error'] = "Invalid employee ID";
     header('Location: admins.php');
     exit();
 }
@@ -83,19 +82,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $db->prepare("
             UPDATE users 
             SET 
-                username = ?,
-                email = ?,
-                role = ?,
-                is_active = ?
-            WHERE id = ?
+                username = :username,
+                email = :email,
+                phone = :phone,
+                address = :address,
+                role = :role,
+                is_active = :is_active,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = :id
         ");
 
         $result = $stmt->execute([
-            $_POST['username'],
-            $_POST['email'],
-            $_POST['role'],
-            isset($_POST['is_active']) ? 1 : 0,
-            $id  // Use the correct id here
+            ':username' => $_POST['username'],
+            ':email' => $_POST['email'],
+            ':phone' => $_POST['phone'] ?? null,
+            ':address' => $_POST['address'] ?? null,
+            ':role' => $_POST['role'],
+            ':is_active' => isset($_POST['is_active']) ? 1 : 0,
+            ':id' => $id
         ]);
 
         if (!$result) {
@@ -228,7 +232,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
                     <div class="row g-3">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Employee Number</label>
-                            <input type="text" class="form-control" value="<?= htmlspecialchars($admin['employee_number'] ?? 'Not Assigned') ?>" readonly>
+                            <input type="text" class="form-control" value="<?= htmlspecialchars($admin['employee_number'] ?? '') ?>" readonly>
                         </div>
 
                         <div class="col-md-6 mb-3">
@@ -242,11 +246,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
                         </div>
 
                         <div class="col-md-6 mb-3">
+                            <label class="form-label">Phone</label>
+                            <input type="tel" name="phone" class="form-control" value="<?= htmlspecialchars($admin['phone'] ?? '') ?>">
+                        </div>
+
+                        <div class="col-12 mb-3">
+                            <label class="form-label">Address</label>
+                            <textarea name="address" class="form-control" rows="3"><?= htmlspecialchars($admin['address'] ?? '') ?></textarea>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
                             <label class="form-label">Role</label>
                             <select name="role" class="form-select" required>
-                                <?php foreach ($validRoles as $value => $label): ?>
+                                <?php 
+                                $currentRole = $admin['role'] ?? ''; // Set default if role is not set
+                                foreach ($validRoles as $value => $label): 
+                                ?>
                                     <option value="<?= htmlspecialchars($value) ?>" 
-                                            <?= ($admin['role'] === $value) ? 'selected' : '' ?>>
+                                            <?= ($currentRole === $value) ? 'selected' : '' ?>>
                                         <?= htmlspecialchars($label) ?>
                                     </option>
                                 <?php endforeach; ?>
@@ -254,13 +271,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($error)) {
                         </div>
 
                         <div class="col-12">
-                            <div class="form-check form-switch">
+                            <div class="form-check form-switch mb-2">
                                 <input type="checkbox" 
                                        name="is_active" 
                                        class="form-check-input" 
                                        id="is_active" 
                                        <?= ($admin['is_active'] ?? 0) == 1 ? 'checked' : '' ?>>
                                 <label class="form-check-label" for="is_active">Active Account</label>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input type="checkbox" 
+                                       name="notification_enabled" 
+                                       class="form-check-input" 
+                                       id="notification_enabled" 
+                                       <?= ($admin['notification_enabled'] ?? 0) == 1 ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="notification_enabled">Enable Notifications</label>
                             </div>
                         </div>
                     </div>

@@ -186,7 +186,9 @@ if ($action === 'delete') {
 
 // Fetch only admin users
 $query = "
-    SELECT id, employee_number, username, email, role, is_active, created_at
+    SELECT id, employee_number, username, email, role, 
+           COALESCE(is_active, 0) as is_active, 
+           created_at
     FROM users
     WHERE role IN ('admin', 'finance_manager', 'supply_manager', 'inventory_manager', 'dispatch_manager', 'service_manager')
     ORDER BY created_at DESC";
@@ -223,10 +225,9 @@ $drivers = $driverStmt->fetchAll(PDO::FETCH_ASSOC);
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="assets/css/themes.css">
     <link rel="stylesheet" href="assets/css/styles.css">
-    <link rel="stylesheet" href="assets/css/badges.css">
-    <link rel="stylesheet" href="assets/css/orders.css">
+   
     <link rel="stylesheet" href="assets/css/collapsed.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
     <link href="assets/css/orders.css" rel="stylesheet">
     <link href="assets/css/badges.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -284,16 +285,20 @@ $drivers = $driverStmt->fetchAll(PDO::FETCH_ASSOC);
                                             $debug_data = json_encode($admin);
                                             echo "<!-- Debug: Admin Data for ID {$admin['id']}: $debug_data -->";
                                         ?>
-                                        <a class="btn btn-sm btn-warning py-2 px-3" 
-                                           href="edit_admin.php?id=<?= $admin['id'] ?>">
-                                            <i class="bi bi-pencil me-2"></i>Edit Employee
-                                        </a>
                                         <?php if ($admin['id'] !== $_SESSION['id']): ?>
+                                            <?php 
+                                            $isActive = (int)$admin['is_active']; // Ensure integer type
+                                            $switchClass = $isActive ? 'active' : 'inactive';
+                                            ?>
                                             <button type="button" 
-                                                    class="btn btn-sm btn-danger" 
-                                                    onclick="confirmDelete(<?= $admin['id'] ?>)">
-                                                <i class="bi bi-trash me-2"></i>Delete
+                                                    class="btn-switch <?= $switchClass ?>" 
+                                                    data-status="<?= $isActive ?>"
+                                                    onclick="toggleAdminStatus(<?= $admin['id'] ?>, <?= $isActive ?>)"
+                                                    title="<?= $isActive ? 'Click to deactivate' : 'Click to activate' ?>">
+                                                <span class="switch-slider"></span>
                                             </button>
+                                        <?php else: ?>
+                                            <span class="badge bg-info">Current User</span>
                                         <?php endif; ?>
                                     </div>
                                 </td>
@@ -386,7 +391,117 @@ $drivers = $driverStmt->fetchAll(PDO::FETCH_ASSOC);
 
             // Add this to debug the issue
             console.log('Current admin IDs:', <?= json_encode(array_column($admins, 'id')) ?>);
+
+            function toggleAdminStatus(adminId, currentStatus) {
+                currentStatus = parseInt(currentStatus); // Ensure integer type
+                const action = currentStatus ? 'deactivate' : 'activate';
+                const confirmMsg = `Are you sure you want to ${action} this employee?`;
+                
+                if (confirm(confirmMsg)) {
+                    const button = event.target.closest('.btn-switch');
+                    const row = button.closest('tr');
+                    button.disabled = true;
+                    
+                    const newStatus = !currentStatus;
+                    
+                    fetch('toggle_admin_status.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `admin_id=${adminId}&status=${newStatus ? 1 : 0}`
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Update switch button
+                            button.className = `btn-switch ${newStatus ? 'active' : 'inactive'}`;
+                            button.setAttribute('data-status', newStatus ? '1' : '0');
+                            
+                            // Update status badge
+                            const statusBadge = row.querySelector('.badge');
+                            statusBadge.className = `badge bg-${newStatus ? 'success' : 'danger'}`;
+                            statusBadge.textContent = newStatus ? 'Active' : 'Inactive';
+                            
+                            // Update the onclick handler with new status
+                            button.onclick = () => toggleAdminStatus(adminId, newStatus);
+                        } else {
+                            // Revert to previous state if there's an error
+                            alert(data.message || 'Error updating status');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error updating status');
+                    })
+                    .finally(() => {
+                        button.disabled = false;
+                    });
+                }
+            }
         </script>
+
+        <style>
+/* Switch Button Styles */
+.btn-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+    background-color: #e9ecef;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-switch.active {
+    background-color: #0d6efd;
+}
+
+.btn-switch.inactive {
+    background-color: #6c757d;
+    opacity: 0.65;
+}
+
+.switch-slider {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background-color: #fff;
+    border-radius: 50%;
+    transition: 0.3s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-switch.active .switch-slider {
+    left: calc(100% - 22px);
+}
+
+.btn-switch:hover {
+    opacity: 0.85;
+}
+
+.btn-switch:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
+}
+
+/* Dark mode adjustments */
+[data-bs-theme="dark"] .btn-switch {
+    background-color: #495057;
+}
+
+[data-bs-theme="dark"] .btn-switch.active {
+    background-color: #0d6efd;
+}
+
+[data-bs-theme="dark"] .switch-slider {
+    background-color: #fff;
+}
+</style>
 
         <?php 
          function getVehicleStatusColor($status)

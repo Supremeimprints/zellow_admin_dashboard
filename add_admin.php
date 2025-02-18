@@ -59,8 +59,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 role, 
                 is_active, 
                 employee_number,
+                phone,
+                address,
                 notification_enabled
-            ) VALUES (?, ?, ?, ?, 1, ?, 1)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
         ");
 
         $stmt->execute([
@@ -68,7 +70,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $email,
             password_hash($password, PASSWORD_DEFAULT),
             $role,
-            $employeeNumber
+            isset($_POST['is_active']) ? 1 : 0,
+            $employeeNumber,
+            $_POST['phone'] ?? null,
+            $_POST['address'] ?? null
         ]);
 
         $db->commit();
@@ -187,6 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <form method="POST" class="needs-validation" novalidate>
                     <div class="row g-3">
+                        <!-- Existing fields -->
                         <div class="col-md-6">
                             <label class="form-label">Username</label>
                             <input type="text" name="username" class="form-control" required>
@@ -197,9 +203,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <input type="email" name="email" class="form-control" required>
                         </div>
 
+                        <!-- New fields -->
+                        <div class="col-md-6">
+                            <label class="form-label">Phone</label>
+                            <input type="tel" name="phone" class="form-control" 
+                                   pattern="[0-9+\-\s]+" 
+                                   title="Please enter a valid phone number">
+                            <div class="form-text">Optional - Enter a valid phone number</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Password</label>
+                            <input type="password" name="password" class="form-control" required minlength="6">
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">Address</label>
+                            <textarea name="address" class="form-control" rows="3" 
+                                      placeholder="Optional - Enter the employee's address"></textarea>
+                        </div>
+
                         <div class="col-md-6">
                             <label class="form-label">Role</label>
                             <select name="role" class="form-select" required>
+                                <option value="">Select a role</option>
                                 <option value="admin">Admin</option>
                                 <option value="finance_manager">Finance Manager</option>
                                 <option value="supply_manager">Supply Manager</option>
@@ -209,9 +236,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </select>
                         </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label">Password</label>
-                            <input type="password" name="password" class="form-control" required minlength="6">
+                        <div class="col-md-6 d-flex align-items-center">
+                            <div class="form-check form-switch">
+                                <input type="checkbox" 
+                                       name="is_active" 
+                                       class="form-check-input" 
+                                       id="is_active" 
+                                       checked>
+                                <label class="form-check-label" for="is_active">Active Account</label>
+                            </div>
                         </div>
                     </div>
 
