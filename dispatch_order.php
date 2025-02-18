@@ -278,7 +278,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="assets/css/orders.css" rel="stylesheet">
     <style>
         .receipt-container {
-            background-color: white;
+            background-color: -var(--bs-light);
             padding: 20px;
             border-radius: 4px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
@@ -305,7 +305,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             color: #000;
         }
         .card-header-custom {
-            background-color: #f8f9fa;
+            background-color: -var(--bs-light);
             border-bottom: 1px solid rgba(0,0,0,.125);
             padding: 1rem 1.25rem;
         }
@@ -359,7 +359,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                             </div>
                                             <div class="col-6 text-end">
                                                 <div>Payment: <?= htmlspecialchars($order['payment_method']) ?></div>
-                                                <div>Status: <?= htmlspecialchars($order['payment_status']) ?></div>
+                                                <div>Status: 
+                                                    <?php if ($order['payment_status'] === 'Pending'): ?>
+                                                        <span class="text-warning">
+                                                            <?= htmlspecialchars($order['payment_status']) ?>
+                                                        </span>
+                                                    <?php elseif ($order['payment_status'] === 'Paid'): ?>
+                                                        <span class="text-success">
+                                                            <?= htmlspecialchars($order['payment_status']) ?>
+                                                        </span>
+                                                    <?php else: ?>
+                                                        <?= htmlspecialchars($order['payment_status']) ?>
+                                                    <?php endif; ?>
+                                                </div>
                                                 <div>Shipping: <?= htmlspecialchars($order['shipping_method']) ?></div>
                                             </div>
                                         </div>

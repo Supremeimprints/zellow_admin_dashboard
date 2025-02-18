@@ -134,10 +134,10 @@ $unreadCount = $unreadCount + $alertCount;
         </li>
         <!-- Profile and Logout Section -->
         <div class="navbar__profile">
-            <a href="profile_settings.php" class="profile-link" aria-label="Profile Settings">
+            <a href="profile_settings.php" class="profile-link" aria-label="">
                 <div class="profile-pic">
                     <img src="<?= htmlspecialchars($profile_photo) ?>" 
-                         alt="Profile"
+                         alt=""
                          width="24"
                          height="24"
                          loading="lazy">

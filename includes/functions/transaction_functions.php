@@ -253,3 +253,44 @@ function updateInventoryOnRefund($db, $orderId) {
 }
 
 // Remove the getStatusBadgeClass function from here - it's now in badge_functions.php
+
+function createOrderTransaction($db, $orderId, $amount, $paymentMethod, $userId) {
+    try {
+        // Generate unique reference ID
+        $referenceId = 'TRX-' . date('YmdHis') . '-' . substr(uniqid(), -4);
+        
+        $query = "INSERT INTO transactions (
+            reference_id,
+            transaction_type,
+            total_amount,
+            payment_method,
+            payment_status,
+            user,
+            order_id,
+            remarks
+        ) VALUES (
+            :reference_id,
+            'Customer Payment',
+            :amount,
+            :payment_method,
+            'completed',
+            :user,
+            :order_id,
+            'Order payment'
+        )";
+
+        $stmt = $db->prepare($query);
+        $stmt->execute([
+            ':reference_id' => $referenceId,
+            ':amount' => $amount,
+            ':payment_method' => $paymentMethod,
+            ':user' => $userId,
+            ':order_id' => $orderId
+        ]);
+
+        return $referenceId;
+    } catch (Exception $e) {
+        error_log("Error creating transaction: " . $e->getMessage());
+        throw $e;
+    }
+}

@@ -290,8 +290,8 @@ $uniqueItems = $inventoryStats['unique_items'];
                                                 <i class="fas fa-receipt fa-lg"></i>
                                             </div>
                                             <div>
-                                                <div class="text-muted small">Manage Invoices</div>
-                                                <div class="stats-number">Transactions</div>
+                                                <div class="text-muted small">Transactions</div>
+                                                <div class="stats-number">Invoices</div>
                                             </div>
                                         </div>
                                     </div>

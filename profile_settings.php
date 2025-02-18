@@ -165,62 +165,106 @@ if (isset($_GET['delete_photo'])) {
     <!-- Existing stylesheets -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="assets/css/settings.css">
-    <link rel="stylesheet" href="assets/css/badges.css">
-    <link rel="stylesheet" href="assets/css/orders.css">
+ 
     <link rel="stylesheet" href="assets/css/collapsed.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="assets/css/orders.css" rel="stylesheet">
-    <link href="assets/css/badges.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="assets/css/inventory.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/styles.css">
-    <link rel="stylesheet" href="assets/css/collapsed.css">
-    <script src="https://unpkg.com/feather-icons"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="assets/css/index.css">
-    <link rel="stylesheet" href="assets/css/settings.css">
+
     <style>
+        .settings-container {
+            max-width: 800px;
+            margin: 2rem auto;
+        }
+        
+        .settings-card {
+            background: var(--bs-body-bg) !important;
+            border-radius: 10px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .settings-title {
+            color: var(--bs-body-color);
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--bs-border-color);
+        }
+
+        .profile-section {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: var(--bs-body-bg);
+            border-radius: 8px;
+        }
+
         .profile-photo-container {
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin-bottom: 2rem;
+            gap: 1rem;
         }
 
         .profile-photo {
-            width: 100px;
-            height: 100px;
+            width: 120px;
+            height: 120px;
             border-radius: 50%;
             object-fit: cover;
-            border: 3px solid var(--border-color);
+            border: 3px solid #fff;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            margin-bottom: 1rem;
-            background-color: var(--container-bg);
+        }
+
+        .photo-actions {
+            display: flex;
+            gap: 0.5rem;
         }
 
         .upload-btn {
             padding: 0.5rem 1rem;
-            background: var(--container-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 0.25rem;
+            background: var(--bs-body-bg);
+            border: 1px solid var(--bs-border-color);
+            border-radius: 5px;
             cursor: pointer;
             transition: all 0.2s;
-            color: var(--text-color);
+            font-size: 0.9rem;
+            color: var(--bs-body-color);
         }
 
-        .delete-section {
-            margin-top: 3rem;
-            padding-top: 2rem;
-            border-top: 1px solid var(--border-color);
+        .upload-btn:hover {
+            background: var(--bs-secondary-bg);
+            border-color: var(--bs-border-color);
         }
 
-        .delete-section h3 {
-            color: #dc3545;
+        .section-card {
+            background: var(--bs-body-bg);
+            border-radius: 8px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
             font-size: 1.2rem;
-            margin-bottom: 1rem;
+            color: var(--bs-body-color);
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--bs-border-color);
+        }
+
+        .danger-zone {
+            background: var(--bs-danger-bg-subtle);
+            border: 1px solid var(--bs-danger-border-subtle);
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+
+        .danger-zone .section-title {
+            color: var(--bs-danger);
+            border-bottom-color: var(--bs-danger-border-subtle);
         }
     </style>
 </head>
@@ -234,113 +278,122 @@ if (isset($_GET['delete_photo'])) {
     <div class="container mt-3">
         <div class="row justify-content-center">
             <div class="col-md-8">
-                <div class="settings-card">
-                    <h2 class="settings-title">Profile Settings</h2>
-                    <?php if ($error): ?>
-                        <div class="alert alert-danger"><?= $error ?></div>
-                    <?php endif; ?>
-                    <?php if ($success): ?>
-                        <div class="alert alert-success"><?= $success ?></div>
-                    <?php endif; ?>
+                <div class="settings-container">
+                    <!-- Profile Section -->
+                    <div class="settings-card">
+                        <h2 class="settings-title">Profile Settings</h2>
+                        
+                        <?php if ($error): ?>
+                            <div class="alert alert-danger"><?= $error ?></div>
+                        <?php endif; ?>
+                        <?php if ($success): ?>
+                            <div class="alert alert-success"><?= $success ?></div>
+                        <?php endif; ?>
 
-                    <!-- Profile Update Form -->
-                    <form method="POST" enctype="multipart/form-data">
-                        <div class="mb-3 profile-photo-container">
-                            <img src="<?= htmlspecialchars($user['profile_photo']) ?>" 
-                                 alt="Profile Photo" 
-                                 class="profile-photo" 
-                                 id="profilePhotoPreview">
-                            <input type="file" 
-                                   class="profile-photo-upload" 
-                                   id="profile_photo" 
-                                   name="profile_photo" 
-                                   accept="image/*" 
-                                   style="display: none;">
-                            <label for="profile_photo" class="upload-btn">
-                                <i class="fas fa-camera"></i> Change Photo
-                            </label>
-                            <?php if ($user['profile_photo'] != 'uploads/default-avatar.png'): ?>
-                                <button type="button" class="btn btn-link text-danger" onclick="confirmPhotoDelete()">
-                                    <i class="fas fa-trash"></i> Remove Photo
-                                </button>
-                            <?php endif; ?>
-                        </div>
+                        <form method="POST" enctype="multipart/form-data">
+                            <div class="profile-section">
+                                <div class="profile-photo-container">
+                                    <img src="<?= htmlspecialchars($user['profile_photo']) ?>" 
+                                         alt="" 
+                                         class="profile-photo" 
+                                         id="profilePhotoPreview">
+                                    <div class="photo-actions">
+                                        <label for="profile_photo" class="upload-btn">
+                                            <i class="fas fa-camera"></i> Change
+                                        </label>
+                                        <?php if ($user['profile_photo'] != 'uploads/default-avatar.png'): ?>
+                                            <button type="button" class="upload-btn text-danger" onclick="confirmPhotoDelete()">
+                                                <i class="fas fa-trash"></i> Remove
+                                            </button>
+                                        <?php endif; ?>
+                                    </div>
+                                    <input type="file" id="profile_photo" name="profile_photo" accept="image/*" style="display: none;">
+                                </div>
 
-                        <div class="mb-3">
-                            <label for="username" class="form-label">Full Name</label>
-                            <input type="text" class="form-control" id="username" name="username"
-                                   value="<?= htmlspecialchars($user['username']) ?>" required>
-                        </div>
+                                <!-- Rest of the profile form fields -->
+                                <div class="flex-grow-1">
+                                    <div class="mb-3">
+                                        <label for="username" class="form-label">Full Name</label>
+                                        <input type="text" class="form-control" id="username" name="username"
+                                               value="<?= htmlspecialchars($user['username']) ?>" required>
+                                    </div>
 
-                        <div class="mb-3">
-                            <label for="email" class="form-label">Email</label>
-                            <input type="email" class="form-control" id="email" name="email"
-                                   value="<?= htmlspecialchars($user['email']) ?>" required>
-                        </div>
+                                    <div class="mb-3">
+                                        <label for="email" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="email" name="email"
+                                               value="<?= htmlspecialchars($user['email']) ?>" required>
+                                    </div>
 
-                        <div class="mb-3">
-                            <label for="theme" class="form-label">Theme Preference</label>
-                            <select class="form-select" id="theme" name="theme">
-                                <option value="light" <?= $user['theme'] === 'light' ? 'selected' : '' ?>>Light</option>
-                                <option value="dark" <?= $user['theme'] === 'dark' ? 'selected' : '' ?>>Dark</option>
-                            </select>
-                        </div>
+                                    <div class="mb-3">
+                                        <label for="theme" class="form-label">Theme Preference</label>
+                                        <select class="form-select" id="theme" name="theme">
+                                            <option value="light" <?= $user['theme'] === 'light' ? 'selected' : '' ?>>Light</option>
+                                            <option value="dark" <?= $user['theme'] === 'dark' ? 'selected' : '' ?>>Dark</option>
+                                        </select>
+                                    </div>
 
-                        <div class="mb-3 form-check">
-                            <input type="checkbox" class="form-check-input" id="notification_enabled"
-                                   name="notification_enabled" <?= $user['notification_enabled'] ? 'checked' : '' ?>>
-                            <label class="form-check-label" for="notification_enabled">
-                                Enable Email Notifications
-                            </label>
-                        </div>
+                                    <div class="mb-3 form-check">
+                                        <input type="checkbox" class="form-check-input" id="notification_enabled"
+                                               name="notification_enabled" <?= $user['notification_enabled'] ? 'checked' : '' ?>>
+                                        <label class="form-check-label" for="notification_enabled">
+                                            Enable Email Notifications
+                                        </label>
+                                    </div>
 
-                        <button type="submit" name="update_profile" class="btn btn-primary">
-                            Save Profile Changes
-                        </button>
-                    </form>
+                                    <button type="submit" name="update_profile" class="btn btn-primary">
+                                        Save Profile Changes
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
 
-                    <!-- Password Change Form -->
-                    <form method="POST" class="mt-4">
-                        <h3>Change Password</h3>
-                        <div class="mb-3">
-                            <label for="current_password" class="form-label">Current Password</label>
-                            <input type="password" class="form-control" id="current_password" 
-                                   name="current_password" required>
-                        </div>
+                    <!-- Password Section -->
+                    <div class="section-card">
+                        <h3 class="section-title">Change Password</h3>
+                        <form method="POST">
+                            <div class="mb-3">
+                                <label for="current_password" class="form-label">Current Password</label>
+                                <input type="password" class="form-control" id="current_password" 
+                                       name="current_password" required>
+                            </div>
 
-                        <div class="mb-3">
-                            <label for="new_password" class="form-label">New Password</label>
-                            <input type="password" class="form-control" id="new_password" 
-                                   name="new_password" required>
-                        </div>
+                            <div class="mb-3">
+                                <label for="new_password" class="form-label">New Password</label>
+                                <input type="password" class="form-control" id="new_password" 
+                                       name="new_password" required>
+                            </div>
 
-                        <div class="mb-3">
-                            <label for="confirm_password" class="form-label">Confirm New Password</label>
-                            <input type="password" class="form-control" id="confirm_password" 
-                                   name="confirm_password" required>
-                        </div>
+                            <div class="mb-3">
+                                <label for="confirm_password" class="form-label">Confirm New Password</label>
+                                <input type="password" class="form-control" id="confirm_password" 
+                                       name="confirm_password" required>
+                            </div>
 
-                        <button type="submit" name="update_password" class="btn btn-warning">
-                            Change Password
-                        </button>
-                    </form>
+                            <button type="submit" name="update_password" class="btn btn-warning">
+                                Change Password
+                            </button>
+                        </form>
+                    </div>
 
-                    <!-- Account Deletion -->
-                    <form method="POST" class="delete-section">
-                        <h3>Delete Account</h3>
-                        <p class="text-muted">Warning: This action cannot be undone. All your data will be permanently deleted.</p>
-                        <div class="mb-3">
-                            <label for="delete_confirm_password" class="form-label">
-                                Enter your password to confirm deletion
-                            </label>
-                            <input type="password" class="form-control" id="delete_confirm_password" 
-                                   name="confirm_password" required>
-                        </div>
-                        <button type="submit" name="delete_account" class="btn btn-danger"
-                                onclick="return confirm('Are you sure you want to delete your account? This action cannot be undone.')">
-                            Delete Account Permanently
-                        </button>
-                    </form>
+                    <!-- Delete Account Section -->
+                    <div class="danger-zone">
+                        <h3 class="section-title">Delete Account</h3>
+                        <p class="text-danger small">Warning: This action cannot be undone. All your data will be permanently deleted.</p>
+                        <form method="POST">
+                            <div class="mb-3">
+                                <label for="delete_confirm_password" class="form-label">
+                                    Enter your password to confirm deletion
+                                </label>
+                                <input type="password" class="form-control" id="delete_confirm_password" 
+                                       name="confirm_password" required>
+                            </div>
+                            <button type="submit" name="delete_account" class="btn btn-danger"
+                                    onclick="return confirm('Are you sure you want to delete your account? This action cannot be undone.')">
+                                Delete Account Permanently
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>

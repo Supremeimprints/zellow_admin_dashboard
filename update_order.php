@@ -59,20 +59,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $db->beginTransaction();
 
-        // Remove updated_at from the query
-        $stmt = $db->prepare("
-            UPDATE orders 
-            SET 
-                status = ?,
-                payment_status = ?
-            WHERE order_id = ?
-        ");
+        $oldPaymentStatus = $order['payment_status'];
+        $newPaymentStatus = $_POST['payment_status'];
 
-        $stmt->execute([
-            $_POST['status'],
-            $_POST['payment_status'],
-            $orderId
-        ]);
+        // If payment status is changing to Paid, create transaction record
+        if ($oldPaymentStatus !== 'Paid' && $newPaymentStatus === 'Paid') {
+            $transactionRef = createOrderTransaction(
+                $db,
+                $orderId,
+                $order['total_amount'],
+                $order['payment_method'],
+                $_SESSION['id']
+            );
+
+            // Update order with transaction reference
+            $stmt = $db->prepare("
+                UPDATE orders 
+                SET 
+                    status = ?,
+                    payment_status = ?,
+                    transaction_id = ?
+                WHERE order_id = ?
+            ");
+
+            $stmt->execute([
+                $_POST['status'],
+                $newPaymentStatus,
+                $transactionRef,
+                $orderId
+            ]);
+
+            // Create payment record
+            $paymentQuery = "INSERT INTO payments (
+                order_id,
+                amount,
+                payment_method,
+                status,
+                transaction_id,
+                payment_date
+            ) VALUES (?, ?, ?, 'completed', ?, CURRENT_TIMESTAMP)";
+
+            $paymentStmt = $db->prepare($paymentQuery);
+            $paymentStmt->execute([
+                $orderId,
+                $order['total_amount'],
+                $order['payment_method'],
+                $transactionRef
+            ]);
+        } else {
+            // Regular status update without payment
+            $stmt = $db->prepare("
+                UPDATE orders 
+                SET 
+                    status = ?,
+                    payment_status = ?
+                WHERE order_id = ?
+            ");
+
+            $stmt->execute([
+                $_POST['status'],
+                $newPaymentStatus,
+                $orderId
+            ]);
+        }
 
         // Log the status change
         $logStmt = $db->prepare("
@@ -89,7 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $logStmt->execute([
             $orderId,
             $_POST['status'],
-            $_POST['payment_status'],
+            $newPaymentStatus,
             $_SESSION['id'],
             $_POST['notes'] ?? null
         ]);
@@ -375,8 +424,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </div>
 
                                 <div class="d-flex justify-content-between mt-4">
-                                    <button type="submit" class="btn btn-primary">Update Order</button>
-                                    <a href="orders.php" class="btn btn-danger">Cancel</a>
+                                    <div>
+                                        <button type="submit" class="btn btn-primary">Update Order</button>
+                                        <a href="orders.php" class="btn btn-danger">Cancel</a>
+                                    </div>
+                                    <?php if ($order['payment_status'] === 'Pending'): ?>
+                                        <a href="checkout.php?order_id=<?php echo $order['order_id']; ?>" 
+                                           class="btn btn-success">
+                                            <i data-feather="credit-card"></i> Proceed to Checkout
+                                        </a>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </form>

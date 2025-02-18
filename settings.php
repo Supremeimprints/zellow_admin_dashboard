@@ -33,17 +33,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Update payment gateway settings
         if (isset($_POST['update_payment'])) {
-            // Stripe settings
-            $stripe_config = [
-                'is_enabled' => isset($_POST['stripe_enabled']) ? 1 : 0,
-                'config' => [
-                    'public_key' => $_POST['stripe_public_key'],
-                    'secret_key' => $_POST['stripe_secret_key']
-                ],
-                'sandbox_mode' => isset($_POST['stripe_sandbox']) ? 1 : 0
-            ];
-            update_payment_gateway($db, 'stripe', $stripe_config);
-
             // M-Pesa settings
             $mpesa_config = [
                 'is_enabled' => isset($_POST['mpesa_enabled']) ? 1 : 0,
@@ -192,7 +181,6 @@ $regions = getRegions($db, false);
 $shippingMethods = getShippingMethods($db, false);
 
 // Get gateway configs
-$stripe_config = array_filter($payment_gateways, fn($g) => $g['gateway_code'] === 'stripe')[0] ?? null;
 $mpesa_config = array_filter($payment_gateways, fn($g) => $g['gateway_code'] === 'mpesa')[0] ?? null;
 ?>
 <!DOCTYPE html>
@@ -275,35 +263,6 @@ $mpesa_config = array_filter($payment_gateways, fn($g) => $g['gateway_code'] ===
                 <div class="settings-card">
                     <h2 class="settings-title">Payment Settings</h2>
                     <form method="POST">
-                        <!-- Stripe Settings -->
-                        <div class="payment-section mb-4">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h3>Stripe Payments</h3>
-                                <div class="form-check form-switch">
-                                    <input type="checkbox" class="form-check-input" name="stripe_enabled"
-                                           <?= ($stripe_config['is_enabled'] ?? false) ? 'checked' : '' ?>>
-                                </div>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label class="form-label">Public Key</label>
-                                <input type="text" class="form-control" name="stripe_public_key"
-                                       value="<?= htmlspecialchars($stripe_config['config']['public_key'] ?? '') ?>">
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label">Secret Key</label>
-                                <input type="password" class="form-control" name="stripe_secret_key"
-                                       value="<?= htmlspecialchars($stripe_config['config']['secret_key'] ?? '') ?>">
-                            </div>
-
-                            <div class="form-check mb-3">
-                                <input type="checkbox" class="form-check-input" name="stripe_sandbox"
-                                       <?= ($stripe_config['sandbox_mode'] ?? true) ? 'checked' : '' ?>>
-                                <label class="form-check-label">Test Mode</label>
-                            </div>
-                        </div>
-
                         <!-- M-Pesa Settings -->
                         <div class="payment-section">
                             <div class="d-flex justify-content-between align-items-center mb-3">
