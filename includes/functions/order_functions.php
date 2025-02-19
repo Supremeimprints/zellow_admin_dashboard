@@ -268,14 +268,27 @@ function processPayment($db, $orderId, $paymentDetails) {
 }
 
 function getStatusCardClass($status) {
-    return match ($status) {
-        'Pending' => 'bg-warning text-dark border-warning',
-        'Processing' => 'bg-info text-white border-info',
-        'Shipped' => 'bg-primary text-white border-primary',
-        'Delivered' => 'bg-success text-white border-success',
-        'Cancelled' => 'bg-danger text-white border-danger',
-        default => 'bg-secondary text-white border-secondary'
-    };
+    $class = '';
+    switch ($status) {
+        case 'Pending':
+            $class = 'bg-warning text-dark border-warning';
+            break;
+        case 'Processing':
+            $class = 'bg-info text-white border-info';
+            break;
+        case 'Shipped':
+            $class = 'bg-primary text-white border-primary';
+            break;
+        case 'Delivered':
+            $class = 'bg-success text-white border-success';
+            break;
+        case 'Cancelled':
+            $class = 'bg-danger text-white border-danger';
+            break;
+        default:
+            $class = 'bg-secondary text-white border-secondary';
+    }
+    return $class;
 }
 
 function validateTrackingNumber($trackingNumber) {
@@ -400,4 +413,14 @@ function validateAndApplyCoupon($db, $couponCode, $userId, $orderTotal) {
         'discount_type' => $result['discount_type'],
         'discount_value' => $result['discount_value']
     ];
+}
+
+function getOrderStatus($status) {
+    switch ($status) {
+        case 'pending': return 'Pending';
+        case 'processing': return 'Processing';
+        case 'completed': return 'Completed';
+        case 'cancelled': return 'Cancelled';
+        default: return 'Unknown';
+    }
 }

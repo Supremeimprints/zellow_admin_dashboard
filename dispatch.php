@@ -605,35 +605,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_shipping'])) {
     <?php
     function getStatusColor($status)
     {
-        return match ($status) {
-            'Pending' => 'warning',
-            'Processing' => 'info',
-            'Shipped' => 'primary',
-            'Delivered' => 'success',
-            'Cancelled' => 'danger',
-            default => 'secondary'
-        };
+        switch ($status) {
+            case 'Pending':
+                return 'warning';
+            case 'Processing':
+                return 'info';
+            case 'Shipped':
+                return 'primary';
+            case 'Delivered':
+                return 'success';
+            case 'Cancelled':
+                return 'danger';
+            default:
+                return 'secondary';
+        }
     }
 
     function getPaymentStatusColor($status)
     {
-        return match ($status) {
-            'Pending' => 'warning',
-            'Paid' => 'success',
-            'Failed' => 'danger',
-            'Refunded' => 'info',
-            default => 'secondary'
-        };
+        switch ($status) {
+            case 'Pending':
+                return 'warning';
+            case 'Paid':
+                return 'success';
+            case 'Failed':
+                return 'danger';
+            case 'Refunded':
+                return 'info';
+            default:
+                return 'secondary';
+        }
     }
 
     function getVehicleStatusColor($status)
     {
-        return match ($status) {
-            'Available' => 'success',
-            'In Use' => 'warning',
-            'Under Maintenance' => 'danger',
-            default => 'secondary'
-        };
+        switch ($status) {
+            case 'Available':
+                return 'success';
+            case 'In Use':
+                return 'warning';
+            case 'Under Maintenance':
+                return 'danger';
+            default:
+                return 'secondary';
+        }
     }
     ?>
     <script>

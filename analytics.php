@@ -61,6 +61,17 @@ foreach ([$financialMetrics, $customerMetrics, $revenueData, $topProducts, $cate
     }
 }
 
+// Replace match with switch for status colors
+function getStatusColor($status) {
+    switch ($status) {
+        case 'completed': return 'success';
+        case 'pending': return 'warning';
+        case 'processing': return 'info';
+        case 'cancelled': return 'danger';
+        default: return 'secondary';
+    }
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -330,12 +341,20 @@ foreach ([$financialMetrics, $customerMetrics, $revenueData, $topProducts, $cate
                                             <td class="align-middle">
                                                 <div class="transaction-amount <?= strtolower($transaction['transaction_type']) ?>">
                                                     <?php
-                                                    $amountColor = match(strtolower($transaction['transaction_type'])) {
-                                                        'payment' => 'text-success',
-                                                        'refund' => 'text-danger',
-                                                        'discount' => 'text-purple',
-                                                        default => ''
-                                                    };
+                                                    $amountColor = '';
+                                                    switch(strtolower($transaction['transaction_type'])) {
+                                                        case 'payment':
+                                                            $amountColor = 'text-success';
+                                                            break;
+                                                        case 'refund':
+                                                            $amountColor = 'text-danger';
+                                                            break;
+                                                        case 'discount':
+                                                            $amountColor = 'text-purple';
+                                                            break;
+                                                        default:
+                                                            $amountColor = '';
+                                                    }
                                                     ?>
                                                     <span class="<?= $amountColor ?>">
                                                         <?= ($transaction['amount'] >= 0 ? '+' : '-') ?>Ksh <?= number_format(abs($transaction['amount']), 2) ?>
@@ -344,18 +363,35 @@ foreach ([$financialMetrics, $customerMetrics, $revenueData, $topProducts, $cate
                                             </td>
                                             <td class="align-middle text-center small">
                                                 <?php
-                                                $status = match(strtolower($transaction['transaction_type'])) {
-                                                    'payment' => 'Paid',
-                                                    'refund' => 'Refunded',
-                                                    'discount' => 'Applied',
-                                                    default => 'Completed'
-                                                };
-                                                $statusColor = match(strtolower($transaction['transaction_type'])) {
-                                                    'payment' => 'text-success',
-                                                    'refund' => 'text-danger',
-                                                    'discount' => 'text-purple',
-                                                    default => 'text-secondary'
-                                                };
+                                                $status = '';
+                                                switch(strtolower($transaction['transaction_type'])) {
+                                                    case 'payment':
+                                                        $status = 'Paid';
+                                                        break;
+                                                    case 'refund':
+                                                        $status = 'Refunded';
+                                                        break;
+                                                    case 'discount':
+                                                        $status = 'Applied';
+                                                        break;
+                                                    default:
+                                                        $status = 'Completed';
+                                                }
+
+                                                $statusColor = '';
+                                                switch(strtolower($transaction['transaction_type'])) {
+                                                    case 'payment':
+                                                        $statusColor = 'text-success';
+                                                        break;
+                                                    case 'refund':
+                                                        $statusColor = 'text-danger';
+                                                        break;
+                                                    case 'discount':
+                                                        $statusColor = 'text-purple';
+                                                        break;
+                                                    default:
+                                                        $statusColor = 'text-secondary';
+                                                }
                                                 ?>
                                                 <span class="<?= $statusColor ?> fw-medium">
                                                     <?= htmlspecialchars($status) ?>

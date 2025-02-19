@@ -129,6 +129,48 @@ $activeCustomers = $customerStats['count'];
 $totalStock = $inventoryStats['total_stock'];
 $uniqueItems = $inventoryStats['unique_items'];
 
+function getStatusColorClass($status) {
+    switch (strtolower($status)) {
+        case 'pending':
+            return 'text-warning bg-warning-soft';
+        case 'processing':
+            return 'text-info bg-info-soft';
+        case 'completed':
+            return 'text-success bg-success-soft';
+        case 'cancelled':
+            return 'text-danger bg-danger-soft';
+        default:
+            return 'text-secondary bg-secondary-soft';
+    }
+}
+
+function getPaymentStatusColor($status) {
+    switch (strtolower($status)) {
+        case 'paid':
+            return 'text-success';
+        case 'pending':
+            return 'text-warning';
+        case 'failed':
+            return 'text-danger';
+        case 'refunded':
+            return 'text-info';
+        default:
+            return 'text-secondary';
+    }
+}
+
+function getPriorityColor($priority) {
+    switch (strtolower($priority)) {
+        case 'high':
+            return 'danger';
+        case 'medium':
+            return 'warning';
+        case 'low':
+            return 'success';
+        default:
+            return 'secondary';
+    }
+}
 
 ?>
 <!DOCTYPE html>
@@ -396,22 +438,49 @@ $uniqueItems = $inventoryStats['unique_items'];
                                         <?php if (!empty($orderStats)): ?>
                                             <?php foreach ($orderStats as $stat): ?>
                                                 <?php
-                                                $statusColor = match (strtolower($stat['status'])) {
-                                                    'pending' => 'order-status-pending',
-                                                    'processing' => 'order-status-processing',
-                                                    'shipped' => 'order-status-shipped',
-                                                    'delivered' => 'order-status-delivered',
-                                                    'cancelled' => 'order-status-cancelled',
-                                                    default => 'order-status-pending'
-                                                };
-                                                $textColors = match (strtolower($stat['status'])) {
-                                                    'pending' => '#874d00',     // Darker orange
-                                                    'processing' => '#055160',   // Dark cyan
-                                                    'shipped' => '#084298',      // Dark blue
-                                                    'delivered' => '#0a3622',    // Dark green
-                                                    'cancelled' => '#842029',    // Dark red
-                                                    default => '#495057'         // Dark gray
-                                                };
+                                                // Replace match expression with switch for status color
+                                                $statusColor = '';
+                                                switch (strtolower($stat['status'])) {
+                                                    case 'pending':
+                                                        $statusColor = 'order-status-pending';
+                                                        break;
+                                                    case 'processing':
+                                                        $statusColor = 'order-status-processing';
+                                                        break;
+                                                    case 'shipped':
+                                                        $statusColor = 'order-status-shipped';
+                                                        break;
+                                                    case 'delivered':
+                                                        $statusColor = 'order-status-delivered';
+                                                        break;
+                                                    case 'cancelled':
+                                                        $statusColor = 'order-status-cancelled';
+                                                        break;
+                                                    default:
+                                                        $statusColor = 'order-status-pending';
+                                                }
+
+                                                // Replace match expression with switch for text colors
+                                                $textColors = '';
+                                                switch (strtolower($stat['status'])) {
+                                                    case 'pending':
+                                                        $textColors = '#874d00';     // Darker orange
+                                                        break;
+                                                    case 'processing':
+                                                        $textColors = '#055160';   // Dark cyan
+                                                        break;
+                                                    case 'shipped':
+                                                        $textColors = '#084298';      // Dark blue
+                                                        break;
+                                                    case 'delivered':
+                                                        $textColors = '#0a3622';    // Dark green
+                                                        break;
+                                                    case 'cancelled':
+                                                        $textColors = '#842029';    // Dark red
+                                                        break;
+                                                    default:
+                                                        $textColors = '#495057';         // Dark gray
+                                                }
                                                 ?>
                                                 <div class="mb-2">
                                                     <div class="d-flex justify-content-between small mb-1">

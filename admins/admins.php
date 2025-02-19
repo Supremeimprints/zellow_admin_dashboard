@@ -50,48 +50,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $userId = $user['id'];
 
             // Generate employee number
-           // Generate employee number similar to Safaricom transaction codes
-$prefix = match ($role) {
-    'admin' => 'ADM',
-    'finance_manager' => 'FIN',
-    'supply_manager' => 'SUP',
-    'inventory_manager' => 'INV',
-    'dispatch_manager' => 'DIS',
-    'service_manager' => 'SER',
-    default => 'ADM',
-};
+            $prefix = '';
+            switch ($role) {
+                case 'admin':
+                    $prefix = 'ADM';
+                    break;
+                case 'finance_manager':
+                    $prefix = 'FIN';
+                    break;
+                case 'supply_manager':
+                    $prefix = 'SUP';
+                    break;
+                case 'inventory_manager':
+                    $prefix = 'INV';
+                    break;
+                case 'dispatch_manager':
+                    $prefix = 'DIS';
+                    break;
+                case 'service_manager':
+                    $prefix = 'SER';
+                    break;
+                default:
+                    $prefix = 'ADM';
+            }
 
-// Get the current timestamp in milliseconds
-//$timestamp = round(microtime(true) * 1000);
+            // Get the current timestamp in milliseconds
+            //$timestamp = round(microtime(true) * 1000);
 
-// Generate a random alphanumeric string (e.g., "5GB72PLK9")
-$characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-$randomString = '';
-for ($i = 0; $i < 8; $i++) {
-    $randomString .= $characters[random_int(0, strlen($characters) - 1)];
-}
+            // Generate a random alphanumeric string (e.g., "5GB72PLK9")
+            $characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            $randomString = '';
+            for ($i = 0; $i < 8; $i++) {
+                $randomString .= $characters[random_int(0, strlen($characters) - 1)];
+            }
 
-// Combine the prefix, timestamp, and random string
-$newEmployeeNumber = "$prefix-$randomString";
+            // Combine the prefix, timestamp, and random string
+            $newEmployeeNumber = "$prefix-$randomString";
 
-// Update user record with generated employee number
-$updateQuery = "UPDATE users SET employee_number = ? WHERE id = ?";
-$stmt = $db->prepare($updateQuery);
-$stmt->execute([$newEmployeeNumber, $userId]);
+            // Update user record with generated employee number
+            $updateQuery = "UPDATE users SET employee_number = ? WHERE id = ?";
+            $stmt = $db->prepare($updateQuery);
+            $stmt->execute([$newEmployeeNumber, $userId]);
 
-echo "Employee numbers have been successfully updated for all admins and managers.";
+            echo "Employee numbers have been successfully updated for all admins and managers.";
 
-// Insert into both `users` and `admins` tables
-$insertQuery = "INSERT INTO users (username, email, password, role, is_active, employee_number)
-                VALUES (?, ?, ?, ?, ?, ?)";
-$stmt = $db->prepare($insertQuery);
-$stmt->execute([$username, $email, $hashedPassword, $role, $isActive, $newEmployeeNumber]);
+            // Insert into both `users` and `admins` tables
+            $insertQuery = "INSERT INTO users (username, email, password, role, is_active, employee_number)
+                            VALUES (?, ?, ?, ?, ?, ?)";
+            $stmt = $db->prepare($insertQuery);
+            $stmt->execute([$username, $email, $hashedPassword, $role, $isActive, $newEmployeeNumber]);
 
-header('Location: admins.php');
-exit();
-}
+            header('Location: admins.php');
+            exit();
+            }
+        }
     }
-}
 
 } // End of if ($action === 'add')
 
@@ -172,3 +185,13 @@ $admins = $stmt->fetchAll(PDO::FETCH_ASSOC);
 </body>
 <?php include 'footer.php'; ?>
 </html>
+<?php
+function getRoleLabel($role) {
+    switch ($role) {
+        case 'admin': return 'Administrator';
+        case 'manager': return 'Manager';
+        case 'staff': return 'Staff Member';
+        default: return 'Unknown Role';
+    }
+}
+?>
