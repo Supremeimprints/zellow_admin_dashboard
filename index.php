@@ -234,7 +234,7 @@ $uniqueItems = $inventoryStats['unique_items'];
                             </div>
 
                             <div class="col-6 col-md-3">
-                                <div class="card clickable-card shadow-sm" onclick="window.location='reports.php'">
+                                <div class="card clickable-card shadow-sm" onclick="window.location='products.php'">
                                     <div class="card-body p-2">
                                         <div class="d-flex align-items-center">
                                             <div
@@ -242,7 +242,7 @@ $uniqueItems = $inventoryStats['unique_items'];
                                                 <i class="fas fa-cube fa-lg"></i>
                                             </div>
                                             <div>
-                                                <div class="text-muted small">Unique Items</div>
+                                                <div class="text-muted small">Catalogue</div>
                                                 <div class="stats-number"><?= $uniqueItems ?></div>
                                             </div>
                                         </div>
