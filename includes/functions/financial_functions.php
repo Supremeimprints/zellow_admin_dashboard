@@ -304,13 +304,10 @@ function getCategoryPerformance($db, $startDate, $endDate) {
     try {
         validateDateRange($startDate, $endDate);
         
-        $startDateTime = $startDate . ' 00:00:00';
-        $endDateTime = $endDate . ' 23:59:59';
-        
         $query = "SELECT 
             COALESCE(p.category, 'Uncategorized') as category,
             COUNT(DISTINCT o.order_id) as order_count,
-            COALESCE(SUM(oi.quantity * oi.price), 0) as total_sales
+            COALESCE(SUM(oi.quantity * oi.unit_price), 0) as total_sales
             FROM orders o
             JOIN order_items oi ON o.order_id = oi.order_id
             JOIN products p ON oi.product_id = p.product_id
@@ -323,32 +320,37 @@ function getCategoryPerformance($db, $startDate, $endDate) {
 
         $stmt = $db->prepare($query);
         $stmt->execute([
-            ':start_date' => $startDateTime,
-            ':end_date' => $endDateTime
+            ':start_date' => $startDate . ' 00:00:00',
+            ':end_date' => $endDate . ' 23:59:59'
         ]);
+        
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Return default if no results
         if (empty($results)) {
-            return [
-                [
-                    'category' => 'No Sales Data',
-                    'order_count' => 0,
-                    'total_sales' => 0
-                ]
-            ];
+            return [[
+                'category' => 'No Data',
+                'order_count' => 0,
+                'total_sales' => 0
+            ]];
+        }
+
+        // Calculate percentages
+        $totalSales = array_sum(array_column($results, 'total_sales'));
+        foreach ($results as &$row) {
+            $row['percentage'] = $totalSales > 0 ? 
+                round(($row['total_sales'] / $totalSales) * 100, 1) : 0;
         }
 
         return $results;
+
     } catch (Exception $e) {
         error_log('Category performance calculation error: ' . $e->getMessage());
-        return [
-            [
-                'category' => 'Error Loading Data',
-                'order_count' => 0,
-                'total_sales' => 0
-            ]
-        ];
+        return [[
+            'category' => 'Error Loading Data',
+            'order_count' => 0,
+            'total_sales' => 1, // Use 1 to avoid NaN in percentage calculations
+            'percentage' => 100
+        ]];
     }
 }
 

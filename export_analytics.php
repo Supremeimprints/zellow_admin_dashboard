@@ -9,7 +9,6 @@ if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
     exit();
 }
 
-// Get date parameters
 $startDate = $_GET['start_date'] ?? date('Y-m-d', strtotime('-6 months'));
 $endDate = $_GET['end_date'] ?? date('Y-m-d');
 $exportType = $_GET['export'] ?? 'csv';
@@ -18,43 +17,51 @@ $database = new Database();
 $db = $database->getConnection();
 
 // Get transaction data
-$transactions = getTransactionHistory($db, $startDate, $endDate, 1000); // Increased limit for export
+$transactions = getTransactionHistory($db, $startDate, $endDate, 1000);
 
-if (empty($transactions) || isset($transactions['error'])) {
+if (empty($transactions)) {
     die('No data available for export');
 }
 
-// Prepare data for export
+// Format data for export
 $exportData = [];
-$headers = ['Date', 'Type', 'Reference', 'Amount', 'Status'];
 
-// Add headers as first row
+// Define headers
+$headers = ['Date', 'Time', 'Type', 'Reference', 'Description', 'Amount', 'Status'];
 $exportData[] = $headers;
 
-// Add transaction data
+// Format transaction data
 foreach ($transactions as $transaction) {
+    $date = new DateTime($transaction['transaction_date']);
+    
     $exportData[] = [
-        date('Y-m-d H:i:s', strtotime($transaction['transaction_date'])),
-        $transaction['type'] ?? 'Unknown',
-        $transaction['reference'] ?? '',
-        $transaction['amount'] ?? '0',
-        $transaction['status'] ?? 'Unknown'
+        $date->format('M d, Y'),          // Date
+        $date->format('h:i A'),           // Time
+        $transaction['transaction_type'],  // Type
+        $transaction['reference_id'],      // Reference
+        $transaction['description'] ?? '-', // Description
+        ($transaction['amount'] >= 0 ? '+' : '-') . 
+            'Ksh ' . number_format(abs($transaction['amount']), 2), // Amount
+        $transaction['payment_status']     // Status
     ];
 }
+
+// Generate filename
+$filename = 'transactions_' . date('Y-m-d_His');
 
 // Export based on type
 switch ($exportType) {
     case 'excel':
-        exportExcel($exportData, "transactions_{$startDate}_to_{$endDate}");
+        exportExcel($exportData, $filename);
         break;
     
     case 'pdf':
-        exportPDF($exportData, "transactions_{$startDate}_to_{$endDate}");
+        exportPDF($exportData, $filename);
         break;
     
     case 'csv':
     default:
-        exportCSV($exportData, "transactions_{$startDate}_to_{$endDate}");
+        exportCSV($exportData, $filename);
         break;
 }
 
@@ -77,33 +84,27 @@ function exportExcel($data, $filename) {
     $sheet = $spreadsheet->getActiveSheet();
     
     // Add data
-    $row = 1;
-    foreach ($data as $rowData) {
-        $col = 'A';
-        foreach ($rowData as $value) {
-            $sheet->setCellValue($col . $row, $value);
-            $col++;
-        }
-        $row++;
-    }
+    $sheet->fromArray($data, NULL, 'A1');
+    
+    // Style the header row
+    $highestColumn = $sheet->getHighestColumn();
+    $sheet->getStyle('A1:' . $highestColumn . '1')->applyFromArray([
+        'font' => ['bold' => true],
+        'fill' => [
+            'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+            'startColor' => ['rgb' => 'E6E6E6']
+        ]
+    ]);
     
     // Auto-size columns
-    foreach (range('A', $sheet->getHighestColumn()) as $col) {
+    foreach (range('A', $highestColumn) as $col) {
         $sheet->getColumnDimension($col)->setAutoSize(true);
     }
     
-    // Style the header row
-    $sheet->getStyle('A1:' . $sheet->getHighestColumn() . '1')->applyFromArray([
-        'font' => [
-            'bold' => true
-        ],
-        'fill' => [
-            'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-            'startColor' => [
-                'rgb' => 'E6E6E6'
-            ]
-        ]
-    ]);
+    // Set number format for amount column (Column F)
+    $sheet->getStyle('F2:F' . $sheet->getHighestRow())
+          ->getNumberFormat()
+          ->setFormatCode('_("Ksh"* #,##0.00_);_("Ksh"* -#,##0.00_);_("Ksh"* "-"??_);_(@_)');
     
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     header('Content-Disposition: attachment;filename="' . $filename . '.xlsx"');
@@ -115,27 +116,30 @@ function exportExcel($data, $filename) {
 }
 
 function exportPDF($data, $filename) {
-    require_once 'vendor/autoload.php'; // Make sure TCPDF is installed
+    require_once 'vendor/autoload.php';
     
-    $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+    $pdf = new \Mpdf\Mpdf([
+        'margin_left' => 10,
+        'margin_right' => 10,
+        'margin_top' => 15,
+        'margin_bottom' => 15
+    ]);
     
-    // Set document information
-    $pdf->SetCreator('Zellow Admin');
-    $pdf->SetAuthor('Admin');
-    $pdf->SetTitle('Transaction Report');
+    // Add title
+    $pdf->WriteHTML('<h2>Transaction History</h2>');
     
-    // Remove default header/footer
-    $pdf->setPrintHeader(false);
-    $pdf->setPrintFooter(false);
+    // Create table HTML
+    $html = '<table border="1" cellpadding="4" style="width: 100%; border-collapse: collapse; font-size: 12px;">';
     
-    // Add a page
-    $pdf->AddPage();
+    // Add header row
+    $html .= '<tr style="background-color: #f3f3f3;">';
+    foreach ($data[0] as $header) {
+        $html .= '<th style="text-align: left;">' . htmlspecialchars($header) . '</th>';
+    }
+    $html .= '</tr>';
     
-    // Set font
-    $pdf->SetFont('helvetica', '', 10);
-    
-    // Create the table
-    $html = '<table border="1" cellpadding="4">';
+    // Add data rows
+    array_shift($data); // Remove header row
     foreach ($data as $row) {
         $html .= '<tr>';
         foreach ($row as $cell) {
@@ -143,11 +147,10 @@ function exportPDF($data, $filename) {
         }
         $html .= '</tr>';
     }
+    
     $html .= '</table>';
     
-    $pdf->writeHTML($html, true, false, true, false, '');
-    
-    // Output the PDF
+    $pdf->WriteHTML($html);
     $pdf->Output($filename . '.pdf', 'D');
     exit;
 }
