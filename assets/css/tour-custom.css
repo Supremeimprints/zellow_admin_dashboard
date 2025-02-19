@@ -1,0 +1,54 @@
+.shepherd-spotlight {
+    box-shadow: 0 0 0 99999px rgba(0, 0, 0, .75);
+}
+
+.shepherd-element {
+    z-index: 9999;
+    max-width: 400px;
+    border-radius: 8px;
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.2);
+}
+
+.shepherd-title {
+    font-size: 1.1em;
+    font-weight: 600;
+    margin-bottom: 0.5em;
+}
+
+.shepherd-text {
+    font-size: 0.95em;
+    line-height: 1.5;
+    color: #666;
+}
+
+.shepherd-button {
+    padding: 0.5em 1em;
+    border-radius: 4px;
+    margin-right: 0.5em;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.shepherd-button-primary {
+    background: #007bff;
+    color: white;
+}
+
+.shepherd-button-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.shepherd-button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+[data-bs-theme="dark"] .shepherd-text {
+    color: #ccc;
+}
+
+[data-bs-theme="dark"] .shepherd-element {
+    background: #2b2b2b;
+    color: #fff;
+}

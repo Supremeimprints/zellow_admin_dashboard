@@ -124,7 +124,7 @@ $unreadCount = $unreadCount + $alertCount;
     <!-- Help and Settings Section -->
     <ul class="navbar__menu">
         <li class="navbar__item">
-            <a href="help.php" class="navbar__link <?= isActive('help.php') ?>" aria-label="Help">
+            <a href="#" class="navbar__link" id="help-trigger" aria-label="Help">
                 <i data-feather="help-circle"></i>
                 <span>Help</span>
             </a>
@@ -218,6 +218,10 @@ $unreadCount = $unreadCount + $alertCount;
 }
 </style>
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@10.0.1/dist/css/shepherd.css"/>
+<link rel="stylesheet" href="assets/css/tour-custom.css"/>
+<script src="https://cdn.jsdelivr.net/npm/shepherd.js@10.0.1/dist/js/shepherd.min.js"></script>
+<script src="assets/js/tour.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         feather.replace();
@@ -245,6 +249,25 @@ $unreadCount = $unreadCount + $alertCount;
                 notificationDot.classList.remove('show-count');
             });
         }
+
+        // Initialize tour instance
+        let tourInstance = new ZellowTour();
+        
+        // Check if first time login
+        const isFirstTime = <?= isset($_SESSION['first_time_login']) ? 'true' : 'false' ?>;
+        
+        if (isFirstTime) {
+            setTimeout(() => tourInstance.start(), 500);
+            fetch('ajax/update_first_login.php');
+        }
+
+        // Add help trigger with fixed event handling
+        document.getElementById('help-trigger').addEventListener('click', function(e) {
+            e.preventDefault();
+            // Create new tour instance for each help click
+            tourInstance = new ZellowTour();
+            tourInstance.start();
+        });
     });
 </script>
 
