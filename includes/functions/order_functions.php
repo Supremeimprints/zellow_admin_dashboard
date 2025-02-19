@@ -74,44 +74,165 @@ function getOrCreateTrackingNumber($db, $orderId) {
 }
 
 // Modify the existing updateOrderStatus function
-function updateOrderStatus($db, $orderId, $newStatus) {
+function updateOrderStatus($db, $orderId, $newStatus, $paymentStatus = null) {
     try {
         $db->beginTransaction();
         
-        // Get existing tracking number or generate new one
-        $trackingNumber = getOrCreateTrackingNumber($db, $orderId);
-        
         // Update order status
-        $query = "UPDATE orders 
-                 SET status = :status,
-                     tracking_number = :tracking_number 
-                 WHERE order_id = :order_id";
+        $orderQuery = "UPDATE orders SET 
+            status = :status" . 
+            ($paymentStatus ? ", payment_status = :payment_status" : "") . 
+            " WHERE order_id = :order_id";
         
-        $stmt = $db->prepare($query);
-        $result = $stmt->execute([
+        $stmt = $db->prepare($orderQuery);
+        $params = [
             ':status' => $newStatus,
-            ':tracking_number' => $trackingNumber,
+            ':order_id' => $orderId
+        ];
+        
+        if ($paymentStatus) {
+            $params[':payment_status'] = $paymentStatus;
+        }
+        
+        $stmt->execute($params);
+
+        // Log transaction if payment status changes
+        if ($paymentStatus) {
+            // Check if transaction already exists
+            $checkQuery = "SELECT COUNT(*) FROM transactions 
+                          WHERE order_id = :order_id 
+                          AND transaction_type = :type";
+            
+            $stmt = $db->prepare($checkQuery);
+            $stmt->execute([
+                ':order_id' => $orderId,
+                ':type' => $paymentStatus === 'Refunded' ? 'Refund' : 'Payment'
+            ]);
+            
+            $exists = $stmt->fetchColumn() > 0;
+            
+            if (!$exists) {
+                // Get order details
+                $orderQuery = "SELECT total_amount, email, transaction_id 
+                             FROM orders WHERE order_id = :order_id";
+                $stmt = $db->prepare($orderQuery);
+                $stmt->execute([':order_id' => $orderId]);
+                $order = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                // Insert new transaction
+                $transQuery = "INSERT INTO transactions (
+                    order_id,
+                    transaction_type,
+                    reference_id,
+                    total_amount,
+                    payment_status,
+                    transaction_date
+                ) VALUES (
+                    :order_id,
+                    :type,
+                    :reference,
+                    :amount,
+                    :status,
+                    CURRENT_TIMESTAMP
+                )";
+                
+                $stmt = $db->prepare($transQuery);
+                $stmt->execute([
+                    ':order_id' => $orderId,
+                    ':type' => $paymentStatus === 'Refunded' ? 'Refund' : 'Payment',
+                    ':reference' => $order['transaction_id'] ?? ('ORD-' . $orderId),
+                    ':amount' => $paymentStatus === 'Refunded' ? -$order['total_amount'] : $order['total_amount'],
+                    ':status' => $paymentStatus
+                ]);
+            } else {
+                // Update existing transaction
+                $updateQuery = "UPDATE transactions 
+                              SET payment_status = :status,
+                                  updated_at = CURRENT_TIMESTAMP
+                              WHERE order_id = :order_id";
+                
+                $stmt = $db->prepare($updateQuery);
+                $stmt->execute([
+                    ':status' => $paymentStatus,
+                    ':order_id' => $orderId
+                ]);
+            }
+        }
+
+        $db->commit();
+        return true;
+
+    } catch (Exception $e) {
+        $db->rollBack();
+        error_log('Order status update error: ' . $e->getMessage());
+        return false;
+    }
+}
+
+function processPayment($db, $orderId, $paymentDetails) {
+    try {
+        $db->beginTransaction();
+        
+        // Update order payment status
+        $orderQuery = "UPDATE orders SET 
+            payment_status = :payment_status,
+            transaction_id = :transaction_id,
+            updated_at = CURRENT_TIMESTAMP
+            WHERE order_id = :order_id";
+            
+        $stmt = $db->prepare($orderQuery);
+        $stmt->execute([
+            ':payment_status' => $paymentDetails['status'],
+            ':transaction_id' => $paymentDetails['transaction_id'],
             ':order_id' => $orderId
         ]);
 
-        if ($result) {
-            // Add status change to order history
-            $historyQuery = "INSERT INTO order_history 
-                           (order_id, status, changed_at, changed_by) 
-                           VALUES (:order_id, :status, NOW(), :changed_by)";
-            $historyStmt = $db->prepare($historyQuery);
-            $historyStmt->execute([
-                ':order_id' => $orderId,
-                ':status' => $newStatus,
-                ':changed_by' => $_SESSION['id'] // Using id instead of user_id
-            ]);
+        // Only create transaction record for successful payments
+        if ($paymentDetails['status'] === 'Paid') {
+            // Check for existing transaction
+            $checkQuery = "SELECT id FROM transactions 
+                          WHERE order_id = :order_id 
+                          AND transaction_type = 'Payment'";
+            
+            $stmt = $db->prepare($checkQuery);
+            $stmt->execute([':order_id' => $orderId]);
+            
+            if (!$stmt->fetch()) {
+                $transQuery = "INSERT INTO transactions (
+                    order_id,
+                    transaction_type,
+                    reference_id,
+                    total_amount,
+                    payment_method,
+                    payment_status,
+                    transaction_date
+                ) VALUES (
+                    :order_id,
+                    'Payment',
+                    :reference_id,
+                    :amount,
+                    :method,
+                    :status,
+                    CURRENT_TIMESTAMP
+                )";
+                
+                $stmt = $db->prepare($transQuery);
+                $stmt->execute([
+                    ':order_id' => $orderId,
+                    ':reference_id' => $paymentDetails['transaction_id'],
+                    ':amount' => $paymentDetails['amount'],
+                    ':method' => $paymentDetails['method'],
+                    ':status' => $paymentDetails['status']
+                ]);
+            }
         }
-        
+
         $db->commit();
         return true;
-    } catch (PDOException $e) {
+
+    } catch (Exception $e) {
         $db->rollBack();
-        error_log("Error updating order status: " . $e->getMessage());
+        error_log('Payment processing error: ' . $e->getMessage());
         return false;
     }
 }
@@ -135,7 +256,7 @@ function validateTrackingNumber($trackingNumber) {
 function renderOrdersTable($orders, $isDispatch = false) {
     ob_start();
     ?>
-    <div class="table-responsive">
+    <div class="table-responsive"></div></div>
         <table class="table table-striped table-hover">
             <thead>
                 <tr>
@@ -151,19 +272,19 @@ function renderOrdersTable($orders, $isDispatch = false) {
                     <th>Actions</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody></tbody></tbody>
                 <?php if (empty($orders)): ?>
                     <tr>
                         <td colspan="10" class="text-center">No orders found</td>
                     </tr>
                 <?php else: ?>
                     <?php foreach ($orders as $order): ?>
-                        <tr>
+                        <tr></tr></tr>
                             <td>#<?= htmlspecialchars($order['order_id']) ?></td>
                             <td><?= htmlspecialchars($order['username']) ?></td>
                             <td><?= htmlspecialchars($order['products']) ?></td>
                             <td>Ksh.<?= number_format($order['total_amount'], 2) ?></td>
-                            <td>
+                            <td></td></td>
                                 <span class="badge <?= getStatusBadgeClass($order['status'], 'status') ?>">
                                     <?= htmlspecialchars($order['status']) ?>
                                 </span>
@@ -176,7 +297,7 @@ function renderOrdersTable($orders, $isDispatch = false) {
                             <td><?= htmlspecialchars($order['tracking_number'] ?? 'N/A') ?></td>
                             <td><?= htmlspecialchars($order['shipping_address']) ?></td>
                             <td><?= date('Y-m-d H:i', strtotime($order['order_date'])) ?></td>
-                            <td>
+                            <td></td></td>
                                 <?php if ($isDispatch): ?>
                                     <?php if ($order['payment_status'] === 'Paid' || $order['payment_status'] === 'Pending'): ?>
                                         <a href="dispatch_order.php?order_id=<?= $order['order_id'] ?>"
