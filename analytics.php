@@ -291,7 +291,7 @@ foreach ([$financialMetrics, $customerMetrics, $revenueData, $topProducts, $cate
                                     <th class="border-top-0">Type</th>
                                     <th class="border-top-0">Reference</th>
                                     <th class="border-top-0">Description</th>
-                                    <th class="border-top-0 text-end">Amount</th>
+                                    <th class="border-top-0 text-start">Amount</th>
                                     <th class="border-top-0 text-center">Status</th>
                                 </tr>
                             </thead>
