@@ -29,63 +29,50 @@ function getFinancialMetrics($db, $startDate, $endDate) {
     try {
         validateDateRange($startDate, $endDate);
         
-        // Add time component to dates for full day coverage
         $startDateTime = $startDate . ' 00:00:00';
         $endDateTime = $endDate . ' 23:59:59';
         
-        // Get revenue from paid orders
+        // Updated revenue query to include refunds
         $revenueQuery = "SELECT 
-            COUNT(DISTINCT o.order_id) as total_orders,
-            SUM(o.total_amount) as revenue
+            COUNT(DISTINCT CASE WHEN o.payment_status = 'Paid' THEN o.order_id END) as total_orders,
+            COALESCE(SUM(CASE 
+                WHEN o.payment_status = 'Paid' THEN o.total_amount
+                ELSE 0
+            END), 0) as revenue,
+            COALESCE(SUM(CASE 
+                WHEN o.payment_status = 'Refunded' THEN o.total_amount
+                ELSE 0
+            END), 0) as refunded_amount,
+            COALESCE(SUM(CASE 
+                WHEN o.payment_status = 'Paid' AND o.coupon_id IS NOT NULL 
+                THEN o.discount_amount 
+                ELSE 0
+            END), 0) as total_discounts,
+            COALESCE(SUM(CASE 
+                WHEN o.payment_status = 'Refunded' AND o.coupon_id IS NOT NULL 
+                THEN o.discount_amount 
+                ELSE 0
+            END), 0) as refunded_discounts
             FROM orders o
-            WHERE o.order_date BETWEEN :start_date AND :end_date
-            AND o.payment_status = 'Paid'";
+            WHERE o.order_date BETWEEN :start_date AND :end_date";
         
         $stmt = $db->prepare($revenueQuery);
-        if (!$stmt->execute([
-            ':start_date' => $startDateTime,
-            ':end_date' => $endDateTime
-        ])) {
-            throw new Exception('Failed to execute revenue query');
-        }
-        
-        $revenueData = $stmt->fetch(PDO::FETCH_ASSOC) ?: [
-            'total_orders' => 0,
-            'revenue' => 0
-        ];
-
-        // Get total expenses
-        $expensesQuery = "SELECT COALESCE(SUM(amount), 0) as total_expenses 
-                         FROM expenses 
-                         WHERE expense_date BETWEEN :start_date AND :end_date";
-        
-        $stmt = $db->prepare($expensesQuery);
         $stmt->execute([
             ':start_date' => $startDateTime,
             ':end_date' => $endDateTime
         ]);
-        $expensesData = $stmt->fetch(PDO::FETCH_ASSOC) ?: ['total_expenses' => 0];
+        $revenueData = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Get refunds
-        $refundsQuery = "SELECT COALESCE(SUM(total_amount), 0) as total_refunds 
-                        FROM orders 
-                        WHERE order_date BETWEEN :start_date AND :end_date
-                        AND status = 'Refunded'";
-        
-        $stmt = $db->prepare($refundsQuery);
-        $stmt->execute([
-            ':start_date' => $startDateTime,
-            ':end_date' => $endDateTime
-        ]);
-        $refundsData = $stmt->fetch(PDO::FETCH_ASSOC) ?: ['total_refunds' => 0];
-
-        // Calculate metrics with safe defaults
+        // Calculate metrics with coupon adjustments
         $revenue = floatval($revenueData['revenue']);
-        $expenses = floatval($expensesData['total_expenses']);
-        $refunds = floatval($refundsData['total_refunds']);
+        $refunds = floatval($revenueData['refunded_amount']);
+        $totalDiscounts = floatval($revenueData['total_discounts']);
+        $refundedDiscounts = floatval($revenueData['refunded_discounts']);
+        $netRevenue = $revenue - $totalDiscounts;
         $totalOrders = intval($revenueData['total_orders']);
         
-        $netProfit = $revenue - $expenses - $refunds;
+        // Adjusted net profit calculation
+        $netProfit = $netRevenue - $refunds + $refundedDiscounts;
         $profitMargin = $revenue > 0 ? ($netProfit / $revenue) * 100 : 0;
         $avgOrderValue = $totalOrders > 0 ? $revenue / $totalOrders : 0;
 
@@ -105,7 +92,8 @@ function getFinancialMetrics($db, $startDate, $endDate) {
 
         return [
             'revenue' => $revenue,
-            'expenses' => $expenses,
+            'net_revenue' => $netRevenue,
+            'discounts' => $totalDiscounts,
             'refunds' => $refunds,
             'net_profit' => $netProfit,
             'profit_margin' => $profitMargin,
@@ -120,7 +108,8 @@ function getFinancialMetrics($db, $startDate, $endDate) {
         // Return default values instead of false
         return [
             'revenue' => 0,
-            'expenses' => 0,
+            'net_revenue' => 0,
+            'discounts' => 0,
             'refunds' => 0,
             'net_profit' => 0,
             'profit_margin' => 0,
@@ -234,43 +223,62 @@ function getTransactionHistory($db, $startDate, $endDate, $limit = 10) {
     try {
         validateDateRange($startDate, $endDate);
         
-        // Get order-related transactions
-        $orderQuery = "SELECT 
-            o.order_date as transaction_date,
-            CASE 
-                WHEN o.payment_status = 'Refunded' THEN 'Refund'
-                ELSE 'Payment'
-            END as transaction_type,
-            o.order_id,
-            COALESCE(o.transaction_id, CONCAT('ORD-', o.order_id)) as reference_id,
-            CASE 
-                WHEN o.payment_status = 'Refunded' THEN -o.total_amount
-                ELSE o.total_amount
-            END as amount,
-            o.payment_status,
-            o.email as description,
-            'order' as source
-            FROM orders o
-            WHERE o.order_date BETWEEN :start_date AND :end_date
-            AND o.payment_status IN ('Paid', 'Refunded')";
+        $query = "SELECT 
+            t.transaction_date,
+            t.transaction_type,
+            t.reference_id,
+            t.order_id,
+            t.total_amount as amount,
+            t.payment_status,
+            t.description
+            FROM (
+                -- Regular order payments
+                SELECT 
+                    order_date as transaction_date,
+                    'Payment' as transaction_type,
+                    COALESCE(transaction_id, CONCAT('ORD-', order_id)) as reference_id,
+                    order_id,
+                    total_amount,
+                    payment_status,
+                    email as description
+                FROM orders 
+                WHERE payment_status = 'Paid'
+                AND order_date BETWEEN :start_date AND :end_date
+                
+                UNION ALL
+                
+                -- Refund transactions
+                SELECT 
+                    order_date as transaction_date,
+                    'Refund' as transaction_type,
+                    CONCAT('REF-', order_id) as reference_id,
+                    order_id,
+                    -total_amount as total_amount,
+                    'Refunded' as payment_status,
+                    email as description
+                FROM orders
+                WHERE payment_status = 'Refunded'
+                AND order_date BETWEEN :start_date AND :end_date
 
-        // Get expense transactions
-        $expenseQuery = "SELECT 
-            e.expense_date as transaction_date,
-            'Expense' as transaction_type,
-            NULL as order_id,
-            CONCAT('EXP-', e.expense_id) as reference_id,
-            -e.amount as amount,
-            'completed' as payment_status,
-            e.category as description,
-            'expense' as source
-            FROM expenses e
-            WHERE e.expense_date BETWEEN :start_date AND :end_date";
+                UNION ALL
 
-        // Combine queries
-        $query = "($orderQuery) UNION ($expenseQuery)
-                 ORDER BY transaction_date DESC
-                 LIMIT :limit";
+                -- Coupon discounts
+                SELECT 
+                    o.order_date as transaction_date,
+                    'Discount' as transaction_type,
+                    CONCAT('CPN-', o.order_id) as reference_id,
+                    o.order_id,
+                    -o.discount_amount as total_amount,
+                    'Applied' as payment_status,
+                    CONCAT('Coupon: ', COALESCE(c.code, 'Unknown')) as description
+                FROM orders o
+                LEFT JOIN coupons c ON o.coupon_id = c.coupon_id
+                WHERE o.discount_amount > 0 
+                AND o.payment_status = 'Paid'
+                AND o.order_date BETWEEN :start_date AND :end_date
+            ) t
+            ORDER BY t.transaction_date DESC
+            LIMIT :limit";
 
         $stmt = $db->prepare($query);
         $stmt->bindValue(':start_date', $startDate . ' 00:00:00');
@@ -278,21 +286,7 @@ function getTransactionHistory($db, $startDate, $endDate, $limit = 10) {
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->execute();
         
-        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        // Process results
-        return array_map(function($transaction) {
-            return [
-                'transaction_date' => $transaction['transaction_date'],
-                'transaction_type' => $transaction['transaction_type'],
-                'reference_id' => $transaction['reference_id'],
-                'order_id' => $transaction['order_id'], // Will be NULL for expenses
-                'amount' => $transaction['amount'],
-                'payment_status' => $transaction['payment_status'],
-                'description' => $transaction['description'],
-                'source' => $transaction['source']
-            ];
-        }, $results);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     } catch (Exception $e) {
         error_log('Transaction history error: ' . $e->getMessage());

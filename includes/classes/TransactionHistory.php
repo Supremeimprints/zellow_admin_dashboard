@@ -15,7 +15,7 @@ class TransactionHistory {
             
             // Build filter conditions
             if (!empty($filters['start_date'])) {
-                $conditions[] = "transaction_date >= :start_date";
+                $conditions[] = "t.transaction_date >= :start_date";
                 $params[':start_date'] = $filters['start_date'];
             }
             
@@ -46,16 +46,15 @@ class TransactionHistory {
             $whereClause = !empty($conditions) ? "WHERE " . implode(" AND ", $conditions) : "";
             
             $query = "SELECT 
-                      t.id,
-                      t.transaction_date,
-                      t.transaction_type,
-                      t.reference_id,
-                      t.total_amount,
-                      t.payment_method,
-                      t.payment_status,
+                      t.*,
                       o.email as customer_email,
                       o.order_id,
-                      o.payment_status as order_status
+                      o.payment_status as order_status,
+                      CASE 
+                        WHEN t.transaction_type = 'Refund' THEN 'bg-warning'
+                        WHEN t.transaction_type = 'Adjustment' THEN 'bg-info'
+                        ELSE 'bg-success'
+                      END as status_class
                       FROM transactions t
                       LEFT JOIN orders o ON t.order_id = o.order_id
                       {$whereClause}

@@ -79,13 +79,13 @@ $unreadCount = $unreadCount + $alertCount;
             </a>
         </li>
         <li class="navbar__item">
-            <a href="inventory.php" class="navbar__link <?= isActive('inventory.php') ?>" aria-label="Inventory">
+            <a href="inventory.php" class="navbar__link <?= isActive(['inventory.php', 'receive_goods.php', 'order_inventory.php']) ?>" aria-label="Inventory">
                 <i data-feather="archive"></i>
                 <span>Inventory</span>
             </a>
         </li>
         <li class="navbar__item">
-            <a href="orders.php" class="navbar__link <?= isActive('orders.php') ?>" aria-label="Orders">
+            <a href="orders.php" class="navbar__link <?= isActive(['orders.php', 'create_order.php', 'update_order.php']) ?>" aria-label="Orders">
                 <i data-feather="shopping-cart"></i>
                 <span>Orders</span>
             </a>

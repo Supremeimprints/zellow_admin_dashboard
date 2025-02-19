@@ -327,14 +327,38 @@ foreach ([$financialMetrics, $customerMetrics, $revenueData, $topProducts, $cate
                                                     <?= htmlspecialchars($transaction['description'] ?? '-') ?>
                                                 </span>
                                             </td>
-                                            <td class="align-middle text-end">
-                                                <div class="transaction-amount <?= ($transaction['amount'] >= 0) ? 'text-success' : 'text-danger' ?>">
-                                                    <?= ($transaction['amount'] >= 0) ? '+' : '-' ?>Ksh <?= number_format(abs($transaction['amount']), 2) ?>
+                                            <td class="align-middle">
+                                                <div class="transaction-amount <?= strtolower($transaction['transaction_type']) ?>">
+                                                    <?php
+                                                    $amountColor = match(strtolower($transaction['transaction_type'])) {
+                                                        'payment' => 'text-success',
+                                                        'refund' => 'text-danger',
+                                                        'discount' => 'text-purple',
+                                                        default => ''
+                                                    };
+                                                    ?>
+                                                    <span class="<?= $amountColor ?>">
+                                                        <?= ($transaction['amount'] >= 0 ? '+' : '-') ?>Ksh <?= number_format(abs($transaction['amount']), 2) ?>
+                                                    </span>
                                                 </div>
                                             </td>
-                                            <td class="align-middle text-center">
-                                                <span class="transaction-badge bg-<?= getStatusBadgeClass($transaction['payment_status'] ?? 'pending', 'payment') ?>">
-                                                    <?= htmlspecialchars($transaction['payment_status'] ?? 'Pending') ?>
+                                            <td class="align-middle text-center small">
+                                                <?php
+                                                $status = match(strtolower($transaction['transaction_type'])) {
+                                                    'payment' => 'Paid',
+                                                    'refund' => 'Refunded',
+                                                    'discount' => 'Applied',
+                                                    default => 'Completed'
+                                                };
+                                                $statusColor = match(strtolower($transaction['transaction_type'])) {
+                                                    'payment' => 'text-success',
+                                                    'refund' => 'text-danger',
+                                                    'discount' => 'text-purple',
+                                                    default => 'text-secondary'
+                                                };
+                                                ?>
+                                                <span class="<?= $statusColor ?> fw-medium">
+                                                    <?= htmlspecialchars($status) ?>
                                                 </span>
                                             </td>
                                         </tr>

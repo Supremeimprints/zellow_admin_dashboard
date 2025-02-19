@@ -78,13 +78,49 @@ function updateOrderStatus($db, $orderId, $newStatus, $paymentStatus = null) {
     try {
         $db->beginTransaction();
         
-        // Update order status
-        $orderQuery = "UPDATE orders SET 
+        // Get original order details first
+        $orderQuery = "SELECT coupon_id, total_amount, discount_amount, payment_status 
+                      FROM orders WHERE order_id = ?";
+        $stmt = $db->prepare($orderQuery);
+        $stmt->execute([$orderId]);
+        $orderDetails = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // If order is being cancelled or refunded and had a coupon
+        if (($newStatus === 'Cancelled' || $paymentStatus === 'Refunded') && 
+            $orderDetails['coupon_id'] !== null) {
+            
+            // Remove coupon usage record
+            $deleteCouponUsage = "DELETE FROM coupon_usage 
+                                 WHERE order_id = :order_id 
+                                 AND coupon_id = :coupon_id";
+            $stmt = $db->prepare($deleteCouponUsage);
+            $stmt->execute([
+                ':order_id' => $orderId,
+                ':coupon_id' => $orderDetails['coupon_id']
+            ]);
+
+            // Update coupon usage count
+            $updateCoupon = "UPDATE coupons 
+                           SET times_used = times_used - 1 
+                           WHERE coupon_id = :coupon_id 
+                           AND times_used > 0";
+            $stmt = $db->prepare($updateCoupon);
+            $stmt->execute([':coupon_id' => $orderDetails['coupon_id']]);
+
+            // Set coupon_id to NULL in orders table
+            $clearCouponQuery = "UPDATE orders 
+                               SET coupon_id = NULL 
+                               WHERE order_id = :order_id";
+            $stmt = $db->prepare($clearCouponQuery);
+            $stmt->execute([':order_id' => $orderId]);
+        }
+
+        // Update order status (existing code)
+        $orderUpdateQuery = "UPDATE orders SET 
             status = :status" . 
             ($paymentStatus ? ", payment_status = :payment_status" : "") . 
             " WHERE order_id = :order_id";
         
-        $stmt = $db->prepare($orderQuery);
         $params = [
             ':status' => $newStatus,
             ':order_id' => $orderId
@@ -96,65 +132,59 @@ function updateOrderStatus($db, $orderId, $newStatus, $paymentStatus = null) {
         
         $stmt->execute($params);
 
-        // Log transaction if payment status changes
-        if ($paymentStatus) {
-            // Check if transaction already exists
-            $checkQuery = "SELECT COUNT(*) FROM transactions 
-                          WHERE order_id = :order_id 
-                          AND transaction_type = :type";
-            
-            $stmt = $db->prepare($checkQuery);
+        // Handle transaction records
+        if ($paymentStatus === 'Refunded') {
+            // Add refund transaction
+            $refundQuery = "INSERT INTO transactions (
+                order_id,
+                transaction_type,
+                reference_id,
+                total_amount,
+                payment_status,
+                transaction_date,
+                description
+            ) VALUES (
+                :order_id,
+                'Refund',
+                :reference_id,
+                :amount,
+                'Completed',
+                CURRENT_TIMESTAMP,
+                'Order refund - Discount removed'
+            )";
+
+            $stmt = $db->prepare($refundQuery);
             $stmt->execute([
                 ':order_id' => $orderId,
-                ':type' => $paymentStatus === 'Refunded' ? 'Refund' : 'Payment'
+                ':reference_id' => 'REF-' . $orderId,
+                ':amount' => -($orderDetails['total_amount'])
             ]);
-            
-            $exists = $stmt->fetchColumn() > 0;
-            
-            if (!$exists) {
-                // Get order details
-                $orderQuery = "SELECT total_amount, email, transaction_id 
-                             FROM orders WHERE order_id = :order_id";
-                $stmt = $db->prepare($orderQuery);
-                $stmt->execute([':order_id' => $orderId]);
-                $order = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                // Insert new transaction
-                $transQuery = "INSERT INTO transactions (
+
+            // If there was a discount, add adjustment transaction
+            if ($orderDetails['discount_amount'] > 0) {
+                $discountAdjustQuery = "INSERT INTO transactions (
                     order_id,
                     transaction_type,
                     reference_id,
                     total_amount,
                     payment_status,
-                    transaction_date
+                    transaction_date,
+                    description
                 ) VALUES (
                     :order_id,
-                    :type,
-                    :reference,
+                    'Adjustment',
+                    :reference_id,
                     :amount,
-                    :status,
-                    CURRENT_TIMESTAMP
+                    'Completed',
+                    CURRENT_TIMESTAMP,
+                    'Discount reversal'
                 )";
-                
-                $stmt = $db->prepare($transQuery);
+
+                $stmt = $db->prepare($discountAdjustQuery);
                 $stmt->execute([
                     ':order_id' => $orderId,
-                    ':type' => $paymentStatus === 'Refunded' ? 'Refund' : 'Payment',
-                    ':reference' => $order['transaction_id'] ?? ('ORD-' . $orderId),
-                    ':amount' => $paymentStatus === 'Refunded' ? -$order['total_amount'] : $order['total_amount'],
-                    ':status' => $paymentStatus
-                ]);
-            } else {
-                // Update existing transaction
-                $updateQuery = "UPDATE transactions 
-                              SET payment_status = :status,
-                                  updated_at = CURRENT_TIMESTAMP
-                              WHERE order_id = :order_id";
-                
-                $stmt = $db->prepare($updateQuery);
-                $stmt->execute([
-                    ':status' => $paymentStatus,
-                    ':order_id' => $orderId
+                    ':reference_id' => 'ADJ-' . $orderId,
+                    ':amount' => $orderDetails['discount_amount']
                 ]);
             }
         }

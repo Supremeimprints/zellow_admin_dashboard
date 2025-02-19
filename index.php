@@ -361,7 +361,7 @@ $uniqueItems = $inventoryStats['unique_items'];
                                                 </a>
                                             </div>
                                             <div class="col-6 col-md-2">
-                                                <a href="reports.php"
+                                                <a href="analytics.php"
                                                     class="card quick-action-card bg-warning text-white text-center py-2 clickable-card">
                                                     <div class="card-body">
                                                     <i class="fas fa-pie-chart fa-2x mb-2"></i>

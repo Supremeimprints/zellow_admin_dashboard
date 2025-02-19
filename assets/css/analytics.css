@@ -90,6 +90,11 @@ table .transaction-badge.bg-success {
     color: #856404;
 }
 
+.transaction-badge[data-type="discount"] {
+    background-color: rgba(139, 92, 246, 0.1) !important;
+    color: #8B5CF6 !important;
+}
+
 .transaction-reference {
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.875rem;
@@ -104,6 +109,11 @@ table .transaction-badge.bg-success {
 .transaction-amount {
     font-family: 'JetBrains Mono', monospace;
     font-weight: 300px !important;
+}
+
+.transaction-amount.discount {
+    color: #8B5CF6 !important;
+    font-weight: 500;
 }
 
 @media (max-width: 768px) {
@@ -217,4 +227,49 @@ table .transaction-badge.bg-success {
 .transaction-badge[data-type="expense"] {
     background-color: rgba(245, 158, 11, 0.1) !important;
     color: #F59E0B !important;
+}
+
+/* Transaction amount colors */
+.text-purple {
+    color: #8B5CF6 !important;
+}
+
+.transaction-amount.payment .text-success {
+    color: #10B981 !important;
+}
+
+.transaction-amount.refund .text-danger {
+    color: #EF4444 !important;
+}
+
+.transaction-amount.discount .text-purple {
+    color: #8B5CF6 !important;
+}
+
+/* Remove background colors from transaction badges */
+.transaction-badge {
+    background: none !important;
+    padding: 0 !important;
+}
+
+/* Update Transaction Badge Styles */
+.transaction-badge[data-type] {
+    background: none;
+    padding: 4px 12px !important;
+    border-radius: 25px;
+}
+
+.transaction-badge[data-type="payment"] {
+    background-color: rgba(16, 185, 129, 0.1) !important;
+    color: #10B981 !important;
+}
+
+.transaction-badge[data-type="refund"] {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+    color: #EF4444 !important;
+}
+
+.transaction-badge[data-type="discount"] {
+    background-color: rgba(139, 92, 246, 0.1) !important;
+    color: #8B5CF6 !important;
 }
