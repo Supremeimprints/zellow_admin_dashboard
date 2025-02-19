@@ -25,6 +25,18 @@ function getStatusBadgeClass($status, $type = 'order') {
     return 'order-badge order-status-pending';
 }
 
+function getTransactionBadgeClass($type) {
+    return match (strtolower($type)) {
+        'sale' => 'success',
+        'payment' => 'success',
+        'refund' => 'warning',
+        'expense' => 'danger',
+        'withdrawal' => 'danger',
+        'deposit' => 'info',
+        default => 'secondary'
+    };
+}
+
 function renderStatusBadge($status, $type = 'order', $size = 'md') {
     if (empty($status)) return '<span class="order-badge order-status-pending size-md">Pending</span>';
     

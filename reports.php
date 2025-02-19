@@ -2,7 +2,7 @@
 session_start();
 require_once 'config/database.php';
 require_once 'includes/functions/transaction_functions.php'; // Add this line
-//require_once 'includes/functions/chart_functions.php'; // Add near the top after other requires
+require_once 'includes/functions/chart_functions.php'; // Add near the top after other requires
 
 // Authentication check
 if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {

@@ -7,8 +7,8 @@
         }
     ],
     "require": {
-        "phpoffice/phpspreadsheet": "^3.9",
-        "tecnickcom/tcpdf": "*",
+        "phpoffice/phpspreadsheet": "^4.0",
+        "tecnickcom/tcpdf": "^6.6",
         "mpdf/mpdf": "*",
         "phpmailer/phpmailer": "^6.9"
     },
