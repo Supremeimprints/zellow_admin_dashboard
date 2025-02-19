@@ -30,9 +30,12 @@ $profile_photo = !empty($admin['profile_photo'])
     : 'assets/images/default-avatar.png';
 
 $current_page = basename($_SERVER['PHP_SELF']);
-function isActive($page) {
+function isActive($pages) {
     global $current_page;
-    return $current_page === $page ? 'active' : '';
+    if (is_array($pages)) {
+        return in_array($current_page, $pages) ? 'active' : '';
+    }
+    return $current_page === $pages ? 'active' : '';
 }
 
 // Get unread notifications count
@@ -88,7 +91,7 @@ $unreadCount = $unreadCount + $alertCount;
             </a>
         </li>
         <li class="navbar__item">
-            <a href="dispatch.php" class="navbar__link <?= isActive('dispatch.php') ?>" aria-label="Dispatch">
+            <a href="dispatch.php" class="navbar__link <?= isActive(['dispatch.php', 'dispatch_order.php']) ?>" aria-label="Dispatch">
                 <i data-feather="truck"></i>
                 <span>Dispatch</span>
             </a>
@@ -111,7 +114,7 @@ $unreadCount = $unreadCount + $alertCount;
             </a>
         </li>
         <li class="navbar__item">
-            <a href="reports.php" class="navbar__link <?= isActive('reports.php') ?>" aria-label="Analytics">
+            <a href="analytics.php" class="navbar__link <?= isActive('analytics.php') ?>" aria-label="Analytics">
             <i data-feather="pie-chart"></i>
                 <span>Reports</span>
             </a>

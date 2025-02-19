@@ -405,12 +405,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Category Chart
     const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+    const categoryData = <?= json_encode($categoryPerformance) ?>;
+
     new Chart(categoryCtx, {
         type: 'doughnut',
         data: {
-            labels: <?= json_encode(array_column($categoryPerformance, 'category') ?: []) ?>,
+            labels: categoryData.map(item => item.category),
             datasets: [{
-                data: <?= json_encode(array_column($categoryPerformance, 'total_sales') ?: []) ?>,
+                data: categoryData.map(item => item.total_sales),
                 backgroundColor: [
                     '#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#dc3545',
                     '#fd7e14', '#ffc107', '#198754', '#20c997', '#0dcaf0'
@@ -432,11 +434,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             size: 11
                         },
                         generateLabels: function(chart) {
-                            const data = chart.data;
-                            const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
-                            return data.labels.map((label, i) => ({
-                                text: `${label} (${((data.datasets[0].data[i] / total) * 100).toFixed(1)}%)`,
-                                fillStyle: data.datasets[0].backgroundColor[i],
+                            const dataset = chart.data.datasets[0];
+                            const total = dataset.data.reduce((a, b) => a + b, 0);
+                            return chart.data.labels.map((label, i) => ({
+                                text: `${label} (${((dataset.data[i] / total) * 100).toFixed(1)}%)`,
+                                fillStyle: dataset.backgroundColor[i],
                                 hidden: false,
                                 index: i
                             }));
@@ -446,8 +448,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            const value = context.raw;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const dataset = context.dataset;
+                            const total = dataset.data.reduce((a, b) => a + b, 0);
+                            const value = dataset.data[context.dataIndex];
                             const percentage = ((value / total) * 100).toFixed(1);
                             return `Ksh ${value.toLocaleString()} (${percentage}%)`;
                         }

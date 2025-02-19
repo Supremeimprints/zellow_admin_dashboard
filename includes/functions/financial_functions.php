@@ -305,16 +305,17 @@ function getCategoryPerformance($db, $startDate, $endDate) {
         validateDateRange($startDate, $endDate);
         
         $query = "SELECT 
-            COALESCE(p.category, 'Uncategorized') as category,
-            COUNT(DISTINCT o.order_id) as order_count,
-            COALESCE(SUM(oi.quantity * oi.unit_price), 0) as total_sales
-            FROM orders o
-            JOIN order_items oi ON o.order_id = oi.order_id
+            COALESCE(c.category_name, 'Uncategorized') as category,
+            COUNT(DISTINCT oi.order_id) as order_count,
+            SUM(oi.quantity * oi.unit_price) as total_sales
+            FROM order_items oi
+            JOIN orders o ON oi.order_id = o.order_id
             JOIN products p ON oi.product_id = p.product_id
+            LEFT JOIN categories c ON p.category_id = c.category_id
             WHERE o.order_date BETWEEN :start_date AND :end_date
             AND o.payment_status = 'Paid'
-            AND o.status != 'Refunded'
-            GROUP BY p.category
+            AND o.status NOT IN ('Cancelled')
+            GROUP BY c.category_id, c.category_name
             HAVING total_sales > 0
             ORDER BY total_sales DESC";
 
@@ -326,31 +327,40 @@ function getCategoryPerformance($db, $startDate, $endDate) {
         
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
+        // Handle empty results
         if (empty($results)) {
-            return [[
-                'category' => 'No Data',
-                'order_count' => 0,
-                'total_sales' => 0
-            ]];
+            return [
+                [
+                    'category' => 'No Sales Data',
+                    'order_count' => 0,
+                    'total_sales' => 1, // Use 1 to avoid division by zero
+                    'percentage' => 100
+                ]
+            ];
         }
 
-        // Calculate percentages
+        // Calculate total sales for percentage
         $totalSales = array_sum(array_column($results, 'total_sales'));
+        
+        // Add percentages and format data
         foreach ($results as &$row) {
-            $row['percentage'] = $totalSales > 0 ? 
-                round(($row['total_sales'] / $totalSales) * 100, 1) : 0;
+            $row['percentage'] = round(($row['total_sales'] / $totalSales) * 100, 1);
+            $row['total_sales'] = floatval($row['total_sales']);
+            $row['order_count'] = intval($row['order_count']);
         }
 
         return $results;
 
     } catch (Exception $e) {
         error_log('Category performance calculation error: ' . $e->getMessage());
-        return [[
-            'category' => 'Error Loading Data',
-            'order_count' => 0,
-            'total_sales' => 1, // Use 1 to avoid NaN in percentage calculations
-            'percentage' => 100
-        ]];
+        return [
+            [
+                'category' => 'Error Loading Data',
+                'order_count' => 0,
+                'total_sales' => 1,
+                'percentage' => 100
+            ]
+        ];
     }
 }
 
