@@ -8,11 +8,18 @@ if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
 
 require_once 'config/database.php';
 require_once 'includes/functions/order_functions.php';
+require_once 'includes/functions/badge_functions.php';
 
 $database = new Database();
 $db = $database->getConnection();
 
-// Get all service requests
+// Example usage with filters
+$serviceRequests = getServiceRequests($db, [
+    'status' => 'pending',
+    'service_type' => 'engraving'
+]);
+
+// Or get all requests
 $serviceRequests = getServiceRequests($db);
 ?>
 

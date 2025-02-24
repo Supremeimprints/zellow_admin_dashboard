@@ -424,3 +424,83 @@ function getOrderStatus($status) {
         default: return 'Unknown';
     }
 }
+
+function getServiceRequests($db, $filters = []) {
+    try {
+        $query = "SELECT 
+            sr.*,
+            o.tracking_number,
+            o.username as customer_name,
+            o.email as customer_email,
+            o.shipping_address,
+            t.name as technician_name,
+            t.specialization as technician_specialization,
+            ta.status as assignment_status,
+            ta.assigned_at,
+            ta.completed_at
+        FROM service_requests sr
+        LEFT JOIN orders o ON sr.order_id = o.order_id
+        LEFT JOIN technician_assignments ta ON sr.id = ta.service_request_id
+        LEFT JOIN technicians t ON ta.technician_id = t.technician_id";
+
+        $whereClauses = [];
+        $params = [];
+
+        // Add filters
+        if (!empty($filters['status'])) {
+            $whereClauses[] = "sr.status = ?";
+            $params[] = $filters['status'];
+        }
+
+        if (!empty($filters['service_type'])) {
+            $whereClauses[] = "sr.service_type = ?";
+            $params[] = $filters['service_type'];
+        }
+
+        if (!empty($filters['technician_id'])) {
+            $whereClauses[] = "ta.technician_id = ?";
+            $params[] = $filters['technician_id'];
+        }
+
+        if (!empty($whereClauses)) {
+            $query .= " WHERE " . implode(" AND ", $whereClauses);
+        }
+
+        $query .= " ORDER BY sr.created_at DESC";
+
+        $stmt = $db->prepare($query);
+        $stmt->execute($params);
+
+        $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Add customization details for each request
+        foreach ($requests as &$request) {
+            // Get customization details from order_items
+            $itemQuery = "SELECT 
+                oi.customization_type,
+                oi.customization_details,
+                oi.customization_cost,
+                p.product_name
+            FROM order_items oi
+            JOIN products p ON oi.product_id = p.product_id
+            WHERE oi.order_id = ? AND oi.customization_type IS NOT NULL";
+
+            $itemStmt = $db->prepare($itemQuery);
+            $itemStmt->execute([$request['order_id']]);
+            $request['customizations'] = $itemStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Calculate total customization cost
+            $request['total_customization_cost'] = array_sum(
+                array_column($request['customizations'], 'customization_cost')
+            );
+
+            // Add status badge class
+            $request['status_badge_class'] = getStatusBadgeClass($request['status'], 'service');
+        }
+
+        return $requests;
+    } catch (Exception $e) {
+        error_log("Error getting service requests: " . $e->getMessage());
+        return [];
+    }
+}

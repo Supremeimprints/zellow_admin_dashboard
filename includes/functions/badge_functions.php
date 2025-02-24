@@ -1,63 +1,42 @@
 <?php
 
-function getStatusBadgeClass($status, $type = 'order', $size = 'md') {
-    // Get base class by status
-    $baseClass = '';
-    switch (strtolower($status)) {
-        case 'pending':
-            $baseClass = 'badge-warning';
-            break;
-        case 'processing':
-            $baseClass = 'badge-info';
-            break;
-        case 'shipped':
-        case 'delivered':
-            $baseClass = 'badge-success';
-            break;
-        case 'cancelled':
-        case 'failed':
-            $baseClass = 'badge-danger';
-            break;
-        case 'paid':
-            $baseClass = 'badge-success';
-            break;
-        case 'refunded':
-            $baseClass = 'badge-info';
-            break;
-        default:
-            $baseClass = 'badge-secondary';
-    }
-
-    // Get size class
-    $sizeClass = '';
-    switch ($size) {
-        case 'sm':
-            $sizeClass = 'badge-sm';
-            break;
-        case 'lg':
-            $sizeClass = 'badge-lg';
-            break;
-        default:
-            $sizeClass = '';
-    }
-
-    // Get type class
-    $typeClass = '';
+function getStatusBadgeClass($status, $type = 'status') {
     switch ($type) {
-        case 'order':
-            $typeClass = 'order-badge';
-            break;
-        case 'payment':
-            $typeClass = 'payment-badge';
-            break;
-        case 'shipping':
-            $typeClass = 'shipping-badge';
-            break;
-        default:
-            $typeClass = '';
-    }
+        case 'status':
+            switch (strtolower($status)) {
+                case 'pending': return 'bg-warning text-dark';
+                case 'processing': return 'bg-info text-white';
+                case 'in_progress': return 'bg-info text-white';
+                case 'shipped': return 'bg-primary text-white';
+                case 'delivered': case 'completed': return 'bg-success text-white';
+                case 'cancelled': return 'bg-danger text-white';
+                default: return 'bg-secondary text-white';
+            }
+            break; // Add break statement
 
-    return trim("badge $baseClass $sizeClass $typeClass");
+        case 'payment':
+            switch (strtolower($status)) {
+                case 'paid': return 'bg-success';
+                case 'pending': return 'bg-warning text-dark';
+                case 'failed': return 'bg-danger';
+                case 'refunded': return 'bg-info';
+                default: return 'bg-secondary';
+            }
+            break; // Add break statement
+
+        case 'service':
+            switch (strtolower($status)) {
+                case 'pending': return 'bg-warning text-dark';
+                case 'in_progress': return 'bg-info';
+                case 'completed': return 'bg-success';
+                case 'cancelled': return 'bg-danger';
+                default: return 'bg-secondary';
+            }
+            break; // Add break statement
+
+        default:
+            return 'bg-secondary';
+    }
 }
 
 function getTransactionBadgeClass($type) {
@@ -77,16 +56,18 @@ function getTransactionBadgeClass($type) {
     }
 }
 
-function renderStatusBadge($status, $type = 'order', $size = 'md') {
-    if (empty($status)) return '<span class="order-badge order-status-pending size-md">Pending</span>';
+function renderStatusBadge($status, $type = 'order') {
+    if (empty($status)) {
+        return '<span class="badge bg-warning text-dark">Pending</span>';
+    }
     
-    $badgeClass = getStatusBadgeClass($status, $type, $size);
-    $sizeClass = "size-$size";
+    $badgeClass = getStatusBadgeClass($status, $type);
     
     return sprintf(
-        '<span class="%s %s">%s</span>',
+        '<span class="badge %s">%s</span>',
         $badgeClass,
-        $sizeClass,
         htmlspecialchars(ucfirst(strtolower($status)))
     );
 }
+
+?> // Add closing PHP tag
