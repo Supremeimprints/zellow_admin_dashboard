@@ -12,7 +12,6 @@ function getStatusBadgeClass($status, $type = 'status') {
                 case 'cancelled': return 'bg-danger text-white';
                 default: return 'bg-secondary text-white';
             }
-            break; // Add break statement
 
         case 'payment':
             switch (strtolower($status)) {
@@ -22,7 +21,6 @@ function getStatusBadgeClass($status, $type = 'status') {
                 case 'refunded': return 'bg-info';
                 default: return 'bg-secondary';
             }
-            break; // Add break statement
 
         case 'service':
             switch (strtolower($status)) {
@@ -32,7 +30,6 @@ function getStatusBadgeClass($status, $type = 'status') {
                 case 'cancelled': return 'bg-danger';
                 default: return 'bg-secondary';
             }
-            break; // Add break statement
 
         default:
             return 'bg-secondary';
@@ -70,4 +67,4 @@ function renderStatusBadge($status, $type = 'order') {
     );
 }
 
-?> // Add closing PHP tag
+?>
