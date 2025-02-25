@@ -169,6 +169,59 @@
   display: none; /* Hide the footer for now */
 }
 
+/* Status text styling for Order Status card */
+.status-text {
+    color: var(--bs-body-color);
+    font-weight: 500;
+}
+
+/* Keep badge styling only for Recent Activities */
+.recent-activity-item .badge {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 0.25rem;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+}
+
+/* Status-specific colors for Recent Activities */
+.recent-activity-item .badge-pending {
+    background-color: var(--bs-warning);
+    color: var(--bs-dark);
+}
+
+.recent-activity-item .badge-processing {
+    background-color: var(--bs-info);
+    color: var(--bs-white);
+}
+
+.recent-activity-item .badge-shipped {
+    background-color: var(--bs-primary);
+    color: var(--bs-white);
+}
+
+.recent-activity-item .badge-delivered {
+    background-color: var(--bs-success);
+    color: var(--bs-white);
+}
+
+.recent-activity-item .badge-cancelled {
+    background-color: var(--bs-danger);
+    color: var(--bs-white);
+}
+
+/* Dark mode adjustments for badges */
+[data-bs-theme="dark"] .recent-activity-item .badge {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-bs-theme="dark"] .recent-activity-item .badge-pending {
+    background-color: rgba(255, 193, 7, 0.2);
+    color: var(--bs-warning);
+}
+
 /* Responsive adjustments - simplified */
 @media (max-width: 768px) {
   .content-wrapper {

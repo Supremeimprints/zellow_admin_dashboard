@@ -172,6 +172,17 @@ function getPriorityColor($priority) {
     }
 }
 
+function getProgressBarColor($status) {
+    return match (strtolower($status)) {
+        'pending' => 'bg-warning',
+        'processing' => 'bg-info',
+        'shipped' => 'bg-primary',
+        'delivered' => 'bg-success',
+        'cancelled' => 'bg-danger',
+        default => 'bg-secondary'
+    };
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -188,7 +199,7 @@ function getPriorityColor($priority) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="assets/css/index.css">
-    <link rel="stylesheet" href="assets/css/badges.css">
+    
     <link rel="stylesheet" href="assets/css/orders.css">
     <link rel="stylesheet" href="assets/css/collapsed.css">
     <link rel="stylesheet" href="assets/css/styles.css">
@@ -431,7 +442,7 @@ function getPriorityColor($priority) {
                             <!-- Order Status -->
                             <div class="col-md-4">
                                 <div class="card shadow-sm h-100">
-                                    <div class="card-header bg-white p-2">
+                                    <div class="card-header p-2">
                                         <h6 class="mb-0 fw-bold order-status-title">Order Status</h6>
                                     </div>
                                     <div class="card-body p-2">
@@ -439,15 +450,15 @@ function getPriorityColor($priority) {
                                             <?php foreach ($orderStats as $stat): ?>
                                                 <div class="mb-2">
                                                     <div class="d-flex justify-content-between align-items-center small mb-1">
-                                                        <div>
-                                                            <?= renderStatusBadge($stat['status'], 'order', 'sm') ?>
+                                                        <div class="status-text">
+                                                            <?= htmlspecialchars(ucfirst($stat['status'])) ?>
                                                         </div>
                                                         <div>
                                                             <?= htmlspecialchars($stat['count']) ?>
                                                         </div>
                                                     </div>
                                                     <div class="progress" style="height: 6px;">
-                                                        <div class="progress-bar" 
+                                                        <div class="progress-bar <?= getProgressBarColor($stat['status']) ?>" 
                                                              aria-valuenow="<?= ($stat['count'] / $totalOrders) * 100 ?>"
                                                              aria-valuemin="0" 
                                                              aria-valuemax="100"
@@ -552,10 +563,13 @@ function getPriorityColor($priority) {
                                                             </small>
                                                         </div>
                                                         <div>
-                                                            <?= renderStatusBadge($order['status'], 'order', 'sm') ?>
+                                                        <span class="badge badge-<?= strtolower($order['status']) ?>">
+                                                        <?= htmlspecialchars(ucfirst($order['status'])) ?>
+                                                    </span>
                                                         </div>
                                                     </div>
                                                 </div>
+                                               
                                             <?php endforeach; ?>
                                         <?php else: ?>
                                             <div class="alert alert-info mb-0">
