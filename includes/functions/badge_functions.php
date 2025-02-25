@@ -1,58 +1,39 @@
 <?php
 
-function getStatusBadgeClass($status, $type = 'order', $size = 'md') {
-    // Get base class by status
-    $baseClass = '';
-    switch (strtolower($status)) {
-        case 'pending':
-            $baseClass = 'badge-warning';
-            break;
-        case 'processing':
-            $baseClass = 'badge-info';
-            break;
-        case 'shipped':
-        case 'delivered':
-        case 'paid':
-            $baseClass = 'badge-success';
-            break;
-        case 'cancelled':
-        case 'failed':
-            $baseClass = 'badge-danger';
-            break;
-        case 'refunded':
-            $baseClass = 'badge-info';
-            break;
-        default:
-            $baseClass = 'badge-secondary';
-    }
-
-    // Get size class
-    $sizeClass = '';
-    switch ($size) {
-        case 'sm':
-            $sizeClass = 'badge-sm';
-            break;
-        case 'lg':
-            $sizeClass = 'badge-lg';
-            break;
-        default:
-            $sizeClass = '';
-    }
-
-    // Get type class
-    $typeClass = '';
-    switch ($type) {
-        case 'payment':
-            $typeClass = 'payment-badge';
-            break;
-        case 'shipping':
-            $typeClass = 'shipping-badge';
-            break;
-        default:
-            $typeClass = 'order-badge';
-    }
-
-    return trim("badge $baseClass $sizeClass $typeClass");
+/**
+ * Get badge class based on status and type
+ * @param string $status Status value
+ * @param string $type Type of status (order|service|payment)
+ * @return string Bootstrap badge class
+ */
+function getStatusBadgeClass($status, $type = 'order') {
+    $status = strtolower($status);
+    
+    return match($type) {
+        'order' => match($status) {
+            'pending' => 'bg-warning text-dark',
+            'processing' => 'bg-info text-white',
+            'shipped' => 'bg-primary text-white',
+            'delivered' => 'bg-success text-white',
+            'cancelled' => 'bg-danger text-white',
+            default => 'bg-secondary text-white'
+        },
+        'service' => match($status) {
+            'pending' => 'bg-warning text-dark',
+            'in_progress' => 'bg-info text-white',
+            'completed' => 'bg-success text-white',
+            'cancelled' => 'bg-danger text-white',
+            default => 'bg-secondary text-white'
+        },
+        'payment' => match($status) {
+            'pending' => 'bg-warning text-dark',
+            'paid' => 'bg-success text-white',
+            'refunded' => 'bg-info text-white',
+            'failed' => 'bg-danger text-white',
+            default => 'bg-secondary text-white'
+        },
+        default => 'bg-secondary text-white'
+    };
 }
 
 function getTransactionBadgeClass($type) {

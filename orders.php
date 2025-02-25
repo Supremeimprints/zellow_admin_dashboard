@@ -178,22 +178,46 @@ foreach ($orders as $order) {
 
     if ($order['status'] === 'Shipped') {
         try {
-            $inventoryStmt = $db->prepare("SELECT stock_quantity FROM inventory WHERE product_id = :product_id");
-            $inventoryStmt->bindParam(':product_id', $order['product_id']);
-            $inventoryStmt->execute();
-            $inventory = $inventoryStmt->fetch(PDO::FETCH_ASSOC);
+            // Get order items for this order
+            $itemsStmt = $db->prepare("
+                SELECT oi.product_id, oi.quantity, p.product_name 
+                FROM order_items oi
+                JOIN products p ON oi.product_id = p.product_id
+                WHERE oi.order_id = :order_id
+            ");
+            $itemsStmt->bindParam(':order_id', $order['order_id']);
+            $itemsStmt->execute();
+            $orderItems = $itemsStmt->fetchAll(PDO::FETCH_ASSOC);
 
-            if (!$inventory) {
-                $errorMessage = "Error: Product ID " . $order['product_id'] . " not found in inventory.";
-            } else {
-                if ($inventory['stock_quantity'] < $order['quantity']) {
-                    $errorMessage = "Insufficient inventory for product: " . $order['product_name'];
-                } else {
-                    $updateInventoryStmt = $db->prepare("UPDATE inventory SET stock_quantity = stock_quantity - :quantity WHERE product_id = :product_id");
-                    $updateInventoryStmt->bindParam(':quantity', $order['quantity']);
-                    $updateInventoryStmt->bindParam(':product_id', $order['product_id']);
-                    $updateInventoryStmt->execute();
+            foreach ($orderItems as $item) {
+                // Check and update inventory for each item
+                $inventoryStmt = $db->prepare("
+                    SELECT stock_quantity 
+                    FROM inventory 
+                    WHERE product_id = :product_id
+                ");
+                $inventoryStmt->bindParam(':product_id', $item['product_id']);
+                $inventoryStmt->execute();
+                $inventory = $inventoryStmt->fetch(PDO::FETCH_ASSOC);
+
+                if (!$inventory) {
+                    $errorMessage = "Error: Product ID " . $item['product_id'] . " not found in inventory.";
+                    continue;
                 }
+
+                if ($inventory['stock_quantity'] < $item['quantity']) {
+                    $errorMessage = "Insufficient inventory for product: " . $item['product_name'];
+                    continue;
+                }
+
+                $updateInventoryStmt = $db->prepare("
+                    UPDATE inventory 
+                    SET stock_quantity = stock_quantity - :quantity 
+                    WHERE product_id = :product_id
+                ");
+                $updateInventoryStmt->bindParam(':quantity', $item['quantity']);
+                $updateInventoryStmt->bindParam(':product_id', $item['product_id']);
+                $updateInventoryStmt->execute();
             }
         } catch (Exception $e) {
             $errorMessage = "Error updating inventory: " . $e->getMessage();

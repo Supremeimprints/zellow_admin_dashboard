@@ -8,6 +8,7 @@ if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
 
 require_once 'config/database.php';
 require_once 'includes/functions/order_functions.php';
+require_once 'includes/functions/badge_functions.php';
 
 $database = new Database();
 $db = $database->getConnection();
@@ -75,8 +76,8 @@ $serviceRequests = getServiceRequests($db);
                                         </td>
                                         <td><?= htmlspecialchars($request['technician_name'] ?? 'Unassigned') ?></td>
                                         <td>
-                                            <span class="badge bg-<?= getStatusBadgeClass($request['status']) ?>">
-                                                <?= ucfirst(htmlspecialchars($request['status'])) ?>
+                                            <span class="badge <?= getStatusBadgeClass($request['status'], 'service') ?>">
+                                                <?= htmlspecialchars(ucfirst($request['status'])) ?>
                                             </span>
                                         </td>
                                         <td><?= date('Y-m-d H:i', strtotime($request['created_at'])) ?></td>

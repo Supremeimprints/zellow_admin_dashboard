@@ -424,3 +424,42 @@ function getOrderStatus($status) {
         default: return 'Unknown';
     }
 }
+
+/**
+ * Get all service requests with related information
+ * @param PDO $db Database connection
+ * @return array Array of service requests
+ */
+function getServiceRequests($db) {
+    try {
+        $query = "SELECT 
+                    sr.id,
+                    sr.order_id,
+                    sr.service_type,
+                    sr.status,
+                    sr.created_at,
+                    sr.technician_id,
+                    c.name as customer_name,
+                    CONCAT(t.first_name, ' ', t.last_name) as technician_name
+                FROM service_requests sr
+                LEFT JOIN orders o ON sr.order_id = o.id
+                LEFT JOIN customers c ON o.customer_id = c.id
+                LEFT JOIN technicians t ON sr.technician_id = t.id
+                ORDER BY sr.created_at DESC";
+        
+        $stmt = $db->prepare($query);
+        $stmt->execute();
+        
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        // Log error and return empty array
+        error_log("Error fetching service requests: " . $e->getMessage());
+        return [];
+    }
+}
+
+/* 
+function getStatusBadgeClass($status) {
+    // ... removed ...
+}
+*/
