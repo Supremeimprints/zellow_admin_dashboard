@@ -12,14 +12,12 @@ function getStatusBadgeClass($status, $type = 'order', $size = 'md') {
             break;
         case 'shipped':
         case 'delivered':
+        case 'paid':
             $baseClass = 'badge-success';
             break;
         case 'cancelled':
         case 'failed':
             $baseClass = 'badge-danger';
-            break;
-        case 'paid':
-            $baseClass = 'badge-success';
             break;
         case 'refunded':
             $baseClass = 'badge-info';
@@ -44,9 +42,6 @@ function getStatusBadgeClass($status, $type = 'order', $size = 'md') {
     // Get type class
     $typeClass = '';
     switch ($type) {
-        case 'order':
-            $typeClass = 'order-badge';
-            break;
         case 'payment':
             $typeClass = 'payment-badge';
             break;
@@ -54,7 +49,7 @@ function getStatusBadgeClass($status, $type = 'order', $size = 'md') {
             $typeClass = 'shipping-badge';
             break;
         default:
-            $typeClass = '';
+            $typeClass = 'order-badge';
     }
 
     return trim("badge $baseClass $sizeClass $typeClass");
@@ -78,15 +73,17 @@ function getTransactionBadgeClass($type) {
 }
 
 function renderStatusBadge($status, $type = 'order', $size = 'md') {
-    if (empty($status)) return '<span class="order-badge order-status-pending size-md">Pending</span>';
+    if (empty($status)) return '<span class="order-badge" data-status="pending">Pending</span>';
     
-    $badgeClass = getStatusBadgeClass($status, $type, $size);
+    $badgeClass = $type === 'payment' ? 'payment-badge' : 'order-badge';
     $sizeClass = "size-$size";
+    $status = strtolower($status);
     
     return sprintf(
-        '<span class="%s %s">%s</span>',
+        '<span class="%s %s" data-status="%s">%s</span>',
         $badgeClass,
         $sizeClass,
-        htmlspecialchars(ucfirst(strtolower($status)))
+        $status,
+        ucfirst($status)
     );
 }

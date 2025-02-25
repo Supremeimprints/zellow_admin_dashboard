@@ -1,4 +1,5 @@
-.order-badge {
+/* Base badge styles */
+.badge {
     display: inline-block;
     padding: 0.35em 0.65em;
     font-size: 0.75em;
@@ -10,67 +11,141 @@
     border-radius: 0.25rem;
 }
 
-/* Order Status Badges */
-.order-status-pending {
+/* Order Status Badge Colors - Light Mode */
+.badge-warning {
     background-color: #ffc107;
-    color: #000;
+    color: #fff;
 }
 
-.order-status-processing {
+.badge-info {
     background-color: #0dcaf0;
-    color: #000;
-}
-
-.order-status-shipped {
-    background-color: #6f42c1;
     color: #fff;
 }
 
-.order-status-delivered {
+.badge-success {
     background-color: #198754;
     color: #fff;
 }
 
-.order-status-cancelled {
+.badge-danger {
     background-color: #dc3545;
     color: #fff;
 }
 
-/* Payment Status Badges */
-.payment-status-paid {
-    background-color: #198754;
-    color: #fff;
-}
-
-.payment-status-pending {
-    background-color: #ffc107;
-    color: #000;
-}
-
-.payment-status-failed {
-    background-color: #dc3545;
-    color: #fff;
-}
-
-.payment-status-refunded {
+.badge-secondary {
     background-color: #6c757d;
     color: #fff;
 }
 
+/* Payment Status Badge Colors */
+.payment-badge.badge-success {
+    background-color: #198754;
+    color: #fff;
+}
+
+.payment-badge.badge-warning {
+    background-color: #ffc107;
+    color: #fff;
+}
+
+.payment-badge.badge-danger {
+    background-color: #dc3545;
+    color: #fff;
+}
+
+.payment-badge.badge-info {
+    background-color: #0dcaf0;
+    color: #fff;
+}
+
+/* Order Status Badges */
+.order-status-pending {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+    color: #856404 !important;
+    border: none !important;
+    padding: 0.35em 1.2em !important;
+    border-radius: 50px !important;
+}
+
+.order-status-processing {
+    background-color: rgba(13, 202, 240, 0.1) !important;
+    color: #055160 !important;
+    border: none !important;
+    padding: 0.35em 1.2em !important;
+    border-radius: 50px !important;
+}
+
+.order-status-shipped {
+    background-color: rgba(111, 66, 193, 0.1) !important;
+    color: #6f42c1 !important;
+    border: none !important;
+    padding: 0.35em 1.2em !important;
+    border-radius: 50px !important;
+}
+
+.order-status-delivered {
+    background-color: rgba(25, 135, 84, 0.1) !important;
+    color: #198754 !important;
+    border: none !important;
+    padding: 0.35em 1.2em !important;
+    border-radius: 50px !important;
+}
+
+.order-status-cancelled {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+    color: #dc3545 !important;
+    border: none !important;
+    padding: 0.35em 1.2em !important;
+    border-radius: 50px !important;
+}
+
+/* Payment Status Badges */
+.payment-status-paid {
+    background-color: rgba(15, 81, 50, 0.1) !important;
+    color: #d1e7dd !important;
+    border: none !important;
+    padding: 0.35em 1.2em !important;
+    border-radius: 50px !important;
+}
+
+.payment-status-pending {
+    background-color: rgba(153, 116, 4, 0.1) !important;
+    color: #fff3cd !important;
+    border: none !important;
+    padding: 0.35em 1.2em !important;
+    border-radius: 50px !important;
+}
+
+.payment-status-failed {
+    background-color: rgba(132, 32, 41, 0.1) !important;
+    color: #f8d7da !important;
+    border: none !important;
+    padding: 0.35em 1.2em !important;
+    border-radius: 50px !important;
+}
+
+.payment-status-refunded {
+    background-color: rgba(243, 237, 239, 0.1) !important;
+    color: #e20f60 !important;
+    border: none !important;
+    padding: 0.35em 1.2em !important;
+    border-radius: 50px !important;
+}
+
 /* Badge Sizes */
 .size-sm {
-    font-size: 0.75em;
-    padding: 0.25em 0.5em;
+    font-size: 0.75rem !important;
+    padding: 0.25em 1em !important;
 }
 
 .size-md {
-    font-size: 0.875em;
-    padding: 0.35em 0.65em;
+    font-size: 0.875rem !important;
+    padding: 0.35em 1.2em !important;
 }
 
 .size-lg {
-    font-size: 1em;
-    padding: 0.5em 0.75em;
+    font-size: 1rem !important;
+    padding: 0.5em 1.4em !important;
 }
 
 /* Transaction Type Badges */
@@ -81,7 +156,7 @@
 
 .transaction-type-refund {
     background-color: #ffc107;
-    color: #000;
+    color: #fff;
 }
 
 .transaction-type-expense {
@@ -117,19 +192,20 @@
 
 /* Order Status Colors - Dark Mode */
 [data-bs-theme="dark"] {
-    --pending-bg: #874d00;
-    --pending-text: #fff3cd;
-    --processing-bg: #055160;
-    --processing-text: #cff4fc;
-    --shipped-bg: #084298;
-    --shipped-text: #cfe2ff;
-    --delivered-bg: #0a3622;
-    --delivered-text: #d1e7dd;
-    --cancelled-bg: #842029;
-    --cancelled-text: #f8d7da;
+    --pending-bg: rgba(255, 193, 7, 0.2);
+    --pending-text: #ffc107;
+    --processing-bg: rgba(13, 202, 240, 0.2);
+    --processing-text: #0dcaf0;
+    --shipped-bg: rgba(111, 66, 193, 0.2);
+    --shipped-text: #6f42c1;
+    --delivered-bg: rgba(25, 135, 84, 0.2);
+    --delivered-text: #198754;
+    --cancelled-bg: rgba(220, 53, 69, 0.2);
+    --cancelled-text: #dc3545;
 }
 
-.order-status-pending {
+/* Remove or comment out these duplicate sections */
+/* .order-status-pending {
     background-color: var(--pending-bg) !important;
     color: var(--pending-text) !important;
     border: 1px solid #ffeeba;
@@ -157,7 +233,7 @@
     background-color: var(--cancelled-bg) !important;
     color: var(--cancelled-text) !important;
     border: 1px solid #f5c2c7;
-}
+} */
 
 /* Payment Status Badges */
 .payment-status-paid {
@@ -269,4 +345,63 @@
 .stats-card.cancelled {
     background-color: var(--stats-cancelled-bg);
     color: var(--stats-cancelled-text);
+}
+
+/* Update Order Status Badge Styles */
+.order-badge[data-status] {
+    background: none;
+    padding: 4px 12px !important;
+    border-radius: 25px;
+}
+
+.order-badge[data-status="pending"] {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+    color: #856404 !important;
+}
+
+.order-badge[data-status="processing"] {
+    background-color: rgba(13, 202, 240, 0.1) !important;
+    color: #055160 !important;
+}
+
+.order-badge[data-status="shipped"] {
+    background-color: rgba(111, 66, 193, 0.1) !important;
+    color: #6f42c1 !important;
+}
+
+.order-badge[data-status="delivered"] {
+    background-color: rgba(25, 135, 84, 0.1) !important;
+    color: #198754 !important;
+}
+
+.order-badge[data-status="cancelled"] {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+    color: #dc3545 !important;
+}
+
+/* Update Payment Status Badge Styles */
+.payment-badge[data-status] {
+    background: none;
+    padding: 4px 12px !important;
+    border-radius: 25px;
+}
+
+.payment-badge[data-status="paid"] {
+    background-color: rgba(16, 185, 129, 0.1) !important;
+    color: #10B981 !important;
+}
+
+.payment-badge[data-status="pending"] {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+    color: #856404 !important;
+}
+
+.payment-badge[data-status="failed"] {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+    color: #EF4444 !important;
+}
+
+.payment-badge[data-status="refunded"] {
+    background-color: #e20f60 !important;
+    color: #f3edef !important;
 }

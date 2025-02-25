@@ -437,66 +437,21 @@ function getPriorityColor($priority) {
                                     <div class="card-body p-2">
                                         <?php if (!empty($orderStats)): ?>
                                             <?php foreach ($orderStats as $stat): ?>
-                                                <?php
-                                                // Replace match expression with switch for status color
-                                                $statusColor = '';
-                                                switch (strtolower($stat['status'])) {
-                                                    case 'pending':
-                                                        $statusColor = 'order-status-pending';
-                                                        break;
-                                                    case 'processing':
-                                                        $statusColor = 'order-status-processing';
-                                                        break;
-                                                    case 'shipped':
-                                                        $statusColor = 'order-status-shipped';
-                                                        break;
-                                                    case 'delivered':
-                                                        $statusColor = 'order-status-delivered';
-                                                        break;
-                                                    case 'cancelled':
-                                                        $statusColor = 'order-status-cancelled';
-                                                        break;
-                                                    default:
-                                                        $statusColor = 'order-status-pending';
-                                                }
-
-                                                // Replace match expression with switch for text colors
-                                                $textColors = '';
-                                                switch (strtolower($stat['status'])) {
-                                                    case 'pending':
-                                                        $textColors = '#874d00';     // Darker orange
-                                                        break;
-                                                    case 'processing':
-                                                        $textColors = '#055160';   // Dark cyan
-                                                        break;
-                                                    case 'shipped':
-                                                        $textColors = '#084298';      // Dark blue
-                                                        break;
-                                                    case 'delivered':
-                                                        $textColors = '#0a3622';    // Dark green
-                                                        break;
-                                                    case 'cancelled':
-                                                        $textColors = '#842029';    // Dark red
-                                                        break;
-                                                    default:
-                                                        $textColors = '#495057';         // Dark gray
-                                                }
-                                                ?>
                                                 <div class="mb-2">
-                                                    <div class="d-flex justify-content-between small mb-1">
+                                                    <div class="d-flex justify-content-between align-items-center small mb-1">
                                                         <div>
-                                                            <span class="status-indicator <?= $statusColor ?>"></span>
-                                                            <span class="status-text" style="color: var(--status-text-color, <?= $textColors ?>)">
-                                                                <?= htmlspecialchars($stat['status']) ?>
-                                                            </span>
+                                                            <?= renderStatusBadge($stat['status'], 'order', 'sm') ?>
                                                         </div>
-                                                        <div class="status-count" style="color: var(--status-text-color, <?= $textColors ?>)">
+                                                        <div>
                                                             <?= htmlspecialchars($stat['count']) ?>
                                                         </div>
                                                     </div>
                                                     <div class="progress" style="height: 6px;">
-                                                        <div class="progress-bar bg-<?= $statusColor ?>"
-                                                            style="width: <?= ($stat['count'] / $totalOrders) * 100 ?>%">
+                                                        <div class="progress-bar" 
+                                                             aria-valuenow="<?= ($stat['count'] / $totalOrders) * 100 ?>"
+                                                             aria-valuemin="0" 
+                                                             aria-valuemax="100"
+                                                             style="width: <?= ($stat['count'] / $totalOrders) * 100 ?>%">
                                                         </div>
                                                     </div>
                                                 </div>
