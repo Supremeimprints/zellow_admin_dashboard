@@ -351,7 +351,7 @@ function getProgressBarColor($status) {
                                 </div>
                             </div>
                             <div class="col-6 col-md-3">
-                                <div class="card clickable-card shadow-sm" onclick="window.location='maintenance.php'">
+                                <div class="card clickable-card shadow-sm" onclick="window.location='technicians.php'">
                                     <div class="card-body p-2">
                                         <div class="d-flex align-items-center">
                                             <div
@@ -359,8 +359,8 @@ function getProgressBarColor($status) {
                                                 <i class="fas fa-wrench fa-lg"></i>
                                             </div>
                                             <div>
-                                                <div class="text-muted small">Maintenance</div>
-                                                <div class="stats-number">System</div>
+                                                <div class="text-muted small">Technicians</div>
+                                                <div class="stats-number">Assignments</div>
                                             </div>
                                         </div>
                                     </div>

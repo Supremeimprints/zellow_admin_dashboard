@@ -1,40 +1,52 @@
 <?php
+
 function verifySupplierEmailSettings($db, $supplier_id) {
-    $query = "SELECT s.*, 
-                     COUNT(p.product_id) as has_products,
-                     GROUP_CONCAT(p.product_name) as product_names
-              FROM suppliers s
-              LEFT JOIN products p ON s.supplier_id = p.supplier_id
-              WHERE s.supplier_id = ?
-              GROUP BY s.supplier_id";
-    
-    $stmt = $db->prepare($query);
-    $stmt->execute([$supplier_id]);
-    $supplier = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    $errors = [];
-
-    if (!$supplier) {
-        $errors[] = "Supplier not found";
-    } else {
-        if (empty($supplier['email'])) {
-            $errors[] = "Supplier email is missing";
-        } elseif (!filter_var($supplier['email'], FILTER_VALIDATE_EMAIL)) {
-            $errors[] = "Invalid supplier email format";
-        }
-        
-        if (empty($supplier['company_name'])) {
-            $errors[] = "Company name is missing";
-        }
-        
-        if ($supplier['has_products'] == 0) {
-            $errors[] = "No products found for this supplier";
-        }
-    }
-
-    return [
-        'isValid' => empty($errors),
-        'errors' => $errors,
-        'supplier' => $supplier
+    $result = [
+        'isValid' => true,
+        'errors' => []
     ];
+
+    try {
+        // Get supplier details
+        $stmt = $db->prepare("SELECT email, company_name, status FROM suppliers WHERE supplier_id = ?");
+        $stmt->execute([$supplier_id]);
+        $supplier = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$supplier) {
+            $result['isValid'] = false;
+            $result['errors'][] = "Supplier not found";
+            return $result;
+        }
+
+        // Check if supplier is active
+        if ($supplier['status'] !== 'Active') {
+            $result['isValid'] = false;
+            $result['errors'][] = "Supplier is not active";
+        }
+
+        // Validate email
+        if (!filter_var($supplier['email'], FILTER_VALIDATE_EMAIL)) {
+            $result['isValid'] = false;
+            $result['errors'][] = "Invalid supplier email address";
+        }
+
+        // Check if email is empty
+        if (empty($supplier['email'])) {
+            $result['isValid'] = false;
+            $result['errors'][] = "Supplier email address is missing";
+        }
+
+        // Check if company name is set
+        if (empty($supplier['company_name'])) {
+            $result['isValid'] = false;
+            $result['errors'][] = "Supplier company name is missing";
+        }
+
+        return $result;
+
+    } catch (Exception $e) {
+        $result['isValid'] = false;
+        $result['errors'][] = "Database error: " . $e->getMessage();
+        return $result;
+    }
 }

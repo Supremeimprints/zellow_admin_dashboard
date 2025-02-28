@@ -10,9 +10,9 @@ require_once 'config/database.php';
 $database = new Database();
 $db = $database->getConnection();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_id'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
     try {
-        $adminId = (int)$_POST['admin_id'];
+        $adminId = (int)$_POST['id'];
         $newStatus = (int)$_POST['status'];
         
         // Begin transaction

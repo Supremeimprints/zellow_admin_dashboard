@@ -1,0 +1,78 @@
+.product-item {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.special-requests-section,
+.gift-options-section {
+    margin-top: 1rem;
+}
+
+.special-requests-section .card,
+.gift-options-section .card {
+    border-color: #e9ecef;
+    box-shadow: none;
+}
+
+.special-requests-section .card-body,
+.gift-options-section .card-body {
+    padding: 1rem;
+}
+
+.form-section {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 25px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.form-section h4 {
+    color: #2c3e50;
+    margin-bottom: 1.5rem;
+    font-size: 1.25rem;
+}
+
+.form-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+.alert-info {
+    background-color: #e3f2fd;
+    border-color: #b3e5fc;
+    color: #0288d1;
+}
+
+.remove-product {
+    margin-top: 1rem;
+}
+
+.order-summary {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.order-summary .row {
+    margin-bottom: 0.5rem;
+}
+
+.order-summary .total-row {
+    border-top: 2px solid #dee2e6;
+    padding-top: 1rem;
+    margin-top: 1rem;
+    font-weight: bold;
+}

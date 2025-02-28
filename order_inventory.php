@@ -1,8 +1,9 @@
 <?php
 session_start();
 require_once 'config/database.php';
-require_once 'includes/functions/email_functions.php';
-require_once 'config/mail.php'; // Add this line to include SMTP settings
+require_once 'includes/functions/email_functions.php'; // Make sure this line is present
+require_once 'config/mail.php';
+require_once 'includes/functions/mailer_helper.php';
 
 if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
     header('Location: login.php');
@@ -168,6 +169,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Handle email sending outside of transaction
         $db->commit();
         $transactionStarted = false;
+
+        // Prepare order products array for email
+        $orderProducts = [];
+        foreach ($order_items as $item) {
+            if (!empty($item['quantity']) && !empty($item['unit_price'])) {
+                // Fetch product details
+                $stmt = $db->prepare("SELECT product_name FROM products WHERE product_id = ?");
+                $stmt->execute([$item['product_id']]);
+                $product = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                $orderProducts[] = [
+                    'product_name' => $product['product_name'],
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $item['unit_price'],
+                    'total' => $item['quantity'] * $item['unit_price']
+                ];
+            }
+        }
 
         // Send email using the new mailer helper
         try {
@@ -335,8 +354,10 @@ let itemCount = 1;
 
 // Store products data for JavaScript use
 const productsBySupplier = <?= json_encode($productsBySupplier) ?>;
+let selectedProducts = new Set(); // Track selected product IDs
 
 document.getElementById('supplier_id').addEventListener('change', function() {
+    selectedProducts.clear(); // Clear selected products when supplier changes
     updateProductOptions();
 });
 
@@ -345,41 +366,58 @@ function updateProductOptions() {
     const products = productsBySupplier[supplierId] || [];
     
     document.querySelectorAll('.product-select').forEach(select => {
-        // Save current value
         const currentValue = select.value;
         
         // Clear and rebuild options
         select.innerHTML = '<option value="">Select Product...</option>';
         
+        // Add only unselected products, except for the current selection
         products.forEach(product => {
-            const option = new Option(
-                `${product.product_name} (Stock: ${product.stock_quantity})`,
-                product.product_id
-            );
-            option.dataset.price = product.unit_price;
-            option.dataset.stock = product.stock_quantity;
-            select.add(option);
+            if (!selectedProducts.has(product.product_id) || currentValue === product.product_id) {
+                const option = new Option(
+                    `${product.product_name} (Stock: ${product.stock_quantity})`,
+                    product.product_id
+                );
+                option.dataset.price = product.unit_price;
+                option.dataset.stock = product.stock_quantity;
+                select.add(option);
+            }
         });
         
-        // Restore value if product still exists for new supplier
-        if (currentValue && products.some(p => p.product_id === currentValue)) {
+        // Restore current value if it exists
+        if (currentValue) {
             select.value = currentValue;
         }
     });
 }
 
-// Update price when product is selected
+// Update price and track selected products when product is selected
 document.addEventListener('change', function(e) {
     if (e.target.classList.contains('product-select')) {
         const row = e.target.closest('.row');
         const priceInput = row.querySelector('.unit-price');
         const option = e.target.selectedOptions[0];
+        const oldValue = e.target.dataset.previousValue;
+        
+        // Remove old selection from tracking
+        if (oldValue) {
+            selectedProducts.delete(oldValue);
+        }
+        
+        // Add new selection to tracking
+        if (e.target.value) {
+            selectedProducts.add(e.target.value);
+            e.target.dataset.previousValue = e.target.value;
+        }
         
         if (option && option.dataset.price) {
             priceInput.value = option.dataset.price;
         } else {
             priceInput.value = '';
         }
+        
+        // Update all product selects to reflect the new selection
+        updateProductOptions();
     }
 });
 
@@ -413,9 +451,16 @@ document.getElementById('addItem').addEventListener('click', function() {
     updateProductOptions();
 });
 
+// Update remove item handler to remove product from tracking
 document.addEventListener('click', function(e) {
     if (e.target.classList.contains('remove-item')) {
-        e.target.closest('.order-item').remove();
+        const row = e.target.closest('.order-item');
+        const select = row.querySelector('.product-select');
+        if (select.value) {
+            selectedProducts.delete(select.value);
+        }
+        row.remove();
+        updateProductOptions();
         updateTotal();
     }
 });

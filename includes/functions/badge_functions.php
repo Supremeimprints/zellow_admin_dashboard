@@ -1,39 +1,29 @@
 <?php
 
-/**
- * Get badge class based on status and type
- * @param string $status Status value
- * @param string $type Type of status (order|service|payment)
- * @return string Bootstrap badge class
- */
-function getStatusBadgeClass($status, $type = 'order') {
-    $status = strtolower($status);
-    
-    return match($type) {
-        'order' => match($status) {
-            'pending' => 'bg-warning text-dark',
-            'processing' => 'bg-info text-white',
-            'shipped' => 'bg-primary text-white',
-            'delivered' => 'bg-success text-white',
-            'cancelled' => 'bg-danger text-white',
-            default => 'bg-secondary text-white'
-        },
-        'service' => match($status) {
-            'pending' => 'bg-warning text-dark',
-            'in_progress' => 'bg-info text-white',
-            'completed' => 'bg-success text-white',
-            'cancelled' => 'bg-danger text-white',
-            default => 'bg-secondary text-white'
-        },
-        'payment' => match($status) {
-            'pending' => 'bg-warning text-dark',
-            'paid' => 'bg-success text-white',
-            'refunded' => 'bg-info text-white',
-            'failed' => 'bg-danger text-white',
-            default => 'bg-secondary text-white'
-        },
-        default => 'bg-secondary text-white'
-    };
+function getStatusBadgeClass($status, $type = 'status') {
+    $classes = [
+        'status' => [
+            'Pending' => 'bg-warning',
+            'Processing' => 'bg-info',
+            'Shipped' => 'bg-primary',
+            'Delivered' => 'bg-success',
+            'Cancelled' => 'bg-danger'
+        ],
+        'payment' => [
+            'Pending' => 'bg-warning',
+            'Paid' => 'bg-success',
+            'Failed' => 'bg-danger',
+            'Refunded' => 'bg-info'
+        ],
+        'service' => [
+            'pending' => 'bg-warning',
+            'in_progress' => 'bg-info',
+            'completed' => 'bg-success',
+            'cancelled' => 'bg-danger'
+        ]
+    ];
+
+    return $classes[$type][$status] ?? 'bg-secondary';
 }
 
 function getTransactionBadgeClass($type) {

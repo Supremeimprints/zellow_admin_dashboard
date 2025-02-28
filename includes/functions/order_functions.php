@@ -268,27 +268,20 @@ function processPayment($db, $orderId, $paymentDetails) {
 }
 
 function getStatusCardClass($status) {
-    $class = '';
     switch ($status) {
         case 'Pending':
-            $class = 'bg-warning text-dark border-warning';
-            break;
+            return 'bg-warning text-dark border-warning';
         case 'Processing':
-            $class = 'bg-info text-white border-info';
-            break;
+            return 'bg-info text-white border-info';
         case 'Shipped':
-            $class = 'bg-primary text-white border-primary';
-            break;
+            return 'bg-primary text-white border-primary';
         case 'Delivered':
-            $class = 'bg-success text-white border-success';
-            break;
+            return 'bg-success text-white border-success';
         case 'Cancelled':
-            $class = 'bg-danger text-white border-danger';
-            break;
+            return 'bg-danger text-white border-danger';
         default:
-            $class = 'bg-secondary text-white border-secondary';
+            return 'bg-secondary text-white border-secondary';
     }
-    return $class;
 }
 
 function validateTrackingNumber($trackingNumber) {
@@ -433,19 +426,21 @@ function getOrderStatus($status) {
 function getServiceRequests($db) {
     try {
         $query = "SELECT 
-                    sr.id,
-                    sr.order_id,
-                    sr.service_type,
-                    sr.status,
-                    sr.created_at,
-                    sr.technician_id,
-                    c.name as customer_name,
-                    CONCAT(t.first_name, ' ', t.last_name) as technician_name
-                FROM service_requests sr
-                LEFT JOIN orders o ON sr.order_id = o.id
-                LEFT JOIN customers c ON o.customer_id = c.id
-                LEFT JOIN technicians t ON sr.technician_id = t.id
-                ORDER BY sr.created_at DESC";
+            sr.service_request_id,
+            sr.id as order_id,
+            sr.service_id as product_id,
+            sr.status,
+            sr.request_date,
+            sr.completion_date,
+            o.username,
+            o.email,
+            o.customization_type,
+            o.customization_details,
+            o.customization_cost
+        FROM service_requests sr
+        JOIN orders o ON sr.id = o.order_id
+        WHERE o.customization_type IS NOT NULL
+        ORDER BY sr.request_date DESC";
         
         $stmt = $db->prepare($query);
         $stmt->execute();
@@ -458,8 +453,458 @@ function getServiceRequests($db) {
     }
 }
 
-/* 
-function getStatusBadgeClass($status) {
-    // ... removed ...
+function createServiceRequest($db, $orderId, $productId, $customizationType, $message) {
+    try {
+        $query = "INSERT INTO service_requests (
+            id,            -- This maps to order_id
+            service_id,    -- This maps to product_id
+            status,
+            request_date,
+            created_at,
+            customization_type,
+            customization_details
+        ) VALUES (
+            :order_id,
+            :product_id,
+            'Pending',
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP,
+            :customization_type,
+            :customization_details
+        )";
+        
+        $stmt = $db->prepare($query);
+        $stmt->execute([
+            ':order_id' => $orderId,
+            ':product_id' => $productId,
+            ':customization_type' => $customizationType,
+            ':customization_details' => $message
+        ]);
+        
+        $serviceRequestId = $db->lastInsertId();
+        
+        // Update the order with customization details
+        $updateOrderQuery = "UPDATE orders SET
+            customization_type = :type,
+            customization_details = :details,
+            customization_cost = :cost
+            WHERE order_id = :order_id
+            AND product_id = :product_id";
+            
+        $cost = ($customizationType === 'engraving') ? 500 : 300;
+        
+        $stmt = $db->prepare($updateOrderQuery);
+        $stmt->execute([
+            ':type' => $customizationType,
+            ':details' => $message,
+            ':cost' => $cost,
+            ':order_id' => $orderId,
+            ':product_id' => $productId
+        ]);
+        
+        return $serviceRequestId;
+    } catch (Exception $e) {
+        error_log("Error creating service request: " . $e->getMessage());
+        return false;
+    }
 }
-*/
+
+function createOrderWithServices($db, $orderData, $products) {
+    try {
+        $db->beginTransaction();
+        
+        // Calculate total amount including services
+        $orderTotals = calculateOrderTotals($db, $products, $orderData['shipping_fee']);
+        
+        // Update order data with calculated totals
+        $orderData['total_amount'] += $orderTotals['special_services']; // Add service costs to total
+        
+        // Insert order
+        $orderId = insertOrder($db, $orderData);
+        
+        foreach ($products as $product) {
+            // Insert order items
+            $orderItemId = insertOrderItem($db, $orderId, $product);
+            
+            // Handle service request if present
+            if (!empty($product['request_service']) && !empty($product['service_type'])) {
+                $serviceRequestId = createServiceRequest(
+                    $db,
+                    $orderId,
+                    $product['product_id'],
+                    $product['service_type'],
+                    $product['service_message']
+                );
+                
+                if ($serviceRequestId) {
+                    // Auto-assign to available technician if possible
+                    $technician = getAvailableTechnician($db, $product['service_type']);
+                    if ($technician) {
+                        assignTechnician($db, $serviceRequestId, $technician['technician_id']);
+                        sendTechnicianNotification($db, $technician['technician_id'], $serviceRequestId);
+                    }
+                }
+            }
+        }
+        
+        $db->commit();
+        return $orderId;
+    } catch (Exception $e) {
+        $db->rollBack();
+        error_log("Error creating order with services: " . $e->getMessage());
+        throw $e;
+    }
+}
+
+function calculateCustomizationCost($type, $quantity = 1) {
+    $costs = [
+        'engraving' => 500,
+        'printing' => 300
+    ];
+    return ($costs[$type] ?? 0) * $quantity;
+}
+
+function calculateOrderTotals($db, $items, $shipping_fee = 0, $isOrderItems = false) {
+    $totals = [
+        'subtotal' => 0,
+        'products_subtotal' => 0,
+        'service_costs' => 0,
+        'special_services' => 0,
+        'gift_wrap_total' => 0,
+        'shipping_fee' => $shipping_fee,
+        'total' => 0
+    ];
+    
+    if ($isOrderItems) {
+        // Handle existing order items
+        foreach ($items as $item) {
+            $totals['products_subtotal'] += $item['subtotal'];
+            $totals['service_costs'] += $item['service_cost'];
+        }
+        $totals['subtotal'] = $totals['products_subtotal'];
+        $totals['special_services'] = $totals['service_costs'];
+    } else {
+        // Handle new order products
+        foreach ($items as $item) {
+            $quantity = (int)$item['quantity'];
+            $unit_price = (float)$item['unit_price'];
+            
+            // Base product cost
+            $totals['products_subtotal'] += ($quantity * $unit_price);
+            
+            // Special services cost
+            if (!empty($item['special_request']) && !empty($item['service_type'])) {
+                $service_cost = $item['service_type'] === 'engraving' ? 500 : 300;
+                $totals['special_services'] += $service_cost;
+                $totals['service_costs'] += $service_cost;
+            }
+            
+            // Gift wrap cost if applicable
+            if (!empty($item['is_gift']) && !empty($item['gift_wrap_style_id'])) {
+                $wrap_cost = getGiftWrapCostById($db, $item['gift_wrap_style_id']);
+                $totals['gift_wrap_total'] += ($wrap_cost * $quantity);
+            }
+        }
+        $totals['subtotal'] = $totals['products_subtotal'];
+    }
+    
+    // Calculate final total
+    $totals['total'] = $totals['subtotal'] + 
+                       $totals['special_services'] + 
+                       $totals['gift_wrap_total'] + 
+                       $totals['shipping_fee'];
+    
+    return $totals;
+}
+
+function formatServiceDetails($serviceType, $serviceCost) {
+    if (!$serviceType) return '';
+    
+    return sprintf(
+        "%s (Ksh. %s)",
+        ucfirst($serviceType),
+        number_format($serviceCost, 2)
+    );
+}
+
+// Add missing helper functions
+function getGiftWrapCostById($db, $style_id) {
+    $stmt = $db->prepare("SELECT price FROM gift_wrap_styles WHERE id = ?");
+    $stmt->execute([$style_id]);
+    return (float)$stmt->fetchColumn() ?: 0;
+}
+
+require_once __DIR__ . '/badge_functions.php';
+
+function sendTechnicianNotification($db, $technician_id, $request_id) {
+    require_once __DIR__ . '/../email_templates/service_notification.php';
+    
+    // Get technician details
+    $stmt = $db->prepare("SELECT email FROM technicians WHERE technician_id = ?");
+    $stmt->execute([$technician_id]);
+    $email = $stmt->fetchColumn();
+    
+    if (!$email) {
+        error_log("Could not find technician email for ID: $technician_id");
+        return false;
+    }
+    
+    // Get service request details
+    $stmt = $db->prepare("SELECT * FROM service_requests WHERE id = ?");
+    $stmt->execute([$request_id]);
+    $request = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$request) {
+        error_log("Could not find service request for ID: $request_id");
+        return false;
+    }
+    
+    $details = [
+        'service_type' => $request['service_type'],
+        'order_id' => $request['order_id'],
+        'message' => $request['details']
+    ];
+    
+    // Send email using your email helper function
+    return sendEmail($email, "New Service Assignment", getServiceNotificationTemplate($details));
+}
+
+function sendGiftNotification($db, $order_id, $recipient_email, $recipient_name, $message, $hide_price = false) {
+    // Implementation of gift notification email
+    // You can add this functionality based on your requirements
+    return true;
+}
+
+function handleSpecialServices($db, $order_id, $products) {
+    foreach ($products as $product) {
+        if (!empty($product['customize'])) {
+            createServiceRequest(
+                $db,
+                $order_id,
+                $product['product_id'],
+                $product['customization_type'],
+                $product['customization_message']
+            );
+        }
+    }
+}
+
+function notifyRecipients($db, $order_id, $products) {
+    foreach ($products as $product) {
+        if (!empty($product['is_gift']) && !empty($product['recipient_email'])) {
+            sendGiftNotification(
+                $db,
+                $order_id,
+                $product['recipient_email'],
+                $product['recipient_name'],
+                $product['gift_message'],
+                !empty($product['hide_price'])
+            );
+        }
+    }
+}
+
+function renderSpecialRequestsSection($index) {
+    // Convert the index to string to ensure proper handling
+    $index = (string)$index;
+    
+    return <<<HTML
+    <div class="col-12 mt-3 special-requests-section">
+        <div class="card">
+            <div class="card-body">
+                <div class="form-check mb-3">
+                    <input type="checkbox" class="form-check-input special-request-toggle" 
+                           id="special_request_{$index}" name="products[{$index}][special_request]">
+                    <label class="form-check-label" for="special_request_{$index}">
+                        Add Special Request
+                    </label>
+                </div>
+                
+                <div class="special-request-options" style="display: none;">
+                    <div class="mb-3">
+                        <label class="form-label">Service Type</label>
+                        <select class="form-select service-type" 
+                                name="products[{$index}][service_type]" required>
+                            <option value="">Select Service</option>
+                            <option value="engraving">Engraving (Ksh 500)</option>
+                            <option value="printing">Printing (Ksh 300)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Service Details</label>
+                        <textarea class="form-control service-details" 
+                                name="products[{$index}][service_details]" 
+                                rows="3" placeholder="Describe your customization requirements"></textarea>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <small><i class="fas fa-info-circle"></i> Special requests may extend processing time by 2-3 business days</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+HTML;
+}
+
+function processSpecialRequests($db, $order_id, $products) {
+    foreach ($products as $product) {
+        if (!empty($product['special_request']) && !empty($product['service_type'])) {
+            createServiceRequest(
+                $db,
+                $order_id,
+                $product['product_id'],
+                $product['service_type'],
+                $product['service_details']
+            );
+        }
+    }
+}
+
+function getAvailableTechnician($db, $service_type) {
+    $query = "SELECT t.* 
+              FROM technicians t
+              LEFT JOIN (
+                  SELECT technician_id, COUNT(*) as active_assignments
+                  FROM technician_assignments
+                  WHERE status IN ('pending', 'in_progress')
+                  GROUP BY technician_id
+              ) ta ON t.technician_id = ta.technician_id
+              WHERE t.specialization = ? 
+              AND t.status = 'active'
+              AND (ta.active_assignments IS NULL OR ta.active_assignments < t.max_assignments)
+              ORDER BY COALESCE(ta.active_assignments, 0) ASC
+              LIMIT 1";
+              
+    $stmt = $db->prepare($query);
+    $stmt->execute([$service_type]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+function calculateServiceCost($service_type, $quantity = 1) {
+    $rates = [
+        'engraving' => 500,
+        'printing' => 300
+    ];
+    
+    return ($rates[$service_type] ?? 0) * $quantity;
+}
+
+function insertOrder($db, $orderData) {
+    try {
+        $query = "INSERT INTO orders (
+            customer_id,
+            email,
+            username,
+            total_amount,
+            discount_amount,
+            shipping_fee,
+            status,
+            shipping_address,
+            tracking_number,
+            payment_status,
+            shipping_method,
+            shipping_method_id,
+            shipping_region_id,
+            payment_method,
+            coupon_id,
+            created_at
+        ) VALUES (
+            :customer_id,
+            :email,
+            :username,
+            :total_amount,
+            :discount_amount,
+            :shipping_fee,
+            :status,
+            :shipping_address,
+            :tracking_number,
+            :payment_status,
+            :shipping_method,
+            :shipping_method_id,
+            :shipping_region_id,
+            :payment_method,
+            :coupon_id,
+            CURRENT_TIMESTAMP
+        )";
+
+        $stmt = $db->prepare($query);
+        $stmt->execute([
+            ':customer_id' => $orderData['customer_id'],
+            ':email' => $orderData['email'],
+            ':username' => $orderData['username'],
+            ':total_amount' => $orderData['total_amount'],
+            ':discount_amount' => $orderData['discount_amount'] ?? 0,
+            ':shipping_fee' => $orderData['shipping_fee'],
+            ':status' => 'Pending',
+            ':shipping_address' => $orderData['shipping_address'],
+            ':tracking_number' => generateTrackingNumber(),
+            ':payment_status' => 'Pending',
+            ':shipping_method' => $orderData['shipping_method'],
+            ':shipping_method_id' => $orderData['shipping_method_id'],
+            ':shipping_region_id' => $orderData['shipping_region_id'],
+            ':payment_method' => $orderData['payment_method'],
+            ':coupon_id' => $orderData['coupon_id'] ?? null
+        ]);
+
+        return $db->lastInsertId();
+    } catch (PDOException $e) {
+        error_log("Error inserting order: " . $e->getMessage());
+        throw $e;
+    }
+}
+
+function insertOrderItem($db, $orderId, $product) {
+    try {
+        $query = "INSERT INTO order_items (
+            order_id,
+            product_id,
+            quantity,
+            unit_price,
+            subtotal,
+            status,
+            service_type,
+            service_details,
+            service_cost
+        ) VALUES (
+            :order_id,
+            :product_id,
+            :quantity,
+            :unit_price,
+            :subtotal,
+            :status,
+            :service_type,
+            :service_details,
+            :service_cost
+        )";
+
+        $quantity = (int)$product['quantity'];
+        $unitPrice = (float)$product['unit_price'];
+        $subtotal = $quantity * $unitPrice;
+
+        // Calculate service cost if service is requested
+        $serviceCost = 0;
+        if (!empty($product['request_service']) && !empty($product['service_type'])) {
+            $serviceCost = calculateServiceCost($product['service_type'], $quantity);
+        }
+
+        $stmt = $db->prepare($query);
+        $stmt->execute([
+            ':order_id' => $orderId,
+            ':product_id' => $product['product_id'],
+            ':quantity' => $quantity,
+            ':unit_price' => $unitPrice,
+            ':subtotal' => $subtotal,
+            ':status' => 'purchased',
+            ':service_type' => $product['service_type'] ?? null,
+            ':service_details' => $product['service_message'] ?? null,
+            ':service_cost' => $serviceCost
+        ]);
+
+        return $db->lastInsertId();
+    } catch (PDOException $e) {
+        error_log("Error inserting order item: " . $e->getMessage());
+        throw $e;
+    }
+}

@@ -130,7 +130,7 @@ body {
 
 .stock-alert.bg-danger {
     background-color: rgba(239, 68, 68, 0.15) !important;
-    color: #dc2626 !important;
+    color: #f8f9fc !important;
 }
 
 .stock-alert.bg-warning {

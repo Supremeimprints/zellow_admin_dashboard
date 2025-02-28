@@ -53,39 +53,51 @@ $serviceRequests = getServiceRequests($db);
                                     <th>Order #</th>
                                     <th>Customer</th>
                                     <th>Service Type</th>
-                                    <th>Technician</th>
+                                    <th>Details</th>
+                                    <th>Cost</th>
                                     <th>Status</th>
-                                    <th>Created</th>
+                                    <th>Request Date</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($serviceRequests as $request): ?>
                                     <tr>
-                                        <td><?= htmlspecialchars($request['id']) ?></td>
+                                        <td>#<?= htmlspecialchars($request['service_request_id']) ?></td>
                                         <td>
                                             <a href="update_order.php?id=<?= $request['order_id'] ?>">
                                                 #<?= htmlspecialchars($request['order_id']) ?>
                                             </a>
                                         </td>
-                                        <td><?= htmlspecialchars($request['customer_name']) ?></td>
                                         <td>
-                                            <span class="badge <?= $request['service_type'] === 'engraving' ? 'bg-primary' : 'bg-info' ?>">
-                                                <?= ucfirst(htmlspecialchars($request['service_type'])) ?>
+                                            <?= htmlspecialchars($request['username']) ?><br>
+                                            <small class="text-muted"><?= htmlspecialchars($request['email']) ?></small>
+                                        </td>
+                                        <td>
+                                            <span class="badge <?= $request['customization_type'] === 'engraving' ? 'bg-primary' : 'bg-info' ?>">
+                                                <?= ucfirst(htmlspecialchars($request['customization_type'])) ?>
                                             </span>
                                         </td>
-                                        <td><?= htmlspecialchars($request['technician_name'] ?? 'Unassigned') ?></td>
+                                        <td><?= htmlspecialchars($request['customization_details']) ?></td>
+                                        <td>Ksh. <?= number_format($request['customization_cost'], 2) ?></td>
                                         <td>
-                                            <span class="badge <?= getStatusBadgeClass($request['status'], 'service') ?>">
-                                                <?= htmlspecialchars(ucfirst($request['status'])) ?>
-                                            </span>
+                                            <select class="form-select form-select-sm status-select" 
+                                                    data-request-id="<?= $request['service_request_id'] ?>">
+                                                <option value="Pending" <?= $request['status'] === 'Pending' ? 'selected' : '' ?>>
+                                                    Pending
+                                                </option>
+                                                <option value="Processing" <?= $request['status'] === 'Processing' ? 'selected' : '' ?>>
+                                                    Processing
+                                                </option>
+                                                <option value="Completed" <?= $request['status'] === 'Completed' ? 'selected' : '' ?>>
+                                                    Completed
+                                                </option>
+                                            </select>
                                         </td>
-                                        <td><?= date('Y-m-d H:i', strtotime($request['created_at'])) ?></td>
+                                        <td><?= date('Y-m-d H:i', strtotime($request['request_date'])) ?></td>
                                         <td>
-                                            <a href="view_service_request.php?id=<?= $request['id'] ?>" 
-                                               class="btn btn-sm btn-primary">
-                                                View Details
-                                            </a>
+                                            <a href="view_service_request.php?id=<?= $request['service_request_id'] ?>" 
+                                               class="btn btn-sm btn-primary">View Details</a>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>

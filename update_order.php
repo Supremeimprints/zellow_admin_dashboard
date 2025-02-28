@@ -20,11 +20,20 @@ if (!$orderId) {
     exit();
 }
 
-// Fetch order details along with product details
-$query = "SELECT o.*, u.username, u.email 
+// Update the order query to include service costs
+$query = "SELECT o.*, 
+          u.username, 
+          u.email,
+          SUM(oi.subtotal) as products_subtotal,
+          SUM(oi.service_cost) as total_service_cost,
+          o.shipping_fee,
+          o.discount_amount,
+          (SUM(oi.subtotal) + SUM(oi.service_cost) + o.shipping_fee - o.discount_amount) as final_total
           FROM orders o
           JOIN users u ON o.id = u.id
-          WHERE o.order_id = ?";
+          LEFT JOIN order_items oi ON o.order_id = oi.order_id
+          WHERE o.order_id = ?
+          GROUP BY o.order_id";
 $stmt = $db->prepare($query);
 $stmt->execute([$orderId]);
 $order = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -34,12 +43,17 @@ if (!$order) {
     exit();
 }
 
-// Fetch order items
-$query = "SELECT oi.*, p.product_name, p.price AS product_price 
-          FROM order_items oi
-          JOIN products p ON oi.product_id = p.product_id
-          WHERE oi.order_id = ?";
-$stmt = $db->prepare($query);
+// Update the order items query
+$itemsQuery = "SELECT oi.*, 
+               p.product_name, 
+               p.price AS product_price,
+               oi.service_cost,
+               oi.service_type,
+               oi.service_details
+               FROM order_items oi
+               JOIN products p ON oi.product_id = p.product_id
+               WHERE oi.order_id = ?";
+$stmt = $db->prepare($itemsQuery);
 $stmt->execute([$orderId]);
 $orderItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -59,8 +73,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $db->beginTransaction();
 
+        $oldStatus = $order['status'];
+        $newStatus = $_POST['status'];
         $oldPaymentStatus = $order['payment_status'];
         $newPaymentStatus = $_POST['payment_status'];
+
+        // Check if order is being marked as delivered
+        if ($newStatus === 'Delivered' && $oldStatus !== 'Delivered') {
+            // Release the assigned driver
+            $releaseDriverStmt = $db->prepare("
+                UPDATE vehicles v 
+                JOIN drivers d ON v.driver_id = d.driver_id 
+                JOIN orders o ON o.driver_id = d.driver_id 
+                SET v.vehicle_status = 'Available' 
+                WHERE o.order_id = ?");
+            $releaseDriverStmt->execute([$orderId]);
+
+            // Clear driver assignment from order
+            $clearDriverStmt = $db->prepare("
+                UPDATE orders 
+                SET driver_id = NULL 
+                WHERE order_id = ?");
+            $clearDriverStmt->execute([$orderId]);
+        }
 
         // If payment status is changing to Paid, create transaction record
         if ($oldPaymentStatus !== 'Paid' && $newPaymentStatus === 'Paid') {
@@ -393,6 +428,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <h5 class="mb-0">Order Summary</h5>
                                     </div>
                                     <div class="card-body">
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span class="text-muted">Products Subtotal:</span>
+                                            <span class="text-muted">Ksh. <?= number_format($order['products_subtotal'], 2) ?></span>
+                                        </div>
+                                        <?php if ($order['total_service_cost'] > 0): ?>
+                                            <div class="d-flex justify-content-between mb-2">
+                                                <span class="text-muted">Service Costs:</span>
+                                                <span class="text-muted">Ksh. <?= number_format($order['total_service_cost'], 2) ?></span>
+                                            </div>
+                                        <?php endif; ?>
                                         <div class="row mb-3">
                                             <div class="col-md-4">
                                                 <label class="form-label">Original Amount:</label>

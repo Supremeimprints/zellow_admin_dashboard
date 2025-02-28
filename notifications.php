@@ -30,11 +30,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_read'])) {
 }
 
 // Get messages for current user
-$messageQuery = "SELECT m.*, u.username as sender_name, u.profile_photo as sender_photo 
-          FROM messages m
-          JOIN users u ON m.sender_id = u.id
-          WHERE (m.recipient_id IS NULL OR m.recipient_id = ?)
-          ORDER BY m.created_at DESC";
+$messageQuery = "SELECT 
+    m.*,
+    u.username as sender_name,
+    u.profile_photo as sender_photo
+FROM messages m
+JOIN users u ON m.sender_id = u.id
+WHERE (m.recipient_id = ? OR m.recipient_id IS NULL)
+ORDER BY m.created_at DESC";
 $stmt = $db->prepare($messageQuery);
 $stmt->execute([$_SESSION['id']]);
 $messages = $stmt->fetchAll();
@@ -42,19 +45,24 @@ $messages = $stmt->fetchAll();
 // Get recent feedback
 $feedbackQuery = "SELECT f.*, u.username 
                  FROM feedback f
-                 JOIN users u ON f.user_id = u.id
+                 JOIN users u ON f.id = u.id
                  ORDER BY f.created_at DESC";
 $stmt = $db->prepare($feedbackQuery);
 $stmt->execute();
 $feedbacks = $stmt->fetchAll();
 
 // Get service request notifications
-$serviceRequestQuery = "SELECT sr.*, u.username, s.name AS service_name, sr.request_date AS created_at, u.profile_photo as sender_photo 
-                        FROM service_requests sr 
-                        JOIN users u ON sr.user_id = u.id 
-                        JOIN services s ON sr.service_id = s.id 
-                        WHERE sr.status = 'Pending' 
-                        ORDER BY sr.request_date DESC";
+$serviceRequestQuery = "SELECT 
+    sr.*,
+    o.username,
+    o.customization_type as service_name,
+    sr.request_date AS created_at,
+    u.profile_photo as sender_photo 
+    FROM service_requests sr 
+    JOIN orders o ON sr.id = o.order_id 
+    LEFT JOIN users u ON o.username = u.username 
+    WHERE sr.status = 'Pending' 
+    ORDER BY sr.request_date DESC";
 $stmt = $db->prepare($serviceRequestQuery);
 $stmt->execute();
 $serviceRequests = $stmt->fetchAll();
@@ -89,6 +97,35 @@ $unreadQuery = "SELECT COUNT(*) FROM messages WHERE recipient_id = ? AND is_read
 $stmt = $db->prepare($unreadQuery);
 $stmt->execute([$_SESSION['id']]);
 $unreadCount = $stmt->fetchColumn();
+
+try {
+    $query = "SELECT 
+        n.*,
+        u_sender.username as sender_name,
+        u_sender.profile_photo as sender_photo,
+        u_recipient.username as recipient_name,
+        sr.service_request_id,
+        o.order_id,
+        o.customization_type,
+        o.customization_details
+    FROM notifications n
+    LEFT JOIN users u_sender ON n.sender_id = u_sender.id
+    LEFT JOIN users u_recipient ON n.recipient_id = u_recipient.id
+    LEFT JOIN service_requests sr ON sr.service_request_id = CASE 
+        WHEN n.type = 'Task' THEN CAST(n.message AS UNSIGNED)
+        ELSE NULL
+    END
+    LEFT JOIN orders o ON sr.id = o.order_id
+    WHERE n.recipient_id = :id OR n.recipient_id IS NULL
+    ORDER BY n.created_at DESC";
+              
+    $stmt = $db->prepare($query);
+    $stmt->execute([':id' => $_SESSION['id']]);
+    $notifications = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log('Notification query error: ' . $e->getMessage());
+    $notifications = [];
+}
 ?>
 
 <!DOCTYPE html>
@@ -488,37 +525,76 @@ if (isset($_SESSION['success'])): ?>
 
                 <!-- Service Requests Section -->
                 <h3 class="mt-5 mb-3">Service Requests</h3>
-                <div class="service-requests-list" style="max-height: 200px; overflow-y: auto;">
-                    <?php if (count($serviceRequests) > 0): ?>
+                <div class="service-requests-list" style="max-height: 400px; overflow-y: auto;">
+                    <?php if (count($serviceRequests) > 0 || count($notifications) > 0): ?>
+                        <!-- Service Request Notifications -->
+                        <?php foreach ($notifications as $notification): ?>
+                            <?php if ($notification['type'] === 'Task' && $notification['service_request_id']): ?>
+                                <div class="card service-notification mb-3">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h6 class="card-title">
+                                                    <span class="badge bg-<?= $notification['priority'] === 'high' ? 'danger' : 
+                                                        ($notification['priority'] === 'medium' ? 'warning' : 'info') ?>">
+                                                        <?= ucfirst($notification['type']) ?>
+                                                    </span>
+                                                    <?php if ($notification['sender_name']): ?>
+                                                        From: <?= htmlspecialchars($notification['sender_name']) ?>
+                                                    <?php endif; ?>
+                                                </h6>
+                                                <p class="card-text"><?= htmlspecialchars($notification['message']) ?></p>
+                                                <?php if ($notification['customization_type']): ?>
+                                                    <div class="service-details">
+                                                        <small class="text-muted">
+                                                            Service Type: <?= ucfirst(htmlspecialchars($notification['customization_type'])) ?>
+                                                        </small>
+                                                        <br>
+                                                        <small class="text-muted">
+                                                            Details: <?= htmlspecialchars($notification['customization_details']) ?>
+                                                        </small>
+                                                    </div>
+                                                <?php endif; ?>
+                                                <div class="notification-meta mt-2">
+                                                    <small class="text-muted">
+                                                        <?= date('M d, Y H:i', strtotime($notification['created_at'])) ?>
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            <?php if (!$notification['is_read']): ?>
+                                                <button class="btn btn-sm btn-outline-primary mark-read" 
+                                                        data-notification-id="<?= $notification['id'] ?>">
+                                                    Mark as Read
+                                                </button>
+                                            <?php endif; ?>
+                                            <?php if ($notification['link']): ?>
+                                                <a href="<?= htmlspecialchars($notification['link']) ?>" 
+                                                   class="btn btn-sm btn-primary ms-2">View Details</a>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                        <?php endforeach; ?>
+
+                        <!-- Active Service Requests -->
                         <?php foreach ($serviceRequests as $request): ?>
                             <div class="card service-request-card mb-3">
                                 <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <h5 class="card-title">
-                                                <img src="<?= htmlspecialchars($request['sender_photo']) ?>" alt="Profile Photo" class="profile-photo">
-                                                <?= htmlspecialchars($request['username']) ?>
-                                                <small class="text-muted">- <?= htmlspecialchars($request['service_name']) ?></small>
-                                            </h5>
-                                            <p class="card-text"><?= nl2br(htmlspecialchars($request['details'])) ?></p>
-                                        </div>
-                                        <div class="text-end">
-                                            <small class="text-muted">
-                                                <?= date('M j, Y g:i a', strtotime($request['created_at'])) ?>
-                                            </small>
-                                        </div>
-                                    </div>
+                                    <!-- ...existing service request card content... -->
                                 </div>
                             </div>
                         <?php endforeach; ?>
                     <?php else: ?>
-                        <div class="alert alert-info" style="text-align: center;">No service requests found</div>
+                        <div class="alert alert-info" style="text-align: center;">No service requests or notifications found</div>
                     <?php endif; ?>
                     <a href="service_requests.php" class="btn btn-primary w-100 mt-2">View All Service Requests</a>
                 </div>
+
             </div>
         </div>
     </div>
+
 </body>
 <?php include 'includes/nav/footer.php'; ?>
 </html>

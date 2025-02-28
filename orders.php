@@ -14,6 +14,8 @@ if ($_SESSION['role'] !== 'admin') {
 require_once 'config/database.php';
 require_once 'includes/functions/shipping_functions.php';
 require_once 'includes/functions/badge_functions.php';
+require_once 'includes/functions/order_functions.php'; // Add this line
+
 // Initialize database connection first
 $database = new Database();
 $db = $database->getConnection();
@@ -37,13 +39,15 @@ $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
 $limit = 10;
 $offset = ($page - 1) * $limit;
 
-// Update the main query to prevent duplicates and include all order items
+// Update the main query to use COALESCE for service_cost
 $query = "SELECT DISTINCT o.*, 
           u.username, 
           GROUP_CONCAT(DISTINCT CONCAT(p.product_name, ' (', oi.quantity, ')') SEPARATOR ', ') as products,
-          SUM(oi.subtotal) as original_amount,
+          SUM(oi.subtotal) as products_subtotal,
+          SUM(COALESCE(oi.service_cost, 0)) as total_service_cost,
+          o.shipping_fee,
           o.discount_amount,
-          o.total_amount
+          (SUM(oi.subtotal) + SUM(COALESCE(oi.service_cost, 0)) + o.shipping_fee - o.discount_amount) as total_amount
           FROM orders o 
           LEFT JOIN users u ON o.id = u.id 
           LEFT JOIN order_items oi ON o.order_id = oi.order_id 
@@ -117,13 +121,13 @@ try {
     $orders = [];
 }
 
-// Update the stats query to correctly calculate totals
+// Update the stats query to handle NULL service_cost
 $statsQuery = "SELECT o.status,
     COUNT(DISTINCT o.order_id) as count,
     COALESCE(SUM(
         CASE 
             WHEN o.status = 'Cancelled' THEN 0
-            ELSE oi.quantity * oi.unit_price
+            ELSE (oi.subtotal + COALESCE(oi.service_cost, 0))
         END
     ), 0) as total_amount
     FROM orders o

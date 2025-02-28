@@ -9,157 +9,184 @@ function setupMailer() {
     $mail = new PHPMailer(true);
     
     try {
-        // Server settings
-        $mail->SMTPDebug = SMTP_DEBUG;
+        // Server settings with fallback values
+        $mail->SMTPDebug = defined('SMTP_DEBUG') ? SMTP_DEBUG : 0;
         $mail->isSMTP();
-        $mail->Host = SMTP_HOST;
-        $mail->SMTPAuth = true;
-        $mail->Username = SMTP_USER;
-        $mail->Password = SMTP_PASS;
-        $mail->SMTPSecure = SMTP_SECURE;
-        $mail->Port = SMTP_PORT;
+        $mail->Host = defined('SMTP_HOST') ? SMTP_HOST : 'smtp.gmail.com';
+        $mail->SMTPAuth = defined('SMTP_AUTH') ? SMTP_AUTH : true;
+        $mail->Username = defined('SMTP_USERNAME') ? SMTP_USERNAME : '';
+        $mail->Password = defined('SMTP_PASSWORD') ? SMTP_PASSWORD : '';
+        $mail->SMTPSecure = defined('SMTP_SECURE') ? SMTP_SECURE : PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = defined('SMTP_PORT') ? SMTP_PORT : 587;
         
-        // Additional SMTP settings for Gmail
+        // SSL/TLS Settings for development
         $mail->SMTPOptions = array(
             'ssl' => array(
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-                'allow_self_signed' => true
+                'verify_peer' => defined('SMTP_VERIFY_PEER') ? SMTP_VERIFY_PEER : false,
+                'verify_peer_name' => defined('SMTP_VERIFY_PEER') ? SMTP_VERIFY_PEER : false,
+                'allow_self_signed' => defined('SMTP_VERIFY_PEER') ? !SMTP_VERIFY_PEER : true
             )
         );
 
+        // Default sender with fallback values
+        $from_email = defined('SMTP_FROM_EMAIL') ? SMTP_FROM_EMAIL : SMTP_USERNAME;
+        $from_name = defined('SMTP_FROM_NAME') ? SMTP_FROM_NAME : 'Zellow Admin';
+        $mail->setFrom($from_email, $from_name);
+        
         return $mail;
     } catch (Exception $e) {
-        error_log("Mailer setup failed: " . $e->getMessage());
-        throw new Exception("Email configuration error: " . $e->getMessage());
+        throw new Exception("Mailer setup failed: " . $e->getMessage());
     }
 }
 
 function sendPurchaseOrderEmail($db, $supplier_id, $purchase_order_id, $invoice_number, $total_amount, $orderProducts) {
     try {
+        // Get supplier details
+        $stmt = $db->prepare("SELECT email, company_name FROM suppliers WHERE supplier_id = ?");
+        $stmt->execute([$supplier_id]);
+        $supplier = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$supplier) {
+            throw new Exception("Supplier not found");
+        }
+
         $mail = setupMailer();
         
-        // Get supplier details
-        $supplierStmt = $db->prepare("
-            SELECT company_name, email, contact_person 
-            FROM suppliers 
-            WHERE supplier_id = ?
-        ");
-        $supplierStmt->execute([$supplier_id]);
-        $supplier = $supplierStmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$supplier || empty($supplier['email'])) {
-            throw new Exception("Invalid supplier email");
-        }
-
-        // Email setup
-        $mail->setFrom(SMTP_USER, SMTP_FROM_NAME);
         $mail->addAddress($supplier['email'], $supplier['company_name']);
-        
-        // Add CC to admin if available
-        if (isset($_SESSION['email'])) {
-            $mail->addCC($_SESSION['email']);
-        }
-
         $mail->isHTML(true);
-        $mail->Subject = "New Purchase Order #$purchase_order_id - $invoice_number";
+        $mail->Subject = "Purchase Order #$purchase_order_id - $invoice_number";
         
-        // Generate email body
-        $mail->Body = generatePurchaseOrderEmailBody(
-            $purchase_order_id, 
-            $invoice_number, 
-            $orderProducts, 
-            $total_amount
-        );
-
-        // Plain text version
-        $mail->AltBody = generatePurchaseOrderPlainText(
-            $purchase_order_id, 
-            $invoice_number, 
-            $total_amount
-        );
-
-        $sent = $mail->send();
-        if (!$sent) {
-            throw new Exception($mail->ErrorInfo);
+        // Use the styled email template instead of basic HTML
+        $mail->Body = generatePurchaseOrderEmailBody($purchase_order_id, $invoice_number, $orderProducts, $total_amount);
+        $mail->AltBody = generatePurchaseOrderPlainText($purchase_order_id, $invoice_number, $total_amount);
+        
+        if (!$mail->send()) {
+            throw new Exception("Email could not be sent: " . $mail->ErrorInfo);
         }
-
-        error_log("Purchase order email sent successfully to: " . $supplier['email']);
+        
         return true;
-
     } catch (Exception $e) {
-        error_log("Purchase order email sending failed: " . $e->getMessage());
         throw new Exception("Failed to send email: " . $e->getMessage());
     }
 }
 
 function generatePurchaseOrderEmailBody($purchase_order_id, $invoice_number, $orderProducts, $total_amount) {
     $body = "
-        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
-            <h2 style='color: #333; border-bottom: 2px solid #ddd; padding-bottom: 10px;'>Purchase Order Details</h2>
-            
-            <div style='background: #f9f9f9; padding: 15px; margin: 20px 0; border-radius: 5px;'>
-                <h3 style='color: #444; margin-top: 0;'>Order Information</h3>
-                <p><strong>Purchase Order:</strong> #$purchase_order_id</p>
-                <p><strong>Invoice Number:</strong> $invoice_number</p>
-                <p><strong>Order Date:</strong> " . date('Y-m-d') . "</p>
-                <p><strong>Due Date:</strong> " . date('Y-m-d', strtotime('+30 days')) . "</p>
+        <div style='font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; background: #f8f9fa; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);'>
+            <!-- Header -->
+            <div style='background: #2c3e50; color: white; text-align: center; padding: 25px; border-radius: 10px 10px 0 0;'>
+                <h1 style='margin: 0; font-size: 28px; font-weight: 600;'>PURCHASE ORDER</h1>
+                <p style='margin: 5px 0 0; font-size: 16px; opacity: 0.9;'>Zellow Enterprises</p>
             </div>
 
-            <div style='margin: 20px 0;'>
-                <h3 style='color: #444;'>Order Items</h3>
-                <table style='width: 100%; border-collapse: collapse; margin-top: 10px;'>
+            <!-- Order Summary Box -->
+            <div style='background: white; margin: 20px; border-radius: 8px; padding: 20px; border-left: 5px solid #3498db;'>
+                <table style='width: 100%; border-collapse: collapse;'>
+                    <tr>
+                        <td style='padding: 8px 0;'><strong style='color: #2c3e50; font-size: 16px;'>Purchase Order:</strong></td>
+                        <td style='padding: 8px 0; text-align: right;'><span style='font-size: 16px; color: #3498db; font-weight: 600;'>#$purchase_order_id</span></td>
+                    </tr>
+                    <tr>
+                        <td style='padding: 8px 0;'><strong style='color: #2c3e50; font-size: 16px;'>Invoice Number:</strong></td>
+                        <td style='padding: 8px 0; text-align: right;'><span style='font-size: 16px;'>$invoice_number</span></td>
+                    </tr>
+                    <tr>
+                        <td style='padding: 8px 0;'><strong style='color: #2c3e50; font-size: 16px;'>Order Date:</strong></td>
+                        <td style='padding: 8px 0; text-align: right;'><span style='font-size: 16px;'>" . date('F j, Y') . "</span></td>
+                    </tr>
+                    <tr>
+                        <td style='padding: 8px 0;'><strong style='color: #2c3e50; font-size: 16px;'>Delivery Date:</strong></td>
+                        <td style='padding: 8px 0; text-align: right;'><span style='font-size: 16px;'>" . date('F j, Y', strtotime('+30 days')) . "</span></td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- Order Items -->
+            <div style='background: white; margin: 20px; border-radius: 8px; padding: 20px;'>
+                <h2 style='color: #2c3e50; margin-top: 0; border-bottom: 2px solid #f1f1f1; padding-bottom: 10px;'>Order Items</h2>
+                <table style='width: 100%; border-collapse: collapse; margin-top: 15px;'>
                     <thead>
-                        <tr style='background: #eee;'>
-                            <th style='padding: 10px; text-align: left; border: 1px solid #ddd;'>Product</th>
-                            <th style='padding: 10px; text-align: right; border: 1px solid #ddd;'>Quantity</th>
-                            <th style='padding: 10px; text-align: right; border: 1px solid #ddd;'>Unit Price</th>
-                            <th style='padding: 10px; text-align: right; border: 1px solid #ddd;'>Total</th>
+                        <tr>
+                            <th style='padding: 12px 15px; background: #3498db; color: white; text-align: left; border-radius: 5px 0 0 0;'>Product</th>
+                            <th style='padding: 12px 15px; background: #3498db; color: white; text-align: center;'>Quantity</th>
+                            <th style='padding: 12px 15px; background: #3498db; color: white; text-align: right;'>Unit Price</th>
+                            <th style='padding: 12px 15px; background: #3498db; color: white; text-align: right; border-radius: 0 5px 0 0;'>Total</th>
                         </tr>
                     </thead>
                     <tbody>";
 
+    $row_count = 0;
     foreach ($orderProducts as $product) {
+        $row_style = $row_count % 2 == 0 ? 'background: #f8f9fa;' : 'background: #ffffff;';
+        $row_count++;
+        
         $itemTotal = $product['quantity'] * $product['unit_price'];
         $body .= "
-            <tr>
-                <td style='padding: 10px; border: 1px solid #ddd;'>" . htmlspecialchars($product['product_name']) . "</td>
-                <td style='padding: 10px; text-align: right; border: 1px solid #ddd;'>" . number_format($product['quantity']) . "</td>
-                <td style='padding: 10px; text-align: right; border: 1px solid #ddd;'>Ksh. " . number_format($product['unit_price'], 2) . "</td>
-                <td style='padding: 10px; text-align: right; border: 1px solid #ddd;'>Ksh. " . number_format($itemTotal, 2) . "</td>
-            </tr>";
+                        <tr style='$row_style'>
+                            <td style='padding: 12px 15px; border-bottom: 1px solid #e6e6e6;'>" . htmlspecialchars($product['product_name']) . "</td>
+                            <td style='padding: 12px 15px; text-align: center; border-bottom: 1px solid #e6e6e6;'>" . number_format($product['quantity']) . "</td>
+                            <td style='padding: 12px 15px; text-align: right; border-bottom: 1px solid #e6e6e6;'>Ksh. " . number_format($product['unit_price'], 2) . "</td>
+                            <td style='padding: 12px 15px; text-align: right; border-bottom: 1px solid #e6e6e6;'>Ksh. " . number_format($itemTotal, 2) . "</td>
+                        </tr>";
     }
 
     $body .= "
-                    <tr style='background: #f5f5f5;'>
-                        <td colspan='3' style='padding: 10px; text-align: right; border: 1px solid #ddd;'><strong>Total Amount:</strong></td>
-                        <td style='padding: 10px; text-align: right; border: 1px solid #ddd;'><strong>Ksh. " . number_format($total_amount, 2) . "</strong></td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan='3' style='padding: 12px 15px; text-align: right; font-weight: bold; color: #2c3e50;'>Total Amount:</td>
+                            <td style='padding: 12px 15px; text-align: right; font-weight: bold; font-size: 18px; color: #3498db; background: #f0f7fc;'>Ksh. " . number_format($total_amount, 2) . "</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
 
-        <div style='margin-top: 20px; padding: 15px; background: #f9f9f9; border-radius: 5px;'>
-            <p style='margin: 0;'><strong>Please Note:</strong></p>
-            <ul style='margin: 10px 0;'>
-                <li>Payment is due within 30 days</li>
-                <li>Please reference the invoice number in all communications</li>
-                <li>For any queries, please contact our purchasing department</li>
-            </ul>
-        </div>
+            <!-- Notes Section -->
+            <div style='background: white; margin: 20px; border-radius: 8px; padding: 20px; border-left: 5px solid #f39c12;'>
+                <h3 style='color: #2c3e50; margin-top: 0;'>Important Information</h3>
+                <ul style='margin: 15px 0; padding-left: 20px; color: #555;'>
+                    <li style='margin-bottom: 8px;'>We will process payment according to the agreed payment terms with your company.</li>
+                    <li style='margin-bottom: 8px;'>Please reference PO <strong>#$purchase_order_id</strong> on all shipping documents and invoices.</li>
+                    <li style='margin-bottom: 8px;'>Please confirm receipt of this order and expected delivery date.</li>
+                    <li style='margin-bottom: 8px;'>For any questions or concerns regarding this order, please contact our purchasing department at <a href='mailto:purchasing@zellow.com' style='color: #3498db;'>purchasing@zellow.com</a>.</li>
+                </ul>
+            </div>
 
-        <div style='margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 12px;'>
-            <p>This is an automated message from Zellow Enterprises. Please do not reply directly to this email.</p>
+            <!-- Thank You Message -->
+            <div style='background: #e8f4fc; margin: 20px; border-radius: 8px; padding: 15px; text-align: center;'>
+                <p style='margin: 0; color: #2c3e50; font-size: 16px;'>Thank you for your business partnership!</p>
+            </div>
+
+            <!-- Footer -->
+            <div style='background: #34495e; color: white; text-align: center; padding: 15px; border-radius: 0 0 10px 10px; font-size: 12px;'>
+                <p style='margin: 0 0 5px 0;'>This is an automated message from Zellow Enterprises.</p>
+                <p style='margin: 0;'>© " . date('Y') . " Zellow Enterprises. All rights reserved.</p>
+            </div>
         </div>
-    </div>";
+    ";
 
     return $body;
 }
 
 function generatePurchaseOrderPlainText($purchase_order_id, $invoice_number, $total_amount) {
-    return "Purchase Order #$purchase_order_id\n"
-         . "Invoice Number: $invoice_number\n"
-         . "Total Amount: Ksh. " . number_format($total_amount, 2) . "\n"
-         . "Due Date: " . date('Y-m-d', strtotime('+30 days')) . "\n\n"
-         . "Please log in to your supplier portal for more details.";
+    return 
+        "PURCHASE ORDER #$purchase_order_id\n" .
+        "======================================\n\n" .
+        "ZELLOW ENTERPRISES\n\n" .
+        "ORDER DETAILS:\n" .
+        "--------------------------------------\n" .
+        "Purchase Order: #$purchase_order_id\n" .
+        "Invoice Number: $invoice_number\n" .
+        "Order Date: " . date('F j, Y') . "\n" .
+        "Delivery Date: " . date('F j, Y', strtotime('+30 days')) . "\n\n" .
+        "TOTAL AMOUNT: KSH. " . number_format($total_amount, 2) . "\n\n" .
+        "IMPORTANT INFORMATION:\n" .
+        "--------------------------------------\n" .
+        "* We will process payment according to the agreed payment terms with your company.\n" .
+        "* Please reference this PO number on all shipping documents and invoices.\n" .
+        "* Please confirm receipt of this order and expected delivery date.\n" .
+        "* For any questions, please contact our purchasing department at purchasing@zellow.com\n\n" .
+        "Thank you for your business partnership!\n\n" .
+        "This is an automated message from Zellow Enterprises.\n" .
+        "© " . date('Y') . " Zellow Enterprises. All rights reserved.";
 }

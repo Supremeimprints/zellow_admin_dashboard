@@ -267,6 +267,7 @@ try {
 
     tr.out-of-stock {
         background-color: rgba(239, 68, 68, 0.1) !important;
+        color: #f8fafc !important;
     }
 
     tr.low-stock {

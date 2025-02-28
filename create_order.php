@@ -216,7 +216,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Add shipping fee to total
         $final_total = $total_amount - $discount_amount + $shipping_fee;
 
-        // Create order with both old and new shipping fields
+        // Replace the order creation query with this corrected version
         $orderStmt = $db->prepare("INSERT INTO orders (
             id, 
             email,
@@ -249,7 +249,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $orderStmt->execute([
             $customerId,
             $email,
-            $username,
+            $customerUsername, // Use the correct username from users table
             $final_total,
             $discount_amount,
             $shipping_fee,
@@ -291,7 +291,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $orderId,
                     $customerId,
                     $email,
-                    $username,
+                    $customerUsername, // Use the correct username
                     $product['product_id'],
                     $product['quantity'],
                     $product['unit_price'],
@@ -451,6 +451,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <div class="col-md-12 text-end">
                                         <button type="button" class="btn btn-danger remove-product">Remove</button>
                                     </div>
+                                    <!-- Add service request section -->
+                                    <div class="col-12 mt-3 service-request-section">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <div class="form-check mb-3">
+                                                    <input type="checkbox" class="form-check-input service-toggle" 
+                                                           id="service_request_0" name="products[0][request_service]">
+                                                    <label class="form-check-label" for="service_request_0">
+                                                        Add Service Request (Engraving/Printing)
+                                                    </label>
+                                                </div>
+                                                
+                                                <div class="service-options" style="display: none;">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Service Type</label>
+                                                        <select class="form-select service-type-select" 
+                                                                name="products[0][service_type]">
+                                                            <option value="">Select Service</option>
+                                                            <option value="engraving" data-price="500">Engraving (Ksh 500)</option>
+                                                            <option value="printing" data-price="300">Printing (Ksh 300)</option>
+                                                        </select>
+                                                    </div>
+                                                    
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Service Details</label>
+                                                        <textarea class="form-control" 
+                                                                name="products[0][service_message]" 
+                                                                rows="2" 
+                                                                placeholder="Describe your customization requirements"></textarea>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -470,6 +504,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <div class="d-flex justify-content-between mb-2">
                                             <span class="text-muted">Shipping Fee:</span>
                                             <span class="text-muted" id="shipping_fee">Ksh. 0.00</span>
+                                        </div>                                        <div class="d-flex justify-content-between mb-2">
+                                            <span class="text-muted">Service Costs:</span>
+                                            <span class="text-muted" id="service-costs">Ksh. 0.00</span>
                                         </div>
                                         <div class="d-flex justify-content-between">
                                             <strong>Total:</strong>
@@ -592,55 +629,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         function calculateTotal() {
             const productItems = document.querySelectorAll('.product-item');
             currentSubtotal = 0;
-            
-            // Count unique products (not quantities)
-            let uniqueProducts = 0;
+            let serviceCosts = 0;
             
             productItems.forEach(item => {
                 const quantity = parseInt(item.querySelector('.quantity-input').value) || 0;
                 const pricePerUnit = parseFloat(item.querySelector('.unit-price-input').value) || 0;
-                const productSelect = item.querySelector('.product-select');
-                
-                if (productSelect.value) {
-                    uniqueProducts++; // Increment for each selected product
-                }
-                
                 currentSubtotal += (pricePerUnit * quantity);
+                
+                // Add service cost if service is requested
+                const serviceToggle = item.querySelector('.service-toggle');
+                if (serviceToggle && serviceToggle.checked) {
+                    const serviceSelect = item.querySelector('.service-type-select');
+                    if (serviceSelect && serviceSelect.value) {
+                        const servicePrice = parseFloat(serviceSelect.options[serviceSelect.selectedIndex].dataset.price) || 0;
+                        serviceCosts += (servicePrice * quantity);
+                    }
+                }
             });
 
-            // Get shipping method
-            const shippingMethod = document.getElementById('shipping_method').value;
-            
-            // Fetch shipping fee based on unique products
-            fetch('get_shipping_fee.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `method=${encodeURIComponent(shippingMethod)}&subtotal=${currentSubtotal}&uniqueItemCount=${uniqueProducts}`
-            })
-            .then(response => response.json())
-            .then(data => {
-                shippingFee = parseFloat(data.fee);
-                document.getElementById('shipping_fee').textContent = `Ksh. ${shippingFee.toFixed(2)}`;
-                updateFinalTotal();
-            });
-
-            // Update subtotal display
+            // Update displays
             document.getElementById('subtotal').textContent = `Ksh. ${currentSubtotal.toFixed(2)}`;
-        }
-
-        function updateFinalTotal() {
-            currentSubtotal = Array.from(document.querySelectorAll('.product-item')).reduce((sum, item) => {
-                const quantity = parseInt(item.querySelector('.quantity-input').value) || 0;
-                const price = parseFloat(item.querySelector('.unit-price-input').value) || 0;
-                return sum + (quantity * price);
-            }, 0);
-
-            const finalTotal = currentSubtotal - (currentDiscount || 0) + (shippingFee || 0);
+            document.getElementById('service-costs').textContent = `Ksh. ${serviceCosts.toFixed(2)}`;
             
-            document.getElementById('subtotal').textContent = `Ksh. ${currentSubtotal.toFixed(2)}`;
-            document.getElementById('shipping_fee').textContent = `Ksh. ${(shippingFee || 0).toFixed(2)}`;
+            // Update final total including service costs
+            const finalTotal = currentSubtotal + serviceCosts - (currentDiscount || 0) + (shippingFee || 0);
             document.getElementById('total').textContent = `Ksh. ${finalTotal.toFixed(2)}`;
         }
 
@@ -650,10 +662,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             const index = container.children.length;
             const newItem = document.createElement('div');
             newItem.classList.add('row', 'g-3', 'product-item');
+
+            // Generate unique IDs for service elements
+            const serviceId = `service_request_${Date.now()}_${index}`;
+            const serviceOptionsId = `service_options_${Date.now()}_${index}`;
+
             newItem.innerHTML = `
                 <div class="col-md-6">
-                    <label for="product_id" class="form-label">Product</label>
-                    <select name="products[${index}][product_id]" class="form-select product-select" required>
+                    <label for="product_id_${index}" class="form-label">Product</label>
+                    <select name="products[${index}][product_id]" id="product_id_${index}" class="form-select product-select" required>
                         <option value="">Select Product</option>
                         <?php foreach ($products as $product): ?>
                             <option value="<?= htmlspecialchars($product['product_id']) ?>" 
@@ -665,18 +682,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label for="quantity" class="form-label">Quantity</label>
-                    <input type="number" name="products[${index}][quantity]" class="form-control quantity-input" min="1" value="1" required>
+                    <label for="quantity_${index}" class="form-label">Quantity</label>
+                    <input type="number" name="products[${index}][quantity]" id="quantity_${index}" class="form-control quantity-input" min="1" value="1" required>
                 </div>
                 <div class="col-md-3">
-                    <label for="unit_price" class="form-label">Price per Unit</label>
-                    <input type="number" name="products[${index}][unit_price]" class="form-control unit-price-input" step="0.01" required>
+                    <label for="unit_price_${index}" class="form-label">Price per Unit</label>
+                    <input type="number" name="products[${index}][unit_price]" id="unit_price_${index}" class="form-control unit-price-input" step="0.01" required>
                 </div>
-                <div class="col-md-12 text-end">
-                    <button type="button" class="btn btn-danger remove-product">Remove</button>
+                <div class="col-md-12 mt-2 mb-3">
+                    <button type="button" class="btn btn-danger remove-product">Remove Product</button>
+                </div>
+                <div class="col-12 mt-2 service-request-section">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="form-check mb-3">
+                                <input type="checkbox" class="form-check-input service-toggle" 
+                                       id="${serviceId}" name="products[${index}][request_service]">
+                                <label class="form-check-label" for="${serviceId}">
+                                    Add Service Request (Engraving/Printing)
+                                </label>
+                            </div>
+                            
+                            <div id="${serviceOptionsId}" class="service-options" style="display: none;">
+                                <div class="mb-3">
+                                    <label class="form-label">Service Type</label>
+                                    <select class="form-select service-type-select" 
+                                            name="products[${index}][service_type]" required>
+                                        <option value="">Select Service</option>
+                                        <option value="engraving" data-price="500">Engraving (Ksh 500)</option>
+                                        <option value="printing" data-price="300">Printing (Ksh 300)</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Service Details</label>
+                                    <textarea class="form-control" 
+                                            name="products[${index}][service_message]" 
+                                            rows="2" 
+                                            placeholder="Describe your customization requirements"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             `;
+
+            // Add event listeners for the new row
+            newItem.querySelector('.service-toggle').addEventListener('change', function(e) {
+                const serviceOptions = document.getElementById(serviceOptionsId);
+                serviceOptions.style.display = e.target.checked ? 'block' : 'none';
+                
+                if (!e.target.checked) {
+                    const serviceSelect = serviceOptions.querySelector('.service-type-select');
+                    serviceSelect.value = '';
+                }
+                calculateTotal();
+            });
+
+            newItem.querySelector('.remove-product').addEventListener('click', function() {
+                newItem.remove();
+                reindexProducts();
+                calculateTotal();
+            });
+
+            // Add product selection handler
+            newItem.querySelector('.product-select').addEventListener('change', function(e) {
+                const price = e.target.options[e.target.selectedIndex]?.dataset?.price || 0;
+                newItem.querySelector('.unit-price-input').value = price;
+                calculateTotal();
+            });
+
+            // Add quantity/price change handlers
+            newItem.querySelectorAll('.quantity-input, .unit-price-input').forEach(input => {
+                input.addEventListener('input', calculateTotal);
+            });
+
             container.appendChild(newItem);
+
+            // Reindex all products after adding new one
+            reindexProducts();
         });
 
         // Remove product row
@@ -977,6 +1061,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         document.getElementById('region_id').addEventListener('change', function() {
             updateShippingMethods(this.value);
         });
+
+        // Add this event listener for service toggles
+        document.addEventListener('change', function(event) {
+            if (event.target.classList.contains('service-toggle')) {
+                const serviceSection = event.target.closest('.service-request-section');
+                const serviceOptions = serviceSection.querySelector('.service-options');
+                
+                if (serviceOptions) {
+                    serviceOptions.style.display = event.target.checked ? 'block' : 'none';
+                    
+                    // Reset service type when unchecked
+                    if (!event.target.checked) {
+                        const serviceSelect = serviceOptions.querySelector('.service-type-select');
+                        if (serviceSelect) {
+                            serviceSelect.value = '';
+                        }
+                    }
+                }
+                calculateTotal();
+            }
+            
+            if (event.target.classList.contains('service-type-select')) {
+                calculateTotal();
+            }
+        });
+
+        function reindexProducts() {
+            const container = document.getElementById('products-container');
+            const items = container.querySelectorAll('.product-item');
+            
+            items.forEach((item, index) => {
+                // Update all name attributes
+                item.querySelectorAll('[name*="products["]').forEach(element => {
+                    element.name = element.name.replace(/products\[\d+\]/, `products[${index}]`);
+                });
+                
+                // Update all IDs and labels
+                item.querySelectorAll('[id*="_"]').forEach(element => {
+                    const oldId = element.id;
+                    const newId = oldId.replace(/_\d+$/, `_${index}`);
+                    element.id = newId;
+                    
+                    // Update corresponding labels
+                    const labels = item.querySelectorAll(`label[for="${oldId}"]`);
+                    labels.forEach(label => label.setAttribute('for', newId));
+                });
+            });
+        }
     </script>
 </body>
 <?php include 'includes/nav/footer.php'; ?>
