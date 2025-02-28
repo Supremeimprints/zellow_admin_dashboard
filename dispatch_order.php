@@ -506,7 +506,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 </html>
 <?php
-// ...existing initialization code...
+
 
 // Update the order query to include all necessary fields
 $orderQuery = "SELECT o.*,
@@ -528,12 +528,5 @@ $stmt = $db->prepare($orderQuery);
 $stmt->execute([$orderId]);
 $order = $stmt->fetch(PDO::FETCH_ASSOC);
 
-// ...existing code...
 
-// In the HTML section, update the order summary card:
 ?>
-
-
-<!-- Keep existing driver assignment form -->
-<?php
-// ... rest of existing code ...

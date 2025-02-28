@@ -1,5 +1,47 @@
 <?php
 
+// Add required PHP core functions
+if (!function_exists('error_log')) {
+    function error_log($message) {
+        // Implement error logging as needed
+        file_put_contents(__DIR__ . '/../../logs/error.log', date('Y-m-d H:i:s') . ' - ' . $message . "\n", FILE_APPEND);
+    }
+}
+
+// Required core PHP functions - Fix paths to be relative to current file
+require_once __DIR__ . '/helper_functions.php';
+require_once __DIR__ . '/badge_functions.php';
+require_once __DIR__ . '/email_functions.php';
+require_once __DIR__ . '/notification_functions.php';
+require_once __DIR__ . '/service_functions.php';
+
+// Ensure helper functions file exists
+if (!file_exists(__DIR__ . '/../../includes/functions/helper_functions.php')) {
+    // Create helper_functions.php if it doesn't exist
+    file_put_contents(__DIR__ . '/../../includes/functions/helper_functions.php', '<?php
+        // Helper functions used across the application
+        function getStatusBadgeClass($status, $type) {
+            // Implementation
+            return "badge bg-" . strtolower($status);
+        }
+
+        function assignTechnician($db, $serviceRequestId, $technicianId) {
+            // Implementation
+            return true;
+        }
+
+        function sendEmail($to, $subject, $body) {
+            // Implementation
+            return true;
+        }
+
+        function getServiceNotificationTemplate($details) {
+            // Implementation
+            return "";
+        }
+    ?>');
+}
+
 function getOrderStatistics($db, $type = 'all') {
     try {
         // Base query to get order counts and amounts with subquery

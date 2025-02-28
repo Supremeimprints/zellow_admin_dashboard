@@ -281,16 +281,22 @@ function getStatusColor($status) {
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Recent Transactions</h5>
-                    <div class="btn-group">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportData('csv')">
-                            <i class="fas fa-file-csv me-1"></i> CSV
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportData('excel')">
-                            <i class="fas fa-file-excel me-1"></i> Excel
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportData('pdf')">
-                            <i class="fas fa-file-pdf me-1"></i> PDF
-                        </button>
+                    <div class="d-flex gap-2">
+                        <!-- Add All Transactions button -->
+                        <a href="transactions.php" class="btn btn-sm btn-primary">
+                            <i class="fas fa-list me-1"></i> All Transactions
+                        </a>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportData('csv')">
+                                <i class="fas fa-file-csv me-1"></i> CSV
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportData('excel')">
+                                <i class="fas fa-file-excel me-1"></i> Excel
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportData('pdf')">
+                                <i class="fas fa-file-pdf me-1"></i> PDF
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body p-0">

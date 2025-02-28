@@ -17,7 +17,7 @@ function getAvailableTechnicians($db, $service_type) {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function assignTechnician($db, $service_request_id, $technician_id) {
+function assignServiceTechnician($db, $service_request_id, $technician_id) {
     try {
         $db->beginTransaction();
         

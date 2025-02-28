@@ -5,25 +5,40 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-function sendEmail($to, $subject, $body, $isHtml = true) {
+function getMailConfig($key = null) {
+    static $config = null;
+    
+    if ($config === null) {
+        $config = require __DIR__ . '/../../config/mail.php';
+    }
+    
+    return $key ? ($config[$key] ?? null) : $config;
+}
+
+function sendEmail($to, $subject, $body, $attachments = []) {
     try {
         $mail = new PHPMailer(true);
+        $mail->isSMTP();
         
         // Server settings
-        $mail->isSMTP();
-        $mail->Host = SMTP_HOST;
+        $mail->Host = getMailConfig('smtp_host');
         $mail->SMTPAuth = true;
-        $mail->Username = SMTP_USER;
-        $mail->Password = SMTP_PASS;
-        $mail->SMTPSecure = SMTP_SECURE;
-        $mail->Port = SMTP_PORT;
+        $mail->Username = getMailConfig('smtp_user');
+        $mail->Password = getMailConfig('smtp_pass');
+        $mail->SMTPSecure = getMailConfig('smtp_encryption');
+        $mail->Port = getMailConfig('smtp_port');
+        
+        // Sender
+        $mail->setFrom(
+            getMailConfig('from_address'),
+            getMailConfig('from_name')
+        );
         
         // Recipients
-        $mail->setFrom(SMTP_USER, SMTP_FROM_NAME);
         $mail->addAddress($to);
         
         // Content
-        $mail->isHTML($isHtml);
+        $mail->isHTML(true);
         $mail->Subject = $subject;
         $mail->Body = $body;
         
