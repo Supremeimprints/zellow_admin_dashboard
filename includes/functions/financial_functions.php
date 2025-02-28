@@ -21,6 +21,42 @@ function validateDateRange($startDate, $endDate) {
     }
 }
 
+function getDateRange($startDate = null, $endDate = null) {
+    try {
+        // Get current date and time
+        $currentDateTime = new DateTime();
+        $today = $currentDateTime->format('Y-m-d');
+        
+        // Set default dates if not provided
+        if (!$startDate) {
+            $startDate = date('Y-m-d', strtotime('-6 months'));
+        }
+        
+        if (!$endDate) {
+            $endDate = $today;
+        }
+        
+        // Format dates with time components
+        $startDateTime = date('Y-m-d 00:00:00', strtotime($startDate));
+        $endDateTime = date('Y-m-d 23:59:59', strtotime($endDate));
+        
+        // Debug logging
+        error_log("Formatted date range: $startDateTime to $endDateTime");
+        
+        return [
+            'start' => $startDateTime,
+            'end' => $endDateTime,
+            'today' => $today,
+            'raw_start' => $startDate,
+            'raw_end' => $endDate
+        ];
+        
+    } catch (Exception $e) {
+        error_log("Date range error: " . $e->getMessage());
+        throw $e;
+    }
+}
+
 // Financial calculation functions
 /**
  * Get financial metrics for the specified date range

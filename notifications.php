@@ -42,14 +42,15 @@ $stmt = $db->prepare($messageQuery);
 $stmt->execute([$_SESSION['id']]);
 $messages = $stmt->fetchAll();
 
-// Get recent feedback
+// Get recent feedback - Update the LIMIT to 3
 $feedbackQuery = "SELECT f.*, u.username 
                  FROM feedback f
-                 JOIN users u ON f.id = u.id
-                 ORDER BY f.created_at DESC";
+                 LEFT JOIN users u ON f.user_id = u.id
+                 ORDER BY f.created_at DESC
+                 LIMIT 3";  // Changed from 5 to 3
 $stmt = $db->prepare($feedbackQuery);
 $stmt->execute();
-$feedbacks = $stmt->fetchAll();
+$feedbacks = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Get service request notifications
 $serviceRequestQuery = "SELECT 
@@ -75,7 +76,7 @@ $stockAlertQuery = "SELECT
                         i.min_stock_level
                     FROM inventory i
                     JOIN products p ON i.product_id = p.product_id
-                    WHERE i.stock_quantity < i.min_stock_level
+                    WHERE i.stock_quantity <= i.min_stock_level
                     ORDER BY i.stock_quantity ASC";
 $stmt = $db->prepare($stockAlertQuery);
 $stmt->execute();
@@ -88,7 +89,7 @@ i.stock_quantity,
 i.min_stock_level
 FROM inventory i
 JOIN products p ON i.product_id = p.product_id
-WHERE i.stock_quantity < i.min_stock_level";
+WHERE i.stock_quantity <= i.min_stock_level";
 $stmt = $db->query($query);
 $reportData['low_stock'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -255,6 +256,15 @@ try {
 .alert-dismissing {
     animation: fadeOut 0.5s ease-out forwards;
 }
+
+/* Stock alert link color */
+.stock-alert-link {
+    color: var(--bs-dark);
+}
+
+.stock-alert-link:hover {
+    color: var(--bs-dark);
+}
 </style>
 
 <script>
@@ -319,10 +329,15 @@ if (isset($_SESSION['success'])): ?>
                                                 <p class="card-text"><?= nl2br(htmlspecialchars($msg['message'])) ?></p>
                                                 <div class="d-flex gap-2 align-items-center">
                                                     <?php if($msg['priority']): ?>
-                                                        <span class="badge bg-<?= 
-                                                            ($msg['priority'] == 'High') ? 'danger' : 
-                                                            (($msg['priority'] == 'Medium') ? 'warning' : 'success') ?> 
-                                                            status-badge">
+                                                        <span class="badge bg-<?php 
+                                                            if($msg['priority'] == 'High') {
+                                                                echo 'danger';
+                                                            } elseif($msg['priority'] == 'Medium') {
+                                                                echo 'warning';
+                                                            } else {
+                                                                echo 'success';
+                                                            }
+                                                        ?> status-badge">
                                                             <?= htmlspecialchars($msg['priority']) ?> Priority
                                                         </span>
                                                     <?php endif; ?>
@@ -371,10 +386,15 @@ if (isset($_SESSION['success'])): ?>
                                                 <p class="card-text"><?= nl2br(htmlspecialchars($msg['message'])) ?></p>
                                                 <div class="d-flex gap-2 align-items-center">
                                                     <?php if($msg['priority']): ?>
-                                                        <span class="badge bg-<?= 
-                                                            ($msg['priority'] == 'High') ? 'danger' : 
-                                                            (($msg['priority'] == 'Medium') ? 'warning' : 'success') ?> 
-                                                            status-badge">
+                                                        <span class="badge bg-<?php 
+                                                            if($msg['priority'] == 'High') {
+                                                                echo 'danger';
+                                                            } elseif($msg['priority'] == 'Medium') {
+                                                                echo 'warning';
+                                                            } else {
+                                                                echo 'success';
+                                                            }
+                                                        ?> status-badge">
                                                             <?= htmlspecialchars($msg['priority']) ?> Priority
                                                         </span>
                                                     <?php endif; ?>
@@ -419,10 +439,15 @@ if (isset($_SESSION['success'])): ?>
                                                 <p class="card-text"><?= nl2br(htmlspecialchars($msg['message'])) ?></p>
                                                 <div class="d-flex gap-2 align-items-center">
                                                     <?php if($msg['priority']): ?>
-                                                        <span class="badge bg-<?= 
-                                                            ($msg['priority'] == 'High') ? 'danger' : 
-                                                            (($msg['priority'] == 'Medium') ? 'warning' : 'success') ?> 
-                                                            status-badge">
+                                                        <span class="badge bg-<?php 
+                                                            if($msg['priority'] == 'High') {
+                                                                echo 'danger';
+                                                            } elseif($msg['priority'] == 'Medium') {
+                                                                echo 'warning';
+                                                            } else {
+                                                                echo 'success';
+                                                            }
+                                                        ?> status-badge">
                                                             <?= htmlspecialchars($msg['priority']) ?> Priority
                                                         </span>
                                                     <?php endif; ?>
@@ -461,17 +486,19 @@ if (isset($_SESSION['success'])): ?>
                 </div>
             </div>
 
-            <!-- Alerts, Feedback, and Service Requests Section (1/4 of the screen) -->
-            <div class="alerts-section w-25">
-                <h3 class="mb-3">Stock Alerts</h3>
-                <div class="alert-list" style="max-height: 200px; overflow-y: auto;">
+            <!-- Alerts, Feedback, and Service Requests Section -->
+            <div class="alerts-section">
+                <!-- Stock Alerts Section -->
+                <h3>Stock Alerts</h3>
+                <div class="alert-list">
                     <?php if (count($stockAlerts) > 0): ?>
                         <?php foreach ($stockAlerts as $alert): ?>
-                            <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                                <a href="update_inventory.php?id=<?= $alert['id'] ?>" class="text-decoration-none">
-                                    <strong><?= htmlspecialchars($alert['product_name']) ?></strong> is low on stock.
-                                    <br>
-                                    Current Stock: <?= $alert['stock_quantity'] ?>, Minimum Required: <?= $alert['min_stock_level'] ?>
+                            <div class="alert alert-warning alert-dismissible fade show stock-alert" role="alert">
+                                <a href="update_inventory.php?id=<?= $alert['id'] ?>" class="stock-alert-link">
+                                    <strong><?= htmlspecialchars($alert['product_name']) ?></strong>
+                                    <div class="small mt-1">
+                                        Stock: <?= $alert['stock_quantity'] ?> / <?= $alert['min_stock_level'] ?>
+                                    </div>
                                 </a>
                                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                             </div>
@@ -482,116 +509,75 @@ if (isset($_SESSION['success'])): ?>
                 </div>
 
                 <!-- Feedback Section -->
-                <h3 class="mt-5 mb-3">Customer Feedback</h3>
-                <div class="feedback-list" style="max-height: 200px; overflow-y: auto;">
-                    <?php if (count($feedbacks) > 0): ?>
+                <h3>Customer Feedback</h3>
+                <div class="feedback-list">
+                    <?php if (!empty($feedbacks)): ?>
                         <?php foreach ($feedbacks as $feedback): ?>
-                            <div class="card mb-3">
+                            <div class="card">
                                 <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <h5 class="card-title">
-                                                <?= htmlspecialchars($feedback['username']) ?>
-                                                <small class="text-muted">- Order #<?= $feedback['order_id'] ?></small>
-                                            </h5>
-                                            <div class="rating-stars mb-2">
-                                                <?php for($i = 0; $i < 5; $i++): ?>
-                                                    <i class="fas fa-star<?= $i < $feedback['rating'] ? '' : '-empty' ?>"></i>
-                                                <?php endfor; ?>
-                                            </div>
-                                            <?php if($feedback['comment']): ?>
-                                                <p class="card-text"><?= nl2br(htmlspecialchars($feedback['comment'])) ?></p>
-                                            <?php endif; ?>
-                                        </div>
-                                        <div class="text-end">
-                                            <small class="text-muted">
-                                                <?= date('M j, Y g:i a', strtotime($feedback['created_at'])) ?>
-                                            </small>
-                                            <form method="POST" class="mt-2">
-                                                <input type="hidden" name="feedback_id" value="<?= $feedback['id'] ?>">
-                                                <button type="submit" name="reply" 
-                                                    class="btn btn-sm btn-primary">Reply</button>
-                                            </form>
-                                        </div>
+                                    <div class="d-flex justify-content-between">
+                                        <h6 class="card-title mb-1">
+                                            <?= htmlspecialchars($feedback['username'] ?? 'Anonymous') ?>
+                                        </h6>
+                                        <small class="text-muted"><?= date('M j', strtotime($feedback['created_at'])) ?></small>
                                     </div>
+                                    <div class="rating-stars small mb-2">
+                                        <?php 
+                                        for($i = 0; $i < 5; $i++) {
+                                            $starClass = $i < $feedback['rating'] ? '' : '-empty';
+                                            echo '<i class="fas fa-star' . $starClass . '"></i>';
+                                        }
+                                        ?>
+                                    </div>
+                                    <?php if($feedback['comment']): ?>
+                                        <p class="card-text small mb-0"><?= nl2br(htmlspecialchars($feedback['comment'])) ?></p>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         <?php endforeach; ?>
                     <?php else: ?>
-                        <div class="alert alert-info" style="text-align: center;">No feedback available</div>
+                        <div class="alert alert-info">No feedback available</div>
                     <?php endif; ?>
-                    <a href="feedback.php" class="btn btn-primary w-100 mt-2">View All Feedback</a>
                 </div>
+                <a href="feedback.php" class="btn btn-primary btn-sm w-100">View All Feedback</a>
 
                 <!-- Service Requests Section -->
-                <h3 class="mt-5 mb-3">Service Requests</h3>
-                <div class="service-requests-list" style="max-height: 400px; overflow-y: auto;">
-                    <?php if (count($serviceRequests) > 0 || count($notifications) > 0): ?>
-                        <!-- Service Request Notifications -->
-                        <?php foreach ($notifications as $notification): ?>
-                            <?php if ($notification['type'] === 'Task' && $notification['service_request_id']): ?>
-                                <div class="card service-notification mb-3">
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-start">
-                                            <div>
-                                                <h6 class="card-title">
-                                                    <span class="badge bg-<?= $notification['priority'] === 'high' ? 'danger' : 
-                                                        ($notification['priority'] === 'medium' ? 'warning' : 'info') ?>">
-                                                        <?= ucfirst($notification['type']) ?>
-                                                    </span>
-                                                    <?php if ($notification['sender_name']): ?>
-                                                        From: <?= htmlspecialchars($notification['sender_name']) ?>
-                                                    <?php endif; ?>
-                                                </h6>
-                                                <p class="card-text"><?= htmlspecialchars($notification['message']) ?></p>
-                                                <?php if ($notification['customization_type']): ?>
-                                                    <div class="service-details">
-                                                        <small class="text-muted">
-                                                            Service Type: <?= ucfirst(htmlspecialchars($notification['customization_type'])) ?>
-                                                        </small>
-                                                        <br>
-                                                        <small class="text-muted">
-                                                            Details: <?= htmlspecialchars($notification['customization_details']) ?>
-                                                        </small>
-                                                    </div>
-                                                <?php endif; ?>
-                                                <div class="notification-meta mt-2">
-                                                    <small class="text-muted">
-                                                        <?= date('M d, Y H:i', strtotime($notification['created_at'])) ?>
-                                                    </small>
-                                                </div>
-                                            </div>
-                                            <?php if (!$notification['is_read']): ?>
-                                                <button class="btn btn-sm btn-outline-primary mark-read" 
-                                                        data-notification-id="<?= $notification['id'] ?>">
-                                                    Mark as Read
-                                                </button>
-                                            <?php endif; ?>
-                                            <?php if ($notification['link']): ?>
-                                                <a href="<?= htmlspecialchars($notification['link']) ?>" 
-                                                   class="btn btn-sm btn-primary ms-2">View Details</a>
-                                            <?php endif; ?>
-                                        </div>
-                                    </div>
-                                </div>
-                            <?php endif; ?>
-                        <?php endforeach; ?>
-
-                        <!-- Active Service Requests -->
+                <h3>Service Requests</h3>
+                <div class="service-requests-list">
+                    <?php if (count($serviceRequests) > 0): ?>
                         <?php foreach ($serviceRequests as $request): ?>
                             <div class="card service-request-card mb-3">
                                 <div class="card-body">
-                                    <!-- ...existing service request card content... -->
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="card-title">
+                                                <?php if ($request['sender_photo']): ?>
+                                                    <img src="<?= htmlspecialchars($request['sender_photo']) ?>" alt="Profile" class="profile-photo">
+                                                <?php endif; ?>
+                                                <?= htmlspecialchars($request['username']) ?>
+                                            </h6>
+                                            <div class="service-details">
+                                                <span class="badge bg-info"><?= htmlspecialchars($request['service_name']) ?></span>
+                                                <small class="text-muted d-block mt-1">
+                                                    Requested: <?= date('M j, Y g:i a', strtotime($request['created_at'])) ?>
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <a href="service_requests.php?id=<?= $request['id'] ?>" 
+                                               class="btn btn-sm btn-outline-primary">View Details</a>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         <?php endforeach; ?>
                     <?php else: ?>
-                        <div class="alert alert-info" style="text-align: center;">No service requests or notifications found</div>
+                        <div class="alert alert-info" style="text-align: center;">No pending service requests</div>
                     <?php endif; ?>
-                    <a href="service_requests.php" class="btn btn-primary w-100 mt-2">View All Service Requests</a>
+                    <a href="service_requests.php" class="btn btn-primary btn-sm w-100">View All Requests</a>
                 </div>
-
             </div>
+
         </div>
     </div>
 

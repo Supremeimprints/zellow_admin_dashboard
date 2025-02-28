@@ -103,7 +103,7 @@ $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
         .stat-card {
             padding: 15px;
             border-radius: 6px;
-            background-color: white;
+            background-color: --bs-light;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
     </style>
@@ -116,7 +116,7 @@ $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
         </nav>
 
         <div class="main-content">
-            <div class="container mt-4">
+            <div class="container mt-5">
                 <h2 class="mb-4">Customer Feedback Management</h2>
 
                 <!-- Statistics Cards -->

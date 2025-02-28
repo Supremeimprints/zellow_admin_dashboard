@@ -13,26 +13,37 @@ if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
 $database = new Database();
 $db = $database->getConnection();
 
-// Update the date filter initialization section
-$today = date('Y-m-d');
-$defaultStartDate = date('Y-m-d', strtotime('-6 months'));
-
-$startDate = isset($_GET['start_date']) && strtotime($_GET['start_date']) 
-    ? date('Y-m-d', strtotime($_GET['start_date']))
-    : $defaultStartDate;
-
-$endDate = isset($_GET['end_date']) && strtotime($_GET['end_date']) 
-    ? date('Y-m-d', strtotime($_GET['end_date']))
-    : $today;
-
-// Validate date range
-if (strtotime($endDate) < strtotime($startDate)) {
-    $startDate = $defaultStartDate;
-    $endDate = $today;
+// Add this function to format dates for display
+function formatDateRange($startDate, $endDate) {
+    return date('Y-m-d', strtotime($startDate)) . ' - ' . date('Y-m-d', strtotime($endDate));
 }
 
+// Update date handling logic
+$defaultStartDate = date('Y-m-d', strtotime('-6 months'));
+$today = date('Y-m-d');
+
+// Get date range from URL or use defaults
+$date_range = isset($_GET['date_range']) ? $_GET['date_range'] : formatDateRange($defaultStartDate, $today);
+$date_parts = explode(' - ', $date_range);
+$startDate = isset($date_parts[0]) ? trim($date_parts[0]) : $defaultStartDate;
+$endDate = isset($date_parts[1]) ? trim($date_parts[1]) : $today;
+
+// Debug logging
+error_log("Date range received: $date_range");
+error_log("Parsed dates - Start: $startDate, End: $endDate");
+
+// Get date range with proper timestamps
+$dates = getDateRange($startDate, $endDate);
+
+// Use these dates for all queries
+$startDateTime = $dates['start'];
+$endDateTime = $dates['end'];
+
+// Debug logging
+error_log("Using date range: {$startDateTime} to {$endDateTime}");
+
 // Get analytics data with error handling
-$financialMetrics = getFinancialMetrics($db, $startDate, $endDate) ?? [
+$financialMetrics = getFinancialMetrics($db, $dates['start'], $dates['end']) ?? [
     'revenue' => 0,
     'expenses' => 0,
     'refunds' => 0,
@@ -43,13 +54,13 @@ $financialMetrics = getFinancialMetrics($db, $startDate, $endDate) ?? [
     'avg_order_value' => 0
 ];
 
-$customerMetrics = getCustomerMetrics($db, $startDate, $endDate) ?? [
+$customerMetrics = getCustomerMetrics($db, $dates['start'], $dates['end']) ?? [
     'active_customers' => 0,
     'customer_growth' => 0,
     'total_orders' => 0
 ];
 
-$transactionHistory = getTransactionHistory($db, $startDate, $endDate) ?? [];
+$transactionHistory = getTransactionHistory($db, $dates['start'], $dates['end']) ?? [];
 $revenueData = getRevenueData($db, $startDate, $endDate) ?? [];
 $topProducts = getTopProducts($db, $startDate, $endDate) ?? [];
 $categoryPerformance = getCategoryPerformance($db, $startDate, $endDate) ?? [];
@@ -94,6 +105,8 @@ function getStatusColor($status) {
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/analytics.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <style>
         .text-success {
             color: #10B981 !important;
@@ -163,15 +176,12 @@ function getStatusColor($status) {
             <div class="card mb-4">
                 <div class="card-body">
                     <form id="dateFilterForm" class="row g-3">
-                        <div class="col-md-4">
-                            <label class="form-label">Start Date</label>
-                            <input type="date" name="start_date" class="form-control" 
-                                   value="<?= htmlspecialchars($startDate) ?>">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">End Date</label>
-                            <input type="date" name="end_date" class="form-control"
-                                   value="<?= htmlspecialchars($endDate) ?>">
+                    <div class="col-md-4">
+                            <input type="text" class="form-control" name="date_range" 
+                                   placeholder="Select date range" id="date-range" 
+                                   value="<?= htmlspecialchars($date_range) ?>"
+                                   data-default-start="<?= $defaultStartDate ?>"
+                                   data-default-end="<?= $today ?>">
                         </div>
                         <div class="col-md-4 d-flex align-items-end">
                             <button type="submit" class="btn btn-primary me-2">Apply Filter</button>
@@ -420,7 +430,77 @@ function getStatusColor($status) {
 </div>
 
 <script>
-// Chart initialization code
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Flatpickr
+    const dateRangePicker = flatpickr("#date-range", {
+        mode: "range",
+        dateFormat: "Y-m-d",
+        maxDate: "today",
+        defaultDate: [
+            "<?= $startDate ?>", 
+            "<?= $endDate ?>"
+        ],
+        onChange: function(selectedDates) {
+            if (selectedDates.length === 2) {
+                refreshData(selectedDates[0], selectedDates[1]);
+            }
+        }
+    });
+
+    // Function to refresh all data
+    function refreshData(startDate = null, endDate = null) {
+        const params = new URLSearchParams();
+        
+        if (startDate && endDate) {
+            params.set('date_range', 
+                flatpickr.formatDate(startDate, "Y-m-d") + " - " + 
+                flatpickr.formatDate(endDate, "Y-m-d")
+            );
+        }
+
+        // Add loading state to cards
+        document.querySelectorAll('.card').forEach(card => {
+            card.style.opacity = '0.6';
+            card.style.pointerEvents = 'none';
+        });
+
+        // Show loading spinner
+        const spinner = document.createElement('div');
+        spinner.className = 'position-fixed top-50 start-50 translate-middle';
+        spinner.innerHTML = `
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        `;
+        document.body.appendChild(spinner);
+
+        // Reload the page with new parameters or clear parameters for reset
+        window.location.href = 'analytics.php' + (params.toString() ? '?' + params.toString() : '');
+    }
+
+    // Handle reset - now reloads entire page without parameters
+    document.getElementById('resetDates').addEventListener('click', function() {
+        refreshData(); // Call without parameters to reset everything
+    });
+
+    // Update form submission to use refreshData
+    document.getElementById('dateFilterForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const dateRange = document.querySelector('input[name="date_range"]').value;
+        if (dateRange) {
+            const [start, end] = dateRange.split(' - ');
+            refreshData(new Date(start), new Date(end));
+        }
+    });
+});
+
+// Add this to the existing export function
+function exportData(format) {
+    const currentParams = new URLSearchParams(window.location.search);
+    currentParams.append('export', format);
+    window.location.href = 'export_analytics.php?' + currentParams.toString();
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Revenue Chart
     const revenueCtx = document.getElementById('revenueChart').getContext('2d');
@@ -529,43 +609,51 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Date filter form handler
 document.addEventListener('DOMContentLoaded', function() {
-    const dateForm = document.getElementById('dateFilterForm');
-    const startDate = document.querySelector('input[name="start_date"]');
-    const endDate = document.querySelector('input[name="end_date"]');
-
-    // Set max date to today for both inputs
-    const today = new Date().toISOString().split('T')[0];
-    startDate.max = today;
-    endDate.max = today;
-
-    // Enforce date range validity
-    startDate.addEventListener('change', function() {
-        endDate.min = this.value;
-        if (endDate.value && endDate.value < this.value) {
-            endDate.value = this.value;
+    // Initialize Flatpickr
+    const dateRangePicker = flatpickr("#date-range", {
+        mode: "range",
+        dateFormat: "Y-m-d",
+        maxDate: "today",
+        defaultDate: [
+            "<?= $startDate ?>", 
+            "<?= $endDate ?>"
+        ],
+        onChange: function(selectedDates) {
+            if (selectedDates.length === 2) {
+                const startDate = selectedDates[0];
+                const endDate = selectedDates[1];
+                
+                // Update form and submit
+                document.querySelector('input[name="date_range"]').value = 
+                    formatDateRange(startDate, endDate);
+                document.getElementById('dateFilterForm').submit();
+            }
         }
     });
 
-    endDate.addEventListener('change', function() {
-        startDate.max = this.value;
-        if (startDate.value && startDate.value > this.value) {
-            startDate.value = this.value;
-        }
+    // Format date helper
+    function formatDateRange(start, end) {
+        return flatpickr.formatDate(start, "Y-m-d") + " - " + 
+               flatpickr.formatDate(end, "Y-m-d");
+    }
+
+    // Handle reset with proper date formatting
+    document.getElementById('resetDates').addEventListener('click', function() {
+        const input = document.getElementById('date-range');
+        const defaultStart = input.dataset.defaultStart;
+        const defaultEnd = input.dataset.defaultEnd;
+        
+        dateRangePicker.setDate([defaultStart, defaultEnd]);
+        input.value = formatDateRange(defaultStart, defaultEnd);
+        document.getElementById('dateFilterForm').submit();
     });
 
-    // Handle form submission
-    dateForm.addEventListener('submit', function(e) {
+    // Update charts when date range changes
+    document.getElementById('dateFilterForm').addEventListener('submit', function(e) {
         e.preventDefault();
         const formData = new FormData(this);
         const params = new URLSearchParams(formData);
         window.location.href = 'analytics.php?' + params.toString();
-    });
-
-    // Handle reset
-    document.getElementById('resetDates').addEventListener('click', function() {
-        startDate.value = '<?= $defaultStartDate ?>';
-        endDate.value = '<?= $today ?>';
-        dateForm.submit();
     });
 });
 

@@ -39,7 +39,18 @@ function setupMailer() {
     }
 }
 
-function sendPurchaseOrderEmail($db, $supplier_id, $purchase_order_id, $invoice_number, $total_amount, $orderProducts) {
+function sendPurchaseOrderEmail(
+    PDO $db,
+    int $supplier_id,
+    int $purchase_order_id,
+    float $total_amount,
+    array $orderProducts,
+    string $invoice_number  // Changed parameter name from transaction_id
+): bool {
+    if (empty($orderProducts)) {
+        throw new Exception('Order products array cannot be empty');
+    }
+    
     try {
         // Get supplier details
         $stmt = $db->prepare("SELECT email, company_name FROM suppliers WHERE supplier_id = ?");

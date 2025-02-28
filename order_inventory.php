@@ -4,6 +4,7 @@ require_once 'config/database.php';
 require_once 'includes/functions/email_functions.php'; // Make sure this line is present
 require_once 'config/mail.php';
 require_once 'includes/functions/mailer_helper.php';
+require_once 'includes/functions/purchase_order_functions.php';
 
 if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'admin') {
     header('Location: login.php');
@@ -110,28 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // Generate invoice number (e.g., INV-2023-001)
-        $invoice_number = 'INV-' . date('Y') . '-' . str_pad($purchase_order_id, 3, '0', STR_PAD_LEFT);
-
-        // Create invoice
-        $invoiceStmt = $db->prepare("
-            INSERT INTO invoices (
-                invoice_number,
-                supplier_id,
-                amount,
-                due_date,
-                status
-            ) VALUES (?, ?, ?, DATE_ADD(CURRENT_DATE, INTERVAL 30 DAY), 'Unpaid')
-        ");
-
-        $invoiceStmt->execute([
-            $invoice_number,
-            $supplier_id,
-            $total_amount
-        ]);
-
-        $invoice_id = $db->lastInsertId();
-
+       
         // Record expense
         $expenseStmt = $db->prepare("
             INSERT INTO expenses (
@@ -144,26 +124,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $expenseStmt->execute([
             $total_amount,
-            "Purchase Order #$purchase_order_id - Invoice #$invoice_number"
+            "Purchase Order #$purchase_order_id" // Remove invoice reference
         ]);
 
-        // Create initial payment record in purchase_payments instead of payments
+        // Generate invoice number using the same format as invoices table
+        $invoice_number = 'INV-' . date('Ymd-') . str_pad($purchase_order_id, 4, '0', STR_PAD_LEFT);
+
+        // Create initial payment record in purchase_payments
         $paymentStmt = $db->prepare("
             INSERT INTO purchase_payments (
                 purchase_order_id,
                 amount,
                 payment_method,
                 status,
-                transaction_id
-            ) VALUES (?, ?, 'Mpesa', 'Pending', ?)
+                transaction_id,
+                invoice_number  
+            ) VALUES (?, ?, 'Mpesa', 'Pending', ?, ?)
         ");
 
         $transaction_id = 'TRX-' . date('YmdHis') . '-' . rand(1000, 9999);
-        
+
         $paymentStmt->execute([
             $purchase_order_id,
             $total_amount,
-            $transaction_id
+            $transaction_id,
+            $invoice_number  // Use the generated invoice number
         ]);
 
         // Handle email sending outside of transaction
@@ -172,40 +157,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Prepare order products array for email
         $orderProducts = [];
-        foreach ($order_items as $item) {
-            if (!empty($item['quantity']) && !empty($item['unit_price'])) {
-                // Fetch product details
-                $stmt = $db->prepare("SELECT product_name FROM products WHERE product_id = ?");
-                $stmt->execute([$item['product_id']]);
-                $product = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                $orderProducts[] = [
-                    'product_name' => $product['product_name'],
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price'],
-                    'total' => $item['quantity'] * $item['unit_price']
-                ];
-            }
-        }
-
-        // Send email using the new mailer helper
         try {
+            // Fetch all order items with product details in one query
+            $orderItemsQuery = $db->prepare("
+                SELECT 
+                    poi.*,
+                    p.product_name,
+                    (poi.quantity * poi.unit_price) as total
+                FROM purchase_order_items poi
+                JOIN products p ON poi.product_id = p.product_id
+                WHERE poi.purchase_order_id = ?
+            ");
+            
+            $orderItemsQuery->execute([$purchase_order_id]);
+            $orderProducts = $orderItemsQuery->fetchAll(PDO::FETCH_ASSOC);
+
+            // Send email using the mailer helper
             require_once 'includes/functions/mailer_helper.php';
             
             sendPurchaseOrderEmail(
                 $db,
                 $supplier_id,
                 $purchase_order_id,
-                $invoice_number,
                 $total_amount,
-                $orderProducts
+                $orderProducts,
+                $invoice_number  // Pass invoice_number instead of transaction_id
             );
             
-            $success = "Purchase order created successfully! Order ID: $purchase_order_id, Invoice: $invoice_number";
+            $success = "Purchase order #$purchase_order_id created successfully!";
             
         } catch (Exception $e) {
             error_log("Email sending failed: " . $e->getMessage());
-            $success = "Purchase order created successfully! Order ID: $purchase_order_id, Invoice: $invoice_number (Email notification failed: " . $e->getMessage() . ")";
+            $success = "Purchase order #$purchase_order_id created successfully! (Email notification failed: " . $e->getMessage() . ")";
         }
 
     } catch (Exception $e) {

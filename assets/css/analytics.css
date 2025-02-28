@@ -95,10 +95,26 @@ table .transaction-badge.bg-success {
     color: #8B5CF6 !important;
 }
 
+.transaction-badge[data-type="invoice payment"] {
+    background-color: var(--bs-primary);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
 .transaction-reference {
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.875rem;
     color: #495057;
+}
+
+.transaction-reference a {
+    color: #6f42c1;
+}
+
+.transaction-reference a:hover {
+    color: #553098;
 }
 
 .transaction-details {
@@ -177,6 +193,10 @@ table .transaction-badge.bg-success {
     font-size: 0.75rem;
     color: #6c757d;
     font-family: var(--bs-body-font-family);
+}
+
+.transaction-reference .text-muted {
+    font-size: 0.75rem;
 }
 
 .transaction-amount {
@@ -272,4 +292,115 @@ table .transaction-badge.bg-success {
 .transaction-badge[data-type="discount"] {
     background-color: rgba(139, 92, 246, 0.1) !important;
     color: #8B5CF6 !important;
+}
+
+/* Transaction table styles */
+.badge.bg-primary-soft {
+    background-color: rgba(13, 110, 253, 0.1);
+    color: #0d6efd;
+}
+
+.badge.bg-info-soft {
+    background-color: rgba(13, 202, 240, 0.1);
+    color: #0dcaf0;
+}
+
+.badge.bg-success-soft {
+    background-color: rgba(25, 135, 84, 0.1);
+    color: #198754;
+}
+
+.badge.bg-warning-soft {
+    background-color: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+}
+
+.badge.bg-secondary-soft {
+    background-color: rgba(108, 117, 125, 0.1);
+    color: #6c757d;
+}
+
+.badge {
+    font-weight: 500;
+    padding: 0.5em 0.75em;
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.35em 0.65em;
+}
+
+.bg-opacity-10 {
+    --bs-bg-opacity: 0.1;
+}
+
+.bg-purple {
+    background-color: #6f42c1;
+}
+
+.numeric-cell {
+    font-family: 'JetBrains Mono', monospace;
+    text-align: right;
+}
+
+/* Status badge styles */
+.bg-success-soft {
+    background-color: rgba(25, 135, 84, 0.1) !important;
+}
+
+.bg-warning-soft {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+}
+
+.bg-info-soft {
+    background-color: rgba(13, 202, 240, 0.1) !important;
+}
+
+.bg-secondary-soft {
+    background-color: rgba(108, 117, 125, 0.1) !important;
+}
+
+/* Dark mode compatibility */
+[data-bs-theme="dark"] .bg-opacity-10 {
+    opacity: 0.2;
+}
+
+[data-bs-theme="dark"] .text-muted {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+/* Add to your existing style section */
+.transaction-badge[data-type="invoice payment"] {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #10B981;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.transaction-amount.invoice.payment {
+    color: #10B981;
+}
+
+/* Add these styles to your existing CSS */
+.loading {
+    position: relative;
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 2rem;
+    height: 2rem;
+    border: 3px solid #f3f3f3;
+    border-radius: 50%;
+    border-top: 3px solid #3498db;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
 }

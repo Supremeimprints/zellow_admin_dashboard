@@ -43,9 +43,13 @@ $assignmentStmt = $db->prepare($query);
         <?php include 'includes/theme.php'; ?>
         
         <div class="main-content">
-            <div class="container-fluid">
-                <h2 class="mb-4">Technicians Management</h2>
-                
+        <div class="container mt-5">
+        <div class="d-flex align-items-center mb-4">
+                    <a href="index.php" class="btn btn-light me-2">
+                        <i class="fas fa-arrow-left"></i>
+                    </a>
+                <h2 class="mb-0">Technicians Management</h2>
+                </div>
                 <div class="row">
                     <div class="col-md-4">
                         <div class="card">

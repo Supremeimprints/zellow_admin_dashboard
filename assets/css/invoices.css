@@ -1,0 +1,150 @@
+.card {
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.table {
+    vertical-align: middle;
+}
+
+.table td {
+    vertical-align: middle;
+    padding: 1rem;
+}
+
+.status-badge {
+    min-width: 100px;
+    text-align: center;
+}
+
+.filter-card {
+    background-color: #f8f9fa;
+    border: none;
+    border-radius: 10px;
+}
+
+.hover-card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.hover-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.card-body .opacity-50 {
+    opacity: 0.5;
+}
+
+.card h3 {
+    font-size: 1.8rem;
+    font-weight: 600;
+}
+
+.card-title {
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.invoice-detail-card {
+    border: none;
+    box-shadow: 0 0 20px rgba(0,0,0,0.1);
+}
+
+.payment-history {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.payment-amount {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #28a745;
+}
+
+.remaining-amount {
+    font-size: 1.2rem;
+    color: #dc3545;
+}
+
+.payment-status {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+.status-Pending {
+    background-color: #ffeeba;
+    color: #856404;
+}
+
+.status-Partially-Paid {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.status-Paid {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.badge {
+    font-size: 0.85rem;
+    padding: 0.5em 0.8em;
+}
+
+.table tr:hover {
+    background-color: rgba(0,0,0,0.02);
+}
+
+.text-muted {
+    color: #6c757d !important;
+}
+
+.text-success {
+    color: #28a745 !important;
+}
+
+.text-danger {
+    color: #dc3545 !important;
+}
+
+/* Add these dark mode compatible styles */
+.due-date-text {
+    color: var(--bs-body-color);
+}
+
+.due-date-text.overdue {
+    color: var(--bs-danger);
+}
+
+.overdue-label {
+    color: var(--bs-danger);
+    font-weight: 500;
+}
+
+/* Dark mode overrides */
+[data-bs-theme="dark"] .due-date-text {
+    color: var(--bs-light);
+}
+
+[data-bs-theme="dark"] .due-date-text.overdue {
+    color: #ff6b6b;
+}
+
+[data-bs-theme="dark"] .overdue-label {
+    color: #ff6b6b;
+}
+
+/* Ensure text contrast in dark mode */
+[data-bs-theme="dark"] .text-dark {
+    color: var(--bs-light) !important;
+}
+
+[data-bs-theme="dark"] .text-muted {
+    color: #9ca3af !important;
+}

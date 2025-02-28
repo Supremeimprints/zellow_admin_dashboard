@@ -168,7 +168,121 @@ form {
 
 /* Remove the fadeOut keyframes */
 
-/* ...existing code... */
+/* Adjust section sizes */
+.alerts-section {
+    width: 25%;
+    padding: 1rem;
+}
+
+/* Stock Alerts Section */
+.alert-list {
+    max-height: 250px;
+    overflow-y: auto;
+    margin-bottom: 2rem;
+}
+
+/* Stock Alert styling with dark mode support */
+.stock-alert {
+    background-color: var(--warning-bg, rgba(255, 193, 7, 0.2));
+    border: 1px solid var(--warning-border, rgba(255, 193, 7, 0.3));
+}
+
+.stock-alert-link {
+    text-decoration: none;
+    color: var(--text-color);
+}
+
+.stock-alert-link:hover {
+    color: var(--text-color);
+    opacity: 0.9;
+}
+
+.stock-alert strong {
+    color: var(--text-color);
+}
+
+.stock-alert .small {
+    color: var(--text-muted, rgba(33, 37, 41, 0.75));
+}
+
+/* Feedback Section */
+.feedback-list {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 2rem;
+}
+
+/* Service Requests Section */
+.service-requests-list {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 1rem;
+    padding-right: 5px;
+}
+
+/* Card styling improvements */
+.card {
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.card-body {
+    padding: 1rem;
+}
+
+/* Section headers */
+.alerts-section h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 1.5rem 0 1rem;
+}
+
+.alerts-section h3:first-child {
+    margin-top: 0;
+}
+
+/* Compact alert styling */
+.alert {
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+}
+
+/* Feedback card specific */
+.feedback-list .card {
+    background-color: var(--container-bg);
+}
+
+.feedback-list .card-body {
+    padding: 0.875rem;
+}
+
+.feedback-list .card-title {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Service request card specific */
+.service-notification {
+    background-color: var(--container-bg);
+}
+
+.service-notification .card-body {
+    padding: 0.875rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+    .alerts-section {
+        width: 30%;
+    }
+}
+
+@media (max-width: 992px) {
+    .alerts-section {
+        width: 35%;
+    }
+}
 
 .invoice-section {
     border: 1px solid var(--border-color);
@@ -233,4 +347,29 @@ form {
     color: var(--paid-text);
 }
 
-/* ...existing code... */
+/* Service request card improvements */
+.service-request-card {
+    border: 1px solid var(--border-color);
+    transition: transform 0.2s;
+}
+
+.service-request-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.service-request-card .profile-photo {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.service-request-card .service-details {
+    margin-top: 0.5rem;
+}
+
+.service-request-card .badge {
+    font-size: 0.75rem;
+    padding: 0.35em 0.65em;
+}

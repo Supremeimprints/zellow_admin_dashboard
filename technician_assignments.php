@@ -45,6 +45,28 @@ $assignments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="assets/css/styles.css">
+
+<!-- Add this CSS to your existing style section -->
+<style>
+    .btn-light {
+        background-color: #f8f9fa;
+        border-color: #dee2e6;
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        transition: all 0.2s;
+    }
+
+    .btn-light:hover {
+        background-color: #e9ecef;
+        border-color: #dee2e6;
+        transform: translateX(-2px);
+    }
+
+    .fa-arrow-left {
+        font-size: 1.1rem;
+        color: #6c757d;
+    }
+</style>
 </head>
 <body>
     <div class="admin-layout">
@@ -52,8 +74,14 @@ $assignments = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <?php include 'includes/theme.php'; ?>
         
         <div class="main-content">
-            <div class="container-fluid">
-                <h2 class="mb-4">Assignments for <?= htmlspecialchars($technician['name']) ?></h2>
+            <div class="container mt-5">
+                <!-- Add this header section -->
+                <div class="d-flex align-items-center mb-4">
+                    <a href="technicians.php" class="btn btn-light me-3">
+                        <i class="fas fa-arrow-left"></i>
+                    </a>
+                    <h2 class="mb-0">Assignments for <?= htmlspecialchars($technician['name']) ?></h2>
+                </div>
                 
                 <div class="card">
                     <div class="card-body">
