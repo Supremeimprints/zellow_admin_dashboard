@@ -1,66 +1,55 @@
 <?php
 session_start();
-
-// If already logged in, redirect to appropriate page
-if (isset($_SESSION['id']) && $_SESSION['role'] === 'admin') {
-    header('Location: index.php');
-    exit();
-}
-
 require_once 'config/database.php';
+
+// Initialize variables
 $error = '';
-$success = '';
+$email = '';
 
-// Handle login only
+// Only process POST request
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim($_POST['email']);
-    $password = trim($_POST['password']);
+    // Get and validate form data
+    $email = filter_var($_POST['email'] ?? '', FILTER_VALIDATE_EMAIL);
+    $password = $_POST['password'] ?? '';
 
-    $database = new Database();
-    $db = $database->getConnection();
-
-    $query = "SELECT id, email, password, role FROM users WHERE email = ?";
-    $stmt = $db->prepare($query);
-    $stmt->execute([$email]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if ($user && password_verify($password, $user['password'])) {
-        $_SESSION['email'] = $user['email'];
-        $_SESSION['id'] = $user['id'];
-        $_SESSION['logged_in'] = true;
-        $_SESSION['role'] = $user['role'];
-        
-        switch ($user['role']) {
-            case 'admin':
-                header("Location: index.php");
-                break;
-            case 'finance_manager':
-                header("Location: Financedashboard.php");
-                break;
-            case 'dispatch_manager':
-                header("Location: dispatch.php");
-                break;
-                case 'inventory_manager':
-                    header("Location: placeholder.php");
-                    break;
-            // Add other cases as needed
-            default:
-                header("Location: placeholder.php");
-                break;
-        }
-        exit();
+    if (!$email || empty($password)) {
+        $error = 'Please enter both email and password.';
     } else {
-        $error = "Invalid email or password.";
+        try {
+            $database = new Database();
+            $db = $database->getConnection();
+
+            // Prepare query
+            $stmt = $db->prepare("SELECT id, username, password, role FROM users WHERE email = ? AND status = 'active'");
+            $stmt->execute([$email]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($user && password_verify($password, $user['password'])) {
+                // Set session variables
+                $_SESSION['id'] = $user['id'];
+                $_SESSION['username'] = $user['username'];
+                $_SESSION['role'] = $user['role'];
+                
+                // Redirect based on role
+                if ($user['role'] === 'admin') {
+                    header('Location: index.php');
+                } else {
+                    header('Location: dashboard.php');
+                }
+                exit();
+            } else {
+                $error = 'Invalid email or password.';
+            }
+        } catch (Exception $e) {
+            error_log("Login error: " . $e->getMessage());
+            $error = 'An error occurred during login. Please try again.';
+        }
     }
 }
-
-
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    
     <meta charset="UTF-8">
     <title>Sign In & Sign Up</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.14.0/css/all.min.css">
@@ -73,20 +62,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php endif; ?>
     <div class="container" id="container">
         <div class="form-container sign-in-container">
-            <form method="POST">
+            <form method="POST" action="">
                 <h1>Log in</h1>
                 <p class="muted">Enter your email & password to access your account.</p>
-                <input type="email" name="email" placeholder="Email" required />
-                <input type="password" name="password" placeholder="Password" required />
-                <?php if (!empty($error)): ?>
-                    <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+                
+                <?php if ($error): ?>
+                    <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
                 <?php endif; ?>
-                <a href="">Forgot Password?</a>
+
+                <input type="email" 
+                       name="email" 
+                       placeholder="Email" 
+                       value="<?= htmlspecialchars($email) ?>"
+                       required />
+                       
+                <input type="password" 
+                       name="password" 
+                       placeholder="Password" 
+                       required />
+                       
+                <a href="forgot_password.php">Forgot Password?</a>
                 <button type="submit">Sign In</button>
             </form>
         </div>
-          </div>
+    </div>
     <script src="assets/js/sign_up.js"></script>
 </body>
-
 </html>
