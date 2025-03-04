@@ -1,11 +1,17 @@
 <?php
+// Required PHP core extensions/functions
+if (!extension_loaded('Core')) {
+    throw new Exception('PHP Core extension is required');
+}
 
-// Add required PHP core functions
-if (!function_exists('error_log')) {
-    function error_log($message) {
-        // Implement error logging as needed
-        file_put_contents(__DIR__ . '/../../logs/error.log', date('Y-m-d H:i:s') . ' - ' . $message . "\n", FILE_APPEND);
-    }
+// Standard PHP Library (SPL) functions
+if (!extension_loaded('SPL')) {
+    throw new Exception('SPL extension is required');
+}
+
+// File handling functions
+if (!extension_loaded('standard')) {
+    throw new Exception('Standard PHP extension is required');
 }
 
 // Required core PHP functions - Fix paths to be relative to current file
@@ -15,31 +21,90 @@ require_once __DIR__ . '/email_functions.php';
 require_once __DIR__ . '/notification_functions.php';
 require_once __DIR__ . '/service_functions.php';
 
-// Ensure helper functions file exists
-if (!file_exists(__DIR__ . '/../../includes/functions/helper_functions.php')) {
-    // Create helper_functions.php if it doesn't exist
-    file_put_contents(__DIR__ . '/../../includes/functions/helper_functions.php', '<?php
-        // Helper functions used across the application
-        function getStatusBadgeClass($status, $type) {
-            // Implementation
-            return "badge bg-" . strtolower($status);
-        }
+// Create logs directory if it doesn't exist
+$logsDir = __DIR__ . '/../../logs';
+if (!is_dir($logsDir)) {
+    mkdir($logsDir, 0755, true);
+}
 
-        function assignTechnician($db, $serviceRequestId, $technicianId) {
-            // Implementation
-            return true;
-        }
+// Helper function to ensure consistent error logging
+function logError($message) {
+    $logFile = __DIR__ . '/../../logs/error.log';
+    $timestamp = date('Y-m-d H:i:s');
+    error_log("[$timestamp] $message\n", 3, $logFile);
+}
 
-        function sendEmail($to, $subject, $body) {
-            // Implementation
-            return true;
-        }
+function getServicePrice($db, $service_id) {
+    $stmt = $db->prepare("SELECT price FROM services WHERE id = ? AND status = 'active'");
+    $stmt->execute([$service_id]);
+    return (float)$stmt->fetchColumn() ?: 0;
+}
 
-        function getServiceNotificationTemplate($details) {
-            // Implementation
-            return "";
+function calculateOrderTotals($orderData) {
+    $totals = [
+        'products_subtotal' => 0,
+        'services_subtotal' => 0,
+        'shipping_fee' => $orderData['shipping_fee'] ?? 0,
+        'discount_amount' => 0,
+        'gift_wrap_total' => 0,
+        'final_total' => 0
+    ];
+
+    // Calculate products subtotal
+    if (!empty($orderData['products'])) {
+        foreach ($orderData['products'] as $product) {
+            $quantity = (int)$product['quantity'];
+            $unit_price = (float)$product['unit_price'];
+            $totals['products_subtotal'] += ($quantity * $unit_price);
+
+            // Add gift wrap cost if applicable
+            if (!empty($product['is_gift']) && !empty($product['gift_wrap_style_id'])) {
+                $wrap_cost = getGiftWrapCostById($orderData['db'], $product['gift_wrap_style_id']);
+                $totals['gift_wrap_total'] += ($wrap_cost * $quantity);
+            }
         }
-    ?>');
+    }
+
+    // Calculate services subtotal
+    if (!empty($orderData['services'])) {
+        foreach ($orderData['services'] as $service_id) {
+            $totals['services_subtotal'] += getServicePrice($orderData['db'], $service_id);
+        }
+    }
+
+    // Calculate subtotal before discount
+    $subtotal = $totals['products_subtotal'] + $totals['services_subtotal'];
+
+    // Apply discount if coupon exists
+    if (!empty($orderData['coupon_code'])) {
+        $couponResult = validateAndApplyCoupon(
+            $orderData['db'],
+            $orderData['coupon_code'],
+            $orderData['customer_id'],
+            $subtotal
+        );
+        
+        if ($couponResult['valid']) {
+            if ($couponResult['discount_type'] === 'percentage') {
+                $totals['discount_amount'] = ($subtotal * $couponResult['discount_value']) / 100;
+            } else {
+                $totals['discount_amount'] = $couponResult['discount_value'];
+            }
+        }
+    }
+
+    // Calculate final total
+    $totals['final_total'] = $subtotal + 
+                            $totals['shipping_fee'] + 
+                            $totals['gift_wrap_total'] - 
+                            $totals['discount_amount'];
+
+    // Round all amounts to 2 decimal places
+    array_walk($totals, function(&$value) {
+        $value = round($value, 2);
+    });
+
+    return $totals;
 }
 
 function getOrderStatistics($db, $type = 'all') {
@@ -86,7 +151,7 @@ function getOrderStatistics($db, $type = 'all') {
         
         return $stats;
     } catch (PDOException $e) {
-        error_log("Error getting order statistics: " . $e->getMessage());
+        logError("Error getting order statistics: " . $e->getMessage());
         return [];
     }
 }
@@ -236,7 +301,7 @@ function updateOrderStatus($db, $orderId, $newStatus, $paymentStatus = null) {
 
     } catch (Exception $e) {
         $db->rollBack();
-        error_log('Order status update error: ' . $e->getMessage());
+        logError('Order status update error: ' . $e->getMessage());
         return false;
     }
 }
@@ -304,7 +369,7 @@ function processPayment($db, $orderId, $paymentDetails) {
 
     } catch (Exception $e) {
         $db->rollBack();
-        error_log('Payment processing error: ' . $e->getMessage());
+        logError('Payment processing error: ' . $e->getMessage());
         return false;
     }
 }
@@ -490,7 +555,7 @@ function getServiceRequests($db) {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
         // Log error and return empty array
-        error_log("Error fetching service requests: " . $e->getMessage());
+        logError("Error fetching service requests: " . $e->getMessage());
         return [];
     }
 }
@@ -546,7 +611,7 @@ function createServiceRequest($db, $orderId, $productId, $customizationType, $me
         
         return $serviceRequestId;
     } catch (Exception $e) {
-        error_log("Error creating service request: " . $e->getMessage());
+        logError("Error creating service request: " . $e->getMessage());
         return false;
     }
 }
@@ -556,10 +621,17 @@ function createOrderWithServices($db, $orderData, $products) {
         $db->beginTransaction();
         
         // Calculate total amount including services
-        $orderTotals = calculateOrderTotals($db, $products, $orderData['shipping_fee']);
+        $orderTotals = calculateOrderTotals([
+            'db' => $db,
+            'products' => $products,
+            'shipping_fee' => $orderData['shipping_fee'],
+            'services' => $orderData['services'] ?? [],
+            'coupon_code' => $orderData['coupon_code'] ?? null,
+            'customer_id' => $orderData['customer_id']
+        ]);
         
         // Update order data with calculated totals
-        $orderData['total_amount'] += $orderTotals['special_services']; // Add service costs to total
+        $orderData['total_amount'] = $orderTotals['final_total'];
         
         // Insert order
         $orderId = insertOrder($db, $orderData);
@@ -593,7 +665,7 @@ function createOrderWithServices($db, $orderData, $products) {
         return $orderId;
     } catch (Exception $e) {
         $db->rollBack();
-        error_log("Error creating order with services: " . $e->getMessage());
+        logError("Error creating order with services: " . $e->getMessage());
         throw $e;
     }
 }
@@ -604,59 +676,6 @@ function calculateCustomizationCost($type, $quantity = 1) {
         'printing' => 300
     ];
     return ($costs[$type] ?? 0) * $quantity;
-}
-
-function calculateOrderTotals($db, $items, $shipping_fee = 0, $isOrderItems = false) {
-    $totals = [
-        'subtotal' => 0,
-        'products_subtotal' => 0,
-        'service_costs' => 0,
-        'special_services' => 0,
-        'gift_wrap_total' => 0,
-        'shipping_fee' => $shipping_fee,
-        'total' => 0
-    ];
-    
-    if ($isOrderItems) {
-        // Handle existing order items
-        foreach ($items as $item) {
-            $totals['products_subtotal'] += $item['subtotal'];
-            $totals['service_costs'] += $item['service_cost'];
-        }
-        $totals['subtotal'] = $totals['products_subtotal'];
-        $totals['special_services'] = $totals['service_costs'];
-    } else {
-        // Handle new order products
-        foreach ($items as $item) {
-            $quantity = (int)$item['quantity'];
-            $unit_price = (float)$item['unit_price'];
-            
-            // Base product cost
-            $totals['products_subtotal'] += ($quantity * $unit_price);
-            
-            // Special services cost
-            if (!empty($item['special_request']) && !empty($item['service_type'])) {
-                $service_cost = $item['service_type'] === 'engraving' ? 500 : 300;
-                $totals['special_services'] += $service_cost;
-                $totals['service_costs'] += $service_cost;
-            }
-            
-            // Gift wrap cost if applicable
-            if (!empty($item['is_gift']) && !empty($item['gift_wrap_style_id'])) {
-                $wrap_cost = getGiftWrapCostById($db, $item['gift_wrap_style_id']);
-                $totals['gift_wrap_total'] += ($wrap_cost * $quantity);
-            }
-        }
-        $totals['subtotal'] = $totals['products_subtotal'];
-    }
-    
-    // Calculate final total
-    $totals['total'] = $totals['subtotal'] + 
-                       $totals['special_services'] + 
-                       $totals['gift_wrap_total'] + 
-                       $totals['shipping_fee'];
-    
-    return $totals;
 }
 
 function formatServiceDetails($serviceType, $serviceCost) {
@@ -687,7 +706,7 @@ function sendTechnicianNotification($db, $technician_id, $request_id) {
     $email = $stmt->fetchColumn();
     
     if (!$email) {
-        error_log("Could not find technician email for ID: $technician_id");
+        logError("Could not find technician email for ID: $technician_id");
         return false;
     }
     
@@ -697,7 +716,7 @@ function sendTechnicianNotification($db, $technician_id, $request_id) {
     $request = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$request) {
-        error_log("Could not find service request for ID: $request_id");
+        logError("Could not find service request for ID: $request_id");
         return false;
     }
     
@@ -892,7 +911,7 @@ function insertOrder($db, $orderData) {
 
         return $db->lastInsertId();
     } catch (PDOException $e) {
-        error_log("Error inserting order: " . $e->getMessage());
+        logError("Error inserting order: " . $e->getMessage());
         throw $e;
     }
 }
@@ -946,7 +965,54 @@ function insertOrderItem($db, $orderId, $product) {
 
         return $db->lastInsertId();
     } catch (PDOException $e) {
-        error_log("Error inserting order item: " . $e->getMessage());
+        logError("Error inserting order item: " . $e->getMessage());
         throw $e;
     }
+}
+
+function handleGiftOrder($db, $orderData) {
+    if (!empty($orderData['is_gift'])) {
+        $giftData = [
+            'order_id' => $orderData['order_id'],
+            'recipient_name' => $orderData['giftee_name'],
+            'recipient_email' => $orderData['giftee_email'],
+            'message' => $orderData['gift_message'],
+            'hide_prices' => !empty($orderData['hide_prices']),
+            'created_at' => date('Y-m-d H:i:s')
+        ];
+
+        $stmt = $db->prepare("
+            INSERT INTO gift_orders (
+                order_id, 
+                recipient_name, 
+                recipient_email, 
+                message, 
+                hide_prices, 
+                created_at
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        ");
+
+        $stmt->execute([
+            $giftData['order_id'],
+            $giftData['recipient_name'],
+            $giftData['recipient_email'],
+            $giftData['message'],
+            $giftData['hide_prices'],
+            $giftData['created_at']
+        ]);
+
+        // Send gift notification email
+        sendGiftNotification(
+            $db,
+            $orderData['order_id'],
+            $giftData['recipient_email'],
+            $giftData['recipient_name'],
+            $giftData['message'],
+            $giftData['hide_prices']
+        );
+
+        return $giftData;
+    }
+
+    return null;
 }

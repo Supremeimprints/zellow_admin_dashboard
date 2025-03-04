@@ -27,6 +27,20 @@ try {
     $error = "Error fetching products: " . $e->getMessage();
 }
 
+// Add this after fetching products
+try {
+    // Fetch active services from the catalog
+    $serviceQuery = "SELECT id, name, description, price, status 
+                    FROM services 
+                    WHERE status = 'active'
+                    ORDER BY name";
+    $serviceStmt = $db->prepare($serviceQuery);
+    $serviceStmt->execute();
+    $services = $serviceStmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    $error = "Error fetching services: " . $e->getMessage();
+}
+
 // Add this after database connection
 $promotionsQuery = "SELECT * FROM marketing_campaigns WHERE status = 'active' AND CURDATE() BETWEEN start_date AND end_date";
 $couponsQuery = "SELECT * FROM coupons 
@@ -334,6 +348,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
         }
 
+        // Insert order services
+        if (!empty($selected_services)) {
+            $serviceOrderStmt = $db->prepare("INSERT INTO order_services (
+                order_id,
+                service_id,
+                price,
+                status,
+                created_at
+            ) VALUES (?, ?, ?, 'pending', CURRENT_TIMESTAMP)");
+
+            foreach ($selected_services as $service_id) {
+                $serviceStmt = $db->prepare("SELECT price FROM services WHERE id = ?");
+                $serviceStmt->execute([$service_id]);
+                $service_price = $serviceStmt->fetchColumn();
+
+                $serviceOrderStmt->execute([
+                    $orderId,
+                    $service_id,
+                    $service_price
+                ]);
+            }
+        }
+
         $db->commit();
         $_SESSION['success'] = "Order created successfully!";
         header('Location: orders.php');
@@ -387,6 +424,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .form-control, .form-select {
             font-family: 'Montserrat', sans-serif;
         }
+        .btn-link {
+            text-decoration: none;
+            color: var(--bs-body-color);
+            transition: transform 0.2s;
+        }
+        
+        .btn-link[aria-expanded="true"] .fa-chevron-down {
+            transform: rotate(180deg);
+        }
+        
+        .fa-chevron-down {
+            transition: transform 0.2s;
+        }
+        
+        #servicesCollapse {
+            transition: all 0.3s ease-in-out;
+        }
     </style>
 </head>
 <body>
@@ -396,7 +450,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php include 'includes/nav/collapsed.php'; ?>
     </nav>
     <div class="main-content">
-        <div class="container-fluid p-3">
+        <div class="container mt-5">
             <div class="row g-3">
                 <div class="col-12">
                     <h2>Create New Order</h2>
@@ -407,15 +461,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <form method="POST" class="needs-validation" novalidate>
                         <div class="form-section">
-                            <h4 class="mb-3">Customer Information</h4>
+                           
                             <div class="row g-3">
+                                <!-- Customer Information Column -->
                                 <div class="col-md-6">
-                                    <label for="email" class="form-label">Email</label>
-                                    <input type="email" name="email" id="email" class="form-control" required>
+                                    <div class="card h-100">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">Customer Information</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label for="email" class="form-label">Email</label>
+                                                <input type="email" name="email" id="email" class="form-control" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="username" class="form-label">Username</label>
+                                                <input type="text" name="username" id="username" class="form-control" required>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
+
+                                <!-- Giftee Information Column -->
                                 <div class="col-md-6">
-                                    <label for="username" class="form-label">Username</label>
-                                    <input type="text" name="username" id="username" class="form-control" required>
+                                    <div class="card h-100">
+                                        <div class="card-header d-flex justify-content-between align-items-center">
+                                            <h5 class="mb-0">Giftee Information</h5>
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" 
+                                                       id="enableGiftee" name="is_gift" 
+                                                       onchange="toggleGifteeFields(this.checked)">
+                                                <label class="form-check-label" for="enableGiftee">
+                                                    This is a gift
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="gifteeFields" style="opacity: 0.5; pointer-events: none;">
+                                                <div class="mb-3">
+                                                    <label for="giftee_name" class="form-label">Recipient Name</label>
+                                                    <input type="text" name="giftee_name" id="giftee_name" 
+                                                           class="form-control">
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="giftee_email" class="form-label">Recipient Email</label>
+                                                    <input type="email" name="giftee_email" id="giftee_email" 
+                                                           class="form-control">
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="gift_message" class="form-label">Gift Message</label>
+                                                    <textarea name="gift_message" id="gift_message" 
+                                                              class="form-control" rows="2"></textarea>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input type="checkbox" class="form-check-input" 
+                                                           id="hide_prices" name="hide_prices">
+                                                    <label class="form-check-label" for="hide_prices">
+                                                        Hide prices in recipient email
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -450,68 +557,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     </div>
                                     <div class="col-md-12 text-end">
                                         <button type="button" class="btn btn-danger remove-product">Remove</button>
-                                    </div>
-                                    <!-- Add service request section -->
-                                    <div class="col-12 mt-3 service-request-section">
-                                        <div class="card">
-                                            <div class="card-body">
-                                                <div class="form-check mb-3">
-                                                    <input type="checkbox" class="form-check-input service-toggle" 
-                                                           id="service_request_0" name="products[0][request_service]">
-                                                    <label class="form-check-label" for="service_request_0">
-                                                        Add Service Request (Engraving/Printing)
-                                                    </label>
-                                                </div>
-                                                
-                                                <div class="service-options" style="display: none;">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Service Type</label>
-                                                        <select class="form-select service-type-select" 
-                                                                name="products[0][service_type]">
-                                                            <option value="">Select Service</option>
-                                                            <option value="engraving" data-price="500">Engraving (Ksh 500)</option>
-                                                            <option value="printing" data-price="300">Printing (Ksh 300)</option>
-                                                        </select>
-                                                    </div>
-                                                    
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Service Details</label>
-                                                        <textarea class="form-control" 
-                                                                name="products[0][service_message]" 
-                                                                rows="2" 
-                                                                placeholder="Describe your customization requirements"></textarea>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row mt-3">
-                            <div class="col-md-6 ms-auto">
-                                <div class="card">
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between mb-2">
-                                            <span class="text-muted">Subtotal:</span>
-                                            <span class="text-muted" id="subtotal">Ksh. 0.00</span>
-                                        </div>
-                                        <div class="d-flex justify-content-between mb-2" id="discountRow" style="display: none;">
-                                            <span class="text-danger">Discount:</span>
-                                            <span class="text-danger" id="discount">-Ksh. 0.00</span>
-                                        </div>
-                                        <div class="d-flex justify-content-between mb-2">
-                                            <span class="text-muted">Shipping Fee:</span>
-                                            <span class="text-muted" id="shipping_fee">Ksh. 0.00</span>
-                                        </div>                                        <div class="d-flex justify-content-between mb-2">
-                                            <span class="text-muted">Service Costs:</span>
-                                            <span class="text-muted" id="service-costs">Ksh. 0.00</span>
-                                        </div>
-                                        <div class="d-flex justify-content-between">
-                                            <strong>Total:</strong>
-                                            <strong id="total">Ksh. 0.00</strong>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -609,6 +654,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </div>
                         </div>
 
+                        <div class="form-section">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <h4 class="mb-0">Additional Services</h4>
+                                <button class="btn btn-link p-0" 
+                                        type="button" 
+                                        data-bs-toggle="collapse" 
+                                        data-bs-target="#servicesCollapse" 
+                                        aria-expanded="false">
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                            </div>
+                            <div class="collapse" id="servicesCollapse">
+                                <div class="row">
+                                    <?php foreach ($services as $service): ?>
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <div class="form-check d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <input type="checkbox" 
+                                                               class="form-check-input service-checkbox" 
+                                                               id="service_<?= $service['id'] ?>" 
+                                                               name="services[]"
+                                                               value="<?= $service['id'] ?>"
+                                                               data-price="<?= $service['price'] ?>">
+                                                        <label class="form-check-label" for="service_<?= $service['id'] ?>">
+                                                            <?= htmlspecialchars($service['name']) ?>
+                                                        </label>
+                                                    </div>
+                                                    <span class="badge bg-primary">Ksh. <?= number_format($service['price'], 2) ?></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mt-3">
+                            <div class="col-md-6 ms-auto">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span class="text-muted">Products Subtotal:</span>
+                                            <span class="text-muted" id="products-subtotal">Ksh. 0.00</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span class="text-muted">Services Subtotal:</span>
+                                            <span class="text-muted" id="services-subtotal">Ksh. 0.00</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span class="text-muted">Shipping Fee:</span>
+                                            <span class="text-muted" id="shipping-fee">Ksh. 0.00</span>
+                                        </div>
+                                        <div id="discount-row" class="d-flex justify-content-between mb-2" style="display: none !important;">
+                                            <span class="text-danger">Discount:</span>
+                                            <span class="text-danger" id="discount-amount">-Ksh. 0.00</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <strong>Total:</strong>
+                                            <strong id="final-total">Ksh. 0.00</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            </div>
+                        </div>
+</form>
                         <div class="d-flex justify-content-between">
                             <button type="submit" class="btn btn-primary btn-lg">Create Order</button>
                             <a href="orders.php" class="btn btn-danger btn-lg">Cancel</a>
@@ -1062,30 +1176,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             updateShippingMethods(this.value);
         });
 
-        // Add this event listener for service toggles
+        // Remove all service-toggle related JavaScript code and just keep the service checkbox handler
         document.addEventListener('change', function(event) {
-            if (event.target.classList.contains('service-toggle')) {
-                const serviceSection = event.target.closest('.service-request-section');
-                const serviceOptions = serviceSection.querySelector('.service-options');
-                
-                if (serviceOptions) {
-                    serviceOptions.style.display = event.target.checked ? 'block' : 'none';
-                    
-                    // Reset service type when unchecked
-                    if (!event.target.checked) {
-                        const serviceSelect = serviceOptions.querySelector('.service-type-select');
-                        if (serviceSelect) {
-                            serviceSelect.value = '';
-                        }
-                    }
-                }
-                calculateTotal();
-            }
-            
-            if (event.target.classList.contains('service-type-select')) {
+            if (event.target.classList.contains('service-checkbox')) {
                 calculateTotal();
             }
         });
+
+        // Update the total calculation function to handle only products and selected services
+        function calculateTotal() {
+            let productsSubtotal = 0;
+            let servicesSubtotal = 0;
+            
+            // Calculate products subtotal
+            document.querySelectorAll('.product-item').forEach(item => {
+                const quantity = parseInt(item.querySelector('.quantity-input').value) || 0;
+                const price = parseFloat(item.querySelector('.unit-price-input').value) || 0;
+                productsSubtotal += (quantity * price);
+            });
+            
+            // Calculate services subtotal
+            document.querySelectorAll('.service-checkbox:checked').forEach(checkbox => {
+                servicesSubtotal += parseFloat(checkbox.dataset.price) || 0;
+            });
+
+            // Update displays
+            document.getElementById('products-subtotal').textContent = `Ksh. ${productsSubtotal.toFixed(2)}`;
+            document.getElementById('services-subtotal').textContent = `Ksh. ${servicesSubtotal.toFixed(2)}`;
+            
+            // Calculate final total
+            const finalTotal = productsSubtotal + servicesSubtotal - (currentDiscount || 0) + (shippingFee || 0);
+            document.getElementById('final-total').textContent = `Ksh. ${finalTotal.toFixed(2)}`;
+        }
 
         function reindexProducts() {
             const container = document.getElementById('products-container');
@@ -1109,6 +1231,109 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 });
             });
         }
+
+        function toggleGifteeFields(enabled) {
+            const gifteeFields = document.getElementById('gifteeFields');
+            const inputs = gifteeFields.getElementsByTagName('input');
+            const textareas = gifteeFields.getElementsByTagName('textarea');
+            
+            gifteeFields.style.opacity = enabled ? '1' : '0.5';
+            gifteeFields.style.pointerEvents = enabled ? 'auto' : 'none';
+            
+            // Toggle required attribute for giftee fields
+            [inputs, textareas].forEach(elements => {
+                Array.from(elements).forEach(element => {
+                    if (element.id !== 'hide_prices') { // Don't make checkbox required
+                        element.required = enabled;
+                    }
+                });
+            });
+        }
+
+        // Replace the existing calculateTotal function with this updated version
+        function calculateTotal() {
+            let productsSubtotal = 0;
+            let servicesSubtotal = 0;
+            
+            // Calculate products subtotal
+            document.querySelectorAll('.product-item').forEach(item => {
+                const quantity = parseInt(item.querySelector('.quantity-input').value) || 0;
+                const price = parseFloat(item.querySelector('.unit-price-input').value) || 0;
+                productsSubtotal += (quantity * price);
+            });
+            
+            // Calculate services subtotal
+            document.querySelectorAll('.service-checkbox:checked').forEach(checkbox => {
+                servicesSubtotal += parseFloat(checkbox.dataset.price) || 0;
+            });
+
+            // Update subtotal displays
+            document.getElementById('products-subtotal').textContent = `Ksh. ${productsSubtotal.toFixed(2)}`;
+            document.getElementById('services-subtotal').textContent = `Ksh. ${servicesSubtotal.toFixed(2)}`;
+            
+            // Calculate totals
+            const subtotal = productsSubtotal + servicesSubtotal;
+            currentSubtotal = subtotal; // Update global subtotal for coupon calculations
+            
+            // Show discount if applicable
+            const discountRow = document.getElementById('discount-row');
+            const discountAmount = document.getElementById('discount-amount');
+            if (currentDiscount > 0) {
+                discountRow.style.display = 'flex';
+                discountAmount.textContent = `-Ksh. ${currentDiscount.toFixed(2)}`;
+            } else {
+                discountRow.style.display = 'none';
+                discountAmount.textContent = `-Ksh. 0.00`;
+            }
+            
+            // Calculate final total
+            const finalTotal = subtotal + (shippingFee || 0) - (currentDiscount || 0);
+            document.getElementById('final-total').textContent = `Ksh. ${finalTotal.toFixed(2)}`;
+
+            // Update hidden input for form submission
+            const totalInput = document.querySelector('input[name="total_amount"]');
+            if (totalInput) {
+                totalInput.value = finalTotal.toFixed(2);
+            }
+
+            return {
+                productsSubtotal,
+                servicesSubtotal,
+                shippingFee: shippingFee || 0,
+                discount: currentDiscount || 0,
+                finalTotal
+            };
+        }
+
+        // Add form submission handler to validate totals
+        document.querySelector('form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const totals = calculateTotal();
+            const formData = new FormData(this);
+            
+            // Add calculated totals to form data
+            formData.append('calculated_totals', JSON.stringify(totals));
+            
+            try {
+                const response = await fetch('ajax/validate_order_totals.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.valid) {
+                    this.submit();
+                } else {
+                    alert('Order total validation failed. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error validating totals:', error);
+                alert('Error validating order totals. Please try again.');
+            }
+        });
+
     </script>
 </body>
 <?php include 'includes/nav/footer.php'; ?>
