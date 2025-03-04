@@ -21,7 +21,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $database = new Database();
         $db = $database->getConnection();
 
-        $stmt = $db->prepare("SELECT id, username, password, role FROM users WHERE email = ? AND status = 'active'");
+        // First try with status check
+        $stmt = $db->prepare("SELECT id, username, password, role, 
+                             COALESCE(status, 'active') as status 
+                             FROM users 
+                             WHERE email = ? 
+                             AND (status = 'active' OR status IS NULL)");
         $stmt->execute([$email]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
