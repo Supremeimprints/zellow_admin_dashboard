@@ -16,10 +16,21 @@ function send_json_response($success, $message, $data = null, $status_code = 200
     exit;
 }
 
-function send_error($message, $status_code = 400) {
-    send_json_response(false, $message, null, $status_code);
+function send_error($message, $code = 400) {
+    http_response_code($code);
+    echo json_encode([
+        'status' => 'error',
+        'message' => $message
+    ]);
+    exit();
 }
 
 function send_success($message, $data = null) {
-    send_json_response(true, $message, $data);
+    http_response_code(200);
+    echo json_encode([
+        'status' => 'success',
+        'message' => $message,
+        'data' => $data
+    ]);
+    exit();
 }

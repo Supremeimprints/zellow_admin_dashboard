@@ -1,16 +1,27 @@
 <?php
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../utils/api_response.php';
-require_once __DIR__ . '/../../includes/functions/auth_functions.php'; // Updated path
+require_once __DIR__ . '/../../includes/functions/auth_functions.php';
 
+// Set error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// CORS headers
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Methods: GET");
+header("Access-Control-Allow-Methods: GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
+// Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
+}
+
+// Ensure this is a GET request
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    send_error("Method not allowed", 405);
 }
 
 try {

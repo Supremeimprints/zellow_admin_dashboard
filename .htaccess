@@ -23,6 +23,13 @@ ErrorDocument 404 /zellow_admin/404.php
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule . 404.php [L]
+
+    # Route all API requests to their handlers
+    RewriteRule ^api/(.*)$ api/$1.php [QSA,L]
+
+    # Handle CORS preflight requests
+    RewriteCond %{REQUEST_METHOD} OPTIONS
+    RewriteRule ^(.*)$ $1 [R=200,L]
 </IfModule>
 
 # For Live Server direct 404 handling
