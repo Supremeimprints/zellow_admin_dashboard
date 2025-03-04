@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'config/database.php';
+require_once 'includes/classes/ApiHandler.php';
 
 // Initialize variables
 $error = '';
@@ -8,42 +9,55 @@ $email = '';
 
 // Only process POST request
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Get and validate form data
-    $email = filter_var($_POST['email'] ?? '', FILTER_VALIDATE_EMAIL);
-    $password = $_POST['password'] ?? '';
+    try {
+        $email = filter_var($_POST['email'] ?? '', FILTER_VALIDATE_EMAIL);
+        $password = $_POST['password'] ?? '';
 
-    if (!$email || empty($password)) {
-        $error = 'Please enter both email and password.';
-    } else {
-        try {
-            $database = new Database();
-            $db = $database->getConnection();
-
-            // Prepare query
-            $stmt = $db->prepare("SELECT id, username, password, role FROM users WHERE email = ? AND status = 'active'");
-            $stmt->execute([$email]);
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if ($user && password_verify($password, $user['password'])) {
-                // Set session variables
-                $_SESSION['id'] = $user['id'];
-                $_SESSION['username'] = $user['username'];
-                $_SESSION['role'] = $user['role'];
-                
-                // Redirect based on role
-                if ($user['role'] === 'admin') {
-                    header('Location: index.php');
-                } else {
-                    header('Location: dashboard.php');
-                }
-                exit();
-            } else {
-                $error = 'Invalid email or password.';
-            }
-        } catch (Exception $e) {
-            error_log("Login error: " . $e->getMessage());
-            $error = 'An error occurred during login. Please try again.';
+        if (!$email || empty($password)) {
+            throw new Exception('Please enter both email and password.');
         }
+
+        // First try local database authentication
+        $database = new Database();
+        $db = $database->getConnection();
+
+        $stmt = $db->prepare("SELECT id, username, password, role FROM users WHERE email = ? AND status = 'active'");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($user && password_verify($password, $user['password'])) {
+            // Local authentication successful
+            $_SESSION['id'] = $user['id'];
+            $_SESSION['username'] = $user['username'];
+            $_SESSION['role'] = $user['role'];
+            
+            header('Location: ' . ($user['role'] === 'admin' ? 'index.php' : 'dashboard.php'));
+            exit();
+        }
+
+        // If local auth fails, try API authentication
+        $api = new ApiHandler();
+        $response = $api->request('auth/login', 'POST', [
+            'email' => $email,
+            'password' => $password
+        ]);
+
+        if (isset($response['success']) && $response['success']) {
+            // API authentication successful
+            $_SESSION['id'] = $response['user']['id'];
+            $_SESSION['username'] = $response['user']['username'];
+            $_SESSION['role'] = $response['user']['role'];
+            $_SESSION['api_token'] = $response['token'];
+
+            header('Location: ' . ($response['user']['role'] === 'admin' ? 'index.php' : 'dashboard.php'));
+            exit();
+        } else {
+            throw new Exception($response['message'] ?? 'Invalid email or password.');
+        }
+
+    } catch (Exception $e) {
+        error_log("Login error: " . $e->getMessage());
+        $error = $e->getMessage();
     }
 }
 ?>
