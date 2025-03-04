@@ -1,69 +1,68 @@
 <?php
-header('Content-Type: application/json');
+header("Access-Control-Allow-Origin: *");
+header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Methods: POST");
+header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
+
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
 require_once '../../config/database.php';
-require_once '../../config/api_config.php';
+require_once '../../includes/utils/api_response.php';
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['success' => false, 'message' => 'Method not allowed']);
-    exit;
+// Handle preflight OPTIONS request
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
+if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+    send_error("Invalid request method", 405);
 }
 
 try {
-    $data = json_decode(file_get_contents('php://input'), true);
-    
-    if (!isset($data['email']) || !isset($data['password'])) {
-        throw new Exception('Email and password are required');
+    // Read JSON input from Flutter
+    $data = json_decode(file_get_contents("php://input"), true);
+
+    if (!isset($data["email"]) || !isset($data["password"])) {
+        send_error("Email and password required", 400);
     }
 
     $database = new Database();
     $db = $database->getConnection();
 
-    $stmt = $db->prepare("SELECT id, username, password, role FROM users WHERE email = ? AND status = 'active'");
-    $stmt->execute([$data['email']]);
+    $stmt = $db->prepare("SELECT id, username, password, role, 
+                         COALESCE(status, 'active') as status 
+                         FROM users 
+                         WHERE email = ? 
+                         AND (status = 'active' OR status IS NULL)");
+    $stmt->execute([$data["email"]]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$user || !password_verify($data['password'], $user['password'])) {
-        throw new Exception('Invalid credentials');
+    if (!$user || !password_verify($data["password"], $user["password"])) {
+        send_error("Invalid credentials", 401);
     }
 
-    // Generate JWT token
-    $token = generateJWT($user);
+    // Generate secure token
+    $token = bin2hex(random_bytes(32));
 
-    echo json_encode([
-        'success' => true,
-        'message' => 'Login successful',
-        'user' => [
-            'id' => $user['id'],
-            'username' => $user['username'],
-            'role' => $user['role']
-        ],
-        'token' => $token
-    ]);
+    // Prepare user data for response
+    $userData = [
+        "user" => [
+            "id" => $user["id"],
+            "username" => $user["username"],
+            "role" => $user["role"],
+            "token" => $token
+        ]
+    ];
+
+    // Store token in database (optional but recommended)
+    $stmt = $db->prepare("UPDATE users SET api_token = ?, token_expiry = DATE_ADD(NOW(), INTERVAL 24 HOUR) WHERE id = ?");
+    $stmt->execute([$token, $user["id"]]);
+
+    send_success("Login successful", $userData);
 
 } catch (Exception $e) {
-    http_response_code(401);
-    echo json_encode([
-        'success' => false,
-        'message' => $e->getMessage()
-    ]);
-}
-
-function generateJWT($user) {
-    $header = json_encode(['typ' => 'JWT', 'alg' => 'HS256']);
-    $payload = json_encode([
-        'user_id' => $user['id'],
-        'username' => $user['username'],
-        'role' => $user['role'],
-        'exp' => time() + JWT_EXPIRES
-    ]);
-
-    $base64UrlHeader = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
-    $base64UrlPayload = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($payload));
-    
-    $signature = hash_hmac('sha256', $base64UrlHeader . "." . $base64UrlPayload, JWT_SECRET, true);
-    $base64UrlSignature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($signature));
-
-    return $base64UrlHeader . "." . $base64UrlPayload . "." . $base64UrlSignature;
+    error_log("Login API Error: " . $e->getMessage());
+    send_error("Server error occurred", 500);
 }
