@@ -2,13 +2,56 @@
 session_start();
 require_once 'config/database.php';
 require_once 'includes/classes/ApiHandler.php';
+require_once 'includes/utils/api_response.php';
 
 // Initialize variables
 $error = '';
 $email = '';
 
-// Only process POST request
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+// Check if this is an API request
+if (isset($_POST['is_api']) && $_POST['is_api'] === '1') {
+    $email = filter_var($_POST['email'] ?? '', FILTER_VALIDATE_EMAIL);
+    $password = $_POST['password'] ?? '';
+    $role = $_POST['role'] ?? '';
+
+    if (!$email || !$password || !$role) {
+        send_error('Missing required fields');
+    }
+
+    try {
+        $database = new Database();
+        $db = $database->getConnection();
+
+        $stmt = $db->prepare("SELECT id, username, password, role, 
+                             COALESCE(status, 'active') as status 
+                             FROM users 
+                             WHERE email = ? 
+                             AND (status = 'active' OR status IS NULL)
+                             AND role = ?");
+        $stmt->execute([$email, $role]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$user || !password_verify($password, $user['password'])) {
+            send_error('Invalid credentials', 401);
+        }
+
+        // Generate API token
+        $token = bin2hex(random_bytes(32));
+        $user_data = [
+            'id' => $user['id'],
+            'username' => $user['username'],
+            'role' => $user['role'],
+            'token' => $token
+        ];
+
+        send_success('Login successful', ['user' => $user_data]);
+    } catch (Exception $e) {
+        send_error('Server error: ' . $e->getMessage(), 500);
+    }
+}
+
+// Regular web login process
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['is_api'])) {
     try {
         $email = filter_var($_POST['email'] ?? '', FILTER_VALIDATE_EMAIL);
         $password = $_POST['password'] ?? '';
