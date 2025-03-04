@@ -18,17 +18,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
-// Parse request URI
+// Parse request URI dynamically
 $request = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$request = str_replace('/zellow_admin/api', '', $request);
+$request = str_replace(dirname($_SERVER['SCRIPT_NAME']), '', $request);
 
 // Initialize auth middleware
 $auth = new AuthMiddleware();
 
-// Route requests
+// Check dynamic routes before switch
+if (preg_match('#^/orders/\d+$#', $request)) {
+    $auth->handleRequest();
+    require __DIR__ . '/routes/orders.php';
+    exit;
+}
+
 try {
     switch ($request) {
         // Root endpoint
+        case '':
         case '/':
             ApiResponse::success([
                 'name' => 'Zellow Admin API',
@@ -43,37 +50,39 @@ try {
         case '/auth/register':
             require __DIR__ . '/routes/auth.php';
             break;
-            
-        // Protected routes (with middleware)    
+
+        // Protected routes    
         case '/user/profile':
         case '/user/orders':
             $auth->handleRequest();
             require __DIR__ . '/routes/user.php';
             break;
-            
-        // Orders endpoints
+
         case '/orders':
-        case (preg_match('#^/orders/\d+$#', $request) ? true : false):
             $auth->handleRequest();
             require __DIR__ . '/routes/orders.php';
             break;
-            
+
         case '/services/request':
         case '/services/list':
-            $auth->handleRequest(); 
+            $auth->handleRequest();
             require __DIR__ . '/routes/services.php';
             break;
 
         case '/feedback':
             $auth->handleRequest();
-            require __DIR__ . '/routes/feedback.php'; 
+            require __DIR__ . '/routes/feedback.php';
             break;
-            
-        // ... other routes
-            
+        case '/overview':
+            $auth->handleRequest(); // Ensure authentication before accessing dashboard
+            require __DIR__ . '/routes/overview.php';
+            break;
+
+        // Unknown routes
         default:
             throw new Exception('Endpoint not found', 404);
     }
 } catch (Exception $e) {
-    ApiResponse::error($e->getMessage(), $e->getCode());
+    $code = ($e->getCode() >= 100 && $e->getCode() <= 599) ? $e->getCode() : 500;
+    ApiResponse::error($e->getMessage(), $code);
 }
