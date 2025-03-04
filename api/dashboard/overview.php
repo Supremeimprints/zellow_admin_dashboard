@@ -3,7 +3,7 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../utils/api_response.php';
 require_once __DIR__ . '/../../includes/functions/auth_functions.php';
 
-// Set error reporting for debugging
+// Debug mode
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -13,13 +13,17 @@ header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
+// Log request details for debugging
+error_log("Request Method: " . $_SERVER['REQUEST_METHOD']);
+error_log("Request URI: " . $_SERVER['REQUEST_URI']);
+
 // Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
 
-// Ensure this is a GET request
+// Verify request method
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     send_error("Method not allowed", 405);
 }
@@ -129,5 +133,5 @@ try {
 
 } catch (Exception $e) {
     error_log("Dashboard API Error: " . $e->getMessage());
-    send_error("Server error occurred", 500);
+    send_error("Server error occurred: " . $e->getMessage(), 500);
 }

@@ -18,6 +18,7 @@ function send_json_response($success, $message, $data = null, $status_code = 200
 
 function send_error($message, $code = 400) {
     http_response_code($code);
+    header('Content-Type: application/json');
     echo json_encode([
         'status' => 'error',
         'message' => $message
@@ -26,7 +27,7 @@ function send_error($message, $code = 400) {
 }
 
 function send_success($message, $data = null) {
-    http_response_code(200);
+    header('Content-Type: application/json');
     echo json_encode([
         'status' => 'success',
         'message' => $message,
