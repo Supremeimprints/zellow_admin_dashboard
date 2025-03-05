@@ -1,1 +1,5 @@
-/vendor/
+.env
+config/secrets.php
+vendor/
+logs/*
+!logs/.gitkeep

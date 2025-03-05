@@ -9,6 +9,7 @@ header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers
 
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
+ini_set('error_log', __DIR__ . '/../../logs/api_errors.log');
 
 // Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -21,8 +22,17 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
 }
 
 try {
-    // Read JSON input from Flutter
-    $data = json_decode(file_get_contents("php://input"), true);
+    // Log incoming request
+    error_log("Login attempt - Email: " . ($data["email"] ?? 'not provided'));
+    
+    // Read JSON input
+    $input = file_get_contents("php://input");
+    error_log("Raw input: " . $input);
+    
+    $data = json_decode($input, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        throw new Exception("Invalid JSON format: " . json_last_error_msg());
+    }
 
     if (!isset($data["email"]) || !isset($data["password"])) {
         send_error("Email and password required", 400);
@@ -31,38 +41,145 @@ try {
     $database = new Database();
     $db = $database->getConnection();
 
-    $stmt = $db->prepare("SELECT id, username, password, role, 
-                         COALESCE(status, 'active') as status 
-                         FROM users 
-                         WHERE email = ? 
-                         AND (status = 'active' OR status IS NULL)");
-    $stmt->execute([$data["email"]]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$user || !password_verify($data["password"], $user["password"])) {
-        send_error("Invalid credentials", 401);
+    // Debug database connection
+    if (!$db) {
+        throw new Exception("Database connection failed");
     }
 
-    // Generate secure token
-    $token = bin2hex(random_bytes(32));
+    // Simplified query for debugging
+    $stmt = $db->prepare("SELECT 
+        id, 
+        username,
+        email,
+        password,
+        role,
+        status,
+        is_active
+    FROM users 
+    WHERE email = ?");
 
-    // Prepare user data for response
-    $userData = [
+    if (!$stmt) {
+        throw new Exception("Query preparation failed: " . print_r($db->errorInfo(), true));
+    }
+
+    $stmt->execute([$data["email"]]);
+    error_log("Query executed for email: " . $data["email"]);
+
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$user) {
+        send_error("User not found", 401);
+    }
+
+    // Log user data (excluding password)
+    $logUser = $user;
+    unset($logUser['password']);
+    error_log("Found user: " . print_r($logUser, true));
+
+    if (!password_verify($data["password"], $user["password"])) {
+        send_error("Invalid password", 401);
+    }
+
+    // Check status and role
+    if ($user["status"] !== 'active' || !$user["is_active"]) {
+        send_error("Account is not active", 403);
+    }
+
+    // Check if api_token column exists
+    $columnCheckStmt = $db->prepare("
+        SELECT COUNT(*) 
+        FROM information_schema.COLUMNS 
+        WHERE TABLE_SCHEMA = ? 
+        AND TABLE_NAME = 'users' 
+        AND COLUMN_NAME = 'api_token'
+    ");
+    $columnCheckStmt->execute([getenv('DB_NAME') ?: 'zellowdb']);
+    $hasApiTokenColumn = (bool)$columnCheckStmt->fetchColumn();
+
+    // Generate token
+    $token = bin2hex(random_bytes(32));
+    
+    if ($hasApiTokenColumn) {
+        // Update with token if column exists
+        $updateStmt = $db->prepare("
+            UPDATE users 
+            SET updated_at = NOW(),
+                api_token = ?,
+                token_expiry = DATE_ADD(NOW(), INTERVAL 24 HOUR)
+            WHERE id = ?
+        ");
+        $updateResult = $updateStmt->execute([$token, $user["id"]]);
+    } else {
+        // Skip token storage if column doesn't exist
+        $updateStmt = $db->prepare("UPDATE users SET updated_at = NOW() WHERE id = ?");
+        $updateResult = $updateStmt->execute([$user["id"]]);
+    }
+
+    if (!$updateResult) {
+        throw new Exception("Failed to update user token: " . print_r($updateStmt->errorInfo(), true));
+    }
+
+    // Success response
+    $response = [
         "user" => [
             "id" => $user["id"],
             "username" => $user["username"],
+            "email" => $user["email"],
             "role" => $user["role"],
             "token" => $token
         ]
     ];
 
-    // Store token in database (optional but recommended)
-    $stmt = $db->prepare("UPDATE users SET api_token = ?, token_expiry = DATE_ADD(NOW(), INTERVAL 24 HOUR) WHERE id = ?");
-    $stmt->execute([$token, $user["id"]]);
-
-    send_success("Login successful", $userData);
+    send_success("Login successful", $response);
 
 } catch (Exception $e) {
     error_log("Login API Error: " . $e->getMessage());
-    send_error("Server error occurred", 500);
+    error_log("Stack trace: " . $e->getTraceAsString());
+    send_error("Server error: " . $e->getMessage(), 500);
+}
+
+function get_role_permissions($role) {
+    $permissions = [
+        'admin' => [
+            'can_manage_users' => true,
+            'can_manage_inventory' => true,
+            'can_manage_orders' => true,
+            'can_manage_finances' => true,
+            'can_manage_services' => true,
+            'can_manage_reports' => true,
+            'can_manage_settings' => true
+        ],
+        'finance_manager' => [
+            'can_manage_finances' => true,
+            'can_view_orders' => true,
+            'can_manage_invoices' => true,
+            'can_view_reports' => true
+        ],
+        'supply_manager' => [
+            'can_manage_inventory' => true,
+            'can_manage_suppliers' => true,
+            'can_manage_purchases' => true,
+            'can_view_reports' => true
+        ],
+        'inventory_manager' => [
+            'can_manage_inventory' => true,
+            'can_view_orders' => true,
+            'can_manage_stock' => true,
+            'can_view_reports' => true
+        ],
+        'dispatch_manager' => [
+            'can_manage_deliveries' => true,
+            'can_view_orders' => true,
+            'can_manage_drivers' => true,
+            'can_view_reports' => true
+        ],
+        'service_manager' => [
+            'can_manage_services' => true,
+            'can_manage_technicians' => true,
+            'can_view_orders' => true,
+            'can_view_reports' => true
+        ]
+    ];
+
+    return $permissions[$role] ?? [];
 }

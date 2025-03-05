@@ -1,7 +1,7 @@
 <?php
 // Example passwords for each user
 $passwords = [
-    'jeff' => 'admin1234',
+    'testuser@gmail.com' => '12345678',
     
 ];
 
