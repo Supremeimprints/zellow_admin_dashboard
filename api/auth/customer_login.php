@@ -21,74 +21,77 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
 }
 
 try {
-    // Read JSON input
-    $data = json_decode(file_get_contents("php://input"), true);
+    $input = json_decode(file_get_contents("php://input"), true);
 
-    if (!isset($data["email"]) || !isset($data["password"])) {
+    if (!isset($input["email"]) || !isset($input["password"])) {
         send_error("Email and password required", 400);
     }
 
     $database = new Database();
     $db = $database->getConnection();
 
-    // Verify customer credentials with updated fields
-    $stmt = $db->prepare("SELECT 
-            id,
-            username,
-            email,
-            password,
-            phone,
-            address,
-            created_at,
-            role,
-            is_active,
-            profile_photo,
-            theme,
-            notification_enabled,
-            status
-        FROM users 
-        WHERE email = ? 
-        AND role = 'customer'
-        AND status = 'active'
-        AND is_active = 1");
+    // Join users and customer_details tables
+    $stmt = $db->prepare("
+        SELECT 
+            u.*,
+            cd.address,
+            cd.city,
+            cd.state,
+            cd.country,
+            cd.postal_code,
+            cd.phone_alternative
+        FROM users u
+        LEFT JOIN customer_details cd ON u.id = cd.id
+        WHERE u.email = ? 
+        AND u.role = 'customer'
+        AND u.status = 'active'
+        AND u.is_active = 1
+    ");
 
-    $stmt->execute([$data["email"]]);
+    $stmt->execute([$input["email"]]);
     $customer = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$customer || !password_verify($data["password"], $customer["password"])) {
+    if (!$customer || !password_verify($input["password"], $customer["password"])) {
         send_error("Invalid credentials", 401);
     }
 
-    // Generate secure token
+    // Generate token
     $token = bin2hex(random_bytes(32));
 
-    // Update last login time and token
-    $stmt = $db->prepare("
+    // Update last login and token
+    $updateStmt = $db->prepare("
         UPDATE users 
-        SET updated_at = NOW()
+        SET last_login = NOW(),
+            login_count = login_count + 1,
+            api_token = ?,
+            token_expiry = DATE_ADD(NOW(), INTERVAL 24 HOUR)
         WHERE id = ?
     ");
-    $stmt->execute([$customer["id"]]);
 
-    // Prepare customer data for response (excluding sensitive info)
+    $updateStmt->execute([$token, $customer["id"]]);
+
+    // Prepare customer data for response
     $customerData = [
-        "customer" => [
-            "id" => $customer["id"],
-            "username" => $customer["username"],
-            "email" => $customer["email"],
-            "phone" => $customer["phone"],
-            "address" => $customer["address"],
-            "created_at" => $customer["created_at"],
-            "profile_photo" => $customer["profile_photo"],
-            "theme" => $customer["theme"],
-            "notification_enabled" => (bool)$customer["notification_enabled"],
-            "token" => $token
-        ]
+        "id" => $customer["id"],
+        "username" => $customer["username"],
+        "email" => $customer["email"],
+        "phone" => $customer["phone"],
+        "phone_alternative" => $customer["phone_alternative"],
+        "address" => $customer["address"],
+        "city" => $customer["city"],
+        "state" => $customer["state"],
+        "country" => $customer["country"],
+        "postal_code" => $customer["postal_code"],
+        "created_at" => $customer["created_at"],
+        "profile_photo" => $customer["profile_photo"],
+        "theme" => $customer["theme"],
+        "notification_enabled" => (bool)$customer["notification_enabled"],
+        "token" => $token
     ];
 
-    send_success("Login successful", $customerData);
+    send_success("Login successful", ["customer" => $customerData]);
 
 } catch (Exception $e) {
-    error_log("Customer Login API Error: " . $e->getMessage());
-    send_error("Server error occurred", 500);
+    error_log("Customer Login Error: " . $e->getMessage());
+    send_error("Server error: " . $e->getMessage(), 500);
 }

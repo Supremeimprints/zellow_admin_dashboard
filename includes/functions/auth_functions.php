@@ -1,34 +1,63 @@
 <?php
-require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../vendor/autoload.php';
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 
 function verify_admin_token($token) {
-    if (empty($token)) {
-        return false;
-    }
-
-    // Remove 'Bearer ' if present
-    $token = str_replace('Bearer ', '', $token);
-
     try {
         $database = new Database();
         $db = $database->getConnection();
-
+        
+        // Check if token exists and is not expired for an admin user
         $stmt = $db->prepare("
-            SELECT u.id 
-            FROM users u
-            WHERE u.api_token = ? 
-            AND u.role = 'admin' 
-            AND u.token_expiry > NOW()
-            AND u.is_active = 1
+            SELECT id 
+            FROM users 
+            WHERE api_token = ? 
+            AND role = 'admin' 
+            AND is_active = 1 
+            AND token_expiry > NOW()
         ");
         
         $stmt->execute([$token]);
-        return $stmt->rowCount() > 0;
-
+        
+        if ($stmt->fetch()) {
+            return true;
+        }
+        
+        error_log('Invalid token or token expired');
+        return false;
+        
     } catch (Exception $e) {
-        error_log("Token verification error: " . $e->getMessage());
+        error_log('Token verification failed: ' . $e->getMessage());
         return false;
     }
+}
+
+function verify_customer_token($token) {
+    try {
+        $database = new Database();
+        $db = $database->getConnection();
+        
+        $stmt = $db->prepare("
+            SELECT id 
+            FROM users 
+            WHERE api_token = ? 
+            AND role = 'customer' 
+            AND is_active = 1 
+            AND token_expiry > NOW()
+        ");
+        
+        $stmt->execute([$token]);
+        return $stmt->fetch() ? true : false;
+        
+    } catch (Exception $e) {
+        error_log('Customer token verification failed: ' . $e->getMessage());
+        return false;
+    }
+}
+
+function verify_token($token) {
+    return verify_admin_token($token) || verify_customer_token($token);
 }
 
 function generate_admin_token($userId) {

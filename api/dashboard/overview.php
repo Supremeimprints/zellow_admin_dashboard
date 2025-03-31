@@ -2,125 +2,136 @@
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../utils/api_response.php';
 require_once __DIR__ . '/../../includes/functions/auth_functions.php';
+require_once __DIR__ . '/../../includes/functions/financial_functions.php';  // Add this line
 
-// Enable error reporting
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
-// CORS Headers
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 
-// Log request details for debugging
-error_log("Overview API Request: " . $_SERVER['REQUEST_METHOD'] . " " . $_SERVER['REQUEST_URI']);
-
-// Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
 
-// Verify method is GET
-if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-    send_error("Method not allowed", 405);
+// Improved token handling
+$headers = getallheaders();
+$token = null;
+
+// Check multiple possible token locations
+if (isset($headers['Authorization'])) {
+    $token = str_replace('Bearer ', '', $headers['Authorization']);
+} elseif (isset($headers['authorization'])) {
+    $token = str_replace('Bearer ', '', $headers['authorization']);
+} elseif (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+    $token = str_replace('Bearer ', '', $_SERVER['HTTP_AUTHORIZATION']);
 }
 
-// Verify admin token
-$headers = getallheaders();
-if (!isset($headers['Authorization'])) {
+if (!$token) {
     send_error("No authorization token provided", 401);
 }
 
-$token = str_replace('Bearer ', '', $headers['Authorization']);
-if (!verify_admin_token($token)) {
-    send_error("Invalid or expired token", 401);
+// Verify admin token with error details
+try {
+    if (!verify_admin_token($token)) {
+        send_error("Invalid or expired token", 403);
+    }
+} catch (Exception $e) {
+    error_log("Token verification error: " . $e->getMessage());
+    send_error("Token verification failed", 403);
 }
 
 try {
     $database = new Database();
     $db = $database->getConnection();
 
-    // Prepare dashboard data array
-    $dashboardData = [
+    // Prepare admin overview data with safe defaults
+    $overviewData = [
+        'totalUsers' => 0,
+        'totalTechnicians' => 0,
+        'totalDrivers' => 0,
+        'totalSuppliers' => 0,
         'orderStats' => [],
-        'customerStats' => [],
-        'inventoryStats' => [],
-        'recentOrders' => [],
-        'notifications' => [],
-        'lowStockItems' => [],
-        'revenueStats' => []
+        'revenueStats' => [
+            'totalRevenue' => 0,
+            'completedOrders' => 0,
+            'avgOrderValue' => 0
+        ],
+        'inventoryStats' => [
+            'totalItems' => 0,
+            'totalStock' => 0,
+            'lowStockCount' => 0
+        ],
+        'recentActivities' => [],
+        'notifications' => []
     ];
 
-    // Order statistics
-    $stmt = $db->query("SELECT status, COUNT(id) as count FROM orders GROUP BY status");
-    $dashboardData['orderStats'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Count Users by Role (wrapped in try-catch)
+    try {
+        $stmt = $db->query("SELECT role, COUNT(*) as count FROM users GROUP BY role");
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            switch ($row['role']) {
+                case 'technician': $overviewData['totalTechnicians'] = $row['count']; break;
+                case 'driver': $overviewData['totalDrivers'] = $row['count']; break;
+                case 'supplier': $overviewData['totalSuppliers'] = $row['count']; break;
+                default: $overviewData['totalUsers'] += $row['count']; break;
+            }
+        }
+    } catch (Exception $e) {
+        error_log("Error fetching user counts: " . $e->getMessage());
+    }
 
-    // Customer statistics
-    $stmt = $db->query("
-        SELECT COUNT(id) as total_customers,
-               SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) as new_customers,
-               SUM(CASE WHEN last_login >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) as active_customers
-        FROM users 
-        WHERE role = 'customer'
-    ");
-    $dashboardData['customerStats'] = $stmt->fetch(PDO::FETCH_ASSOC);
+    // Order Statistics (wrapped in try-catch)
+    try {
+        $stmt = $db->query("SELECT status, COUNT(id) as count FROM orders GROUP BY status");
+        $overviewData['orderStats'] = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Exception $e) {
+        error_log("Error fetching order stats: " . $e->getMessage());
+    }
 
-    // Inventory statistics
-    $stmt = $db->query("
-        SELECT COUNT(id) as total_items,
-               SUM(stock_quantity) as total_stock,
-               COUNT(CASE WHEN stock_quantity <= min_stock_level THEN 1 END) as low_stock_count
-        FROM inventory
-    ");
-    $dashboardData['inventoryStats'] = $stmt->fetch(PDO::FETCH_ASSOC);
+    // Revenue Statistics (updated to use financial functions)
+    try {
+        // Get date range for last 30 days
+        $endDate = date('Y-m-d H:i:s');
+        $startDate = date('Y-m-d H:i:s', strtotime('-30 days'));
+        
+        // Get financial metrics
+        $financialMetrics = getFinancialMetrics($db, $startDate, $endDate);
+        
+        $overviewData['revenueStats'] = [
+            'totalRevenue' => $financialMetrics['revenue'] ?? 0,
+            'completedOrders' => $financialMetrics['total_orders'] ?? 0,
+            'avgOrderValue' => $financialMetrics['avg_order_value'] ?? 0,
+            'netProfit' => $financialMetrics['net_profit'] ?? 0,
+            'revenueGrowth' => $financialMetrics['revenue_growth'] ?? 0
+        ];
+    } catch (Exception $e) {
+        error_log("Error fetching revenue stats: " . $e->getMessage());
+        // Keep default values from overviewData initialization
+    }
 
-    // Recent orders
-    $stmt = $db->query("
-        SELECT o.order_id, o.status, o.order_date, o.total_price, u.username as customer_name
-        FROM orders o
-        LEFT JOIN users u ON o.user_id = u.id
-        ORDER BY o.order_date DESC 
-        LIMIT 5
-    ");
-    $dashboardData['recentOrders'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Inventory Statistics (wrapped in try-catch)
+    try {
+        $stmt = $db->query("
+            SELECT COUNT(id) as totalItems,
+                   SUM(stock_quantity) as totalStock,
+                   COUNT(CASE WHEN stock_quantity <= min_stock_level THEN 1 END) as lowStockCount
+            FROM inventory
+        ");
+        $inventoryStats = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($inventoryStats) {
+            $overviewData['inventoryStats'] = $inventoryStats;
+        }
+    } catch (Exception $e) {
+        error_log("Error fetching inventory stats: " . $e->getMessage());
+    }
 
-    // Notifications
-    $stmt = $db->query("
-        SELECT id, type, message, created_at, is_read
-        FROM notifications
-        WHERE recipient_role = 'admin'
-        ORDER BY created_at DESC
-        LIMIT 5
-    ");
-    $dashboardData['notifications'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // Low stock items
-    $stmt = $db->query("
-        SELECT i.id, p.product_name, i.stock_quantity, i.min_stock_level
-        FROM inventory i
-        JOIN products p ON i.product_id = p.id
-        WHERE i.stock_quantity <= i.min_stock_level
-        LIMIT 10
-    ");
-    $dashboardData['lowStockItems'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // Revenue statistics
-    $stmt = $db->query("
-        SELECT SUM(total_price) as total_revenue,
-               COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_orders,
-               AVG(total_price) as average_order_value
-        FROM orders
-        WHERE order_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-    ");
-    $dashboardData['revenueStats'] = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    // Send JSON response
-    send_success("Dashboard data retrieved successfully", $dashboardData);
+    // Skip activity_logs and notifications queries as tables don't exist yet
+    
+    send_success("Admin Overview Retrieved", $overviewData);
 
 } catch (Exception $e) {
-    error_log("Overview API Error: " . $e->getMessage());
+    error_log("Admin Overview API Error: " . $e->getMessage());
     send_error("Server error: " . $e->getMessage(), 500);
 }
 ?>

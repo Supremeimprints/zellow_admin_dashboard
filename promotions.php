@@ -76,8 +76,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         min_order_amount,
                         usage_limit_total,
                         usage_limit_per_user,
+                        is_public,
                         status
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, 'active')
                 ");
                 
                 $stmt->execute([

@@ -14,7 +14,8 @@ $database = new Database();
 $db = $database->getConnection();
 
 // Add this function to format dates for display
-function formatDateRange($startDate, $endDate) {
+function formatDateRange($startDate, $endDate)
+{
     return date('Y-m-d', strtotime($startDate)) . ' - ' . date('Y-m-d', strtotime($endDate));
 }
 
@@ -73,13 +74,19 @@ foreach ([$financialMetrics, $customerMetrics, $revenueData, $topProducts, $cate
 }
 
 // Replace match with switch for status colors
-function getStatusColor($status) {
+function getStatusColor($status)
+{
     switch ($status) {
-        case 'completed': return 'success';
-        case 'pending': return 'warning';
-        case 'processing': return 'info';
-        case 'cancelled': return 'danger';
-        default: return 'secondary';
+        case 'completed':
+            return 'success';
+        case 'pending':
+            return 'warning';
+        case 'processing':
+            return 'info';
+        case 'cancelled':
+            return 'danger';
+        default:
+            return 'secondary';
     }
 }
 
@@ -87,18 +94,19 @@ function getStatusColor($status) {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Financial Analytics - Zellow Admin</title>
     <script src="https://unpkg.com/feather-icons"></script>
-    
-   
-   
-   
+
+
+
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-   
-   
+
+
     <link rel="stylesheet" href="assets/css/collapsed.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -111,32 +119,40 @@ function getStatusColor($status) {
         .text-success {
             color: #10B981 !important;
         }
-        
+
         .text-danger {
             color: #EF4444 !important;
         }
-        
+
         .text-warning {
             color: #F59E0B !important;
         }
-        
+
         .bg-warning-soft {
             background-color: rgba(245, 158, 11, 0.1);
         }
-        
+
         .numeric-cell {
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.9rem;
         }
-        
+
         .numeric-cell span {
             font-weight: 500;
         }
 
         /* Add to the existing styles section */
-        .bg-success-soft { background-color: rgba(16, 185, 129, 0.1); }
-        .bg-warning-soft { background-color: rgba(245, 158, 11, 0.1); }
-        .bg-danger-soft { background-color: rgba(239, 68, 68, 0.1); }
+        .bg-success-soft {
+            background-color: rgba(16, 185, 129, 0.1);
+        }
+
+        .bg-warning-soft {
+            background-color: rgba(245, 158, 11, 0.1);
+        }
+
+        .bg-danger-soft {
+            background-color: rgba(239, 68, 68, 0.1);
+        }
 
         .status-badge {
             display: inline-flex;
@@ -147,8 +163,8 @@ function getStatusColor($status) {
             font-weight: 500;
         }
 
-        .status-completed { 
-            background-color: var(--priority-low); 
+        .status-completed {
+            background-color: var(--priority-low);
             color: white;
         }
 
@@ -163,508 +179,520 @@ function getStatusColor($status) {
         }
     </style>
 </head>
+
 <body>
-<div class="admin-layout">
-    <?php include 'includes/theme.php'; ?>
-    <nav class="navbar">
-        <?php include 'includes/nav/collapsed.php'; ?>
-    </nav>
+    <div class="admin-layout">
+        <?php include 'includes/theme.php'; ?>
+        <nav class="navbar">
+            <?php include 'includes/nav/collapsed.php'; ?>
+        </nav>
 
-    <div class="main-content">
-        <div class="container mt-4">
-            <!-- Date Filter -->
-            <div class="card mb-4">
-                <div class="card-body">
-                    <form id="dateFilterForm" class="row g-3">
+        <div class="main-content">
+            <div class="container mt-4">
+                <!-- Date Filter -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <form id="dateFilterForm" class="row g-3">
+                            <div class="col-md-4">
+                                <input type="text" class="form-control" name="date_range"
+                                    placeholder="Select date range" id="date-range"
+                                    value="<?= htmlspecialchars($date_range) ?>"
+                                    data-default-start="<?= $defaultStartDate ?>" data-default-end="<?= $today ?>">
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary me-2">Apply Filter</button>
+                                <button type="button" id="resetDates" class="btn btn-secondary">Reset</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Metric Cards -->
+                <div class="row g-4 mb-4">
+                    <!-- Revenue Card -->
+                    <div class="col-md-3">
+                        <div class="card h-100 metric-card revenue">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">Total Revenue</h6>
+                                <h3 class="card-title mb-3">
+                                    Ksh <?= number_format($financialMetrics['revenue'], 2) ?>
+                                </h3>
+                                <p
+                                    class="mb-0 <?= $financialMetrics['revenue_growth'] >= 0 ? 'text-success' : 'text-danger' ?>">
+                                    <i
+                                        class="fas fa-<?= $financialMetrics['revenue_growth'] >= 0 ? 'arrow-up' : 'arrow-down' ?>"></i>
+                                    <?= abs(round($financialMetrics['revenue_growth'], 1)) ?>%
+                                </p>
+                                <small class="text-muted">vs previous period</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Net Profit Card -->
+                    <div class="col-md-3">
+                        <div class="card h-100 metric-card profit">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">Net Profit</h6>
+                                <h3 class="card-title mb-3">
+                                    Ksh <?= number_format($financialMetrics['net_profit'], 2) ?>
+                                </h3>
+                                <p
+                                    class="mb-0 <?= $financialMetrics['profit_margin'] >= 20 ? 'text-success' : 'text-warning' ?>">
+                                    <?= round($financialMetrics['profit_margin'], 1) ?>% margin
+                                </p>
+                                <small class="text-muted">after expenses & refunds</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Customers Card -->
+                    <div class="col-md-3">
+                        <div class="card h-100 metric-card customers">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">Active Customers</h6>
+                                <h3 class="card-title mb-3">
+                                    <?= number_format($customerMetrics['active_customers']) ?>
+                                </h3>
+                                <p
+                                    class="mb-0 <?= $customerMetrics['customer_growth'] >= 0 ? 'text-success' : 'text-danger' ?>">
+                                    <i
+                                        class="fas fa-<?= $customerMetrics['customer_growth'] >= 0 ? 'arrow-up' : 'arrow-down' ?>"></i>
+                                    <?= abs(round($customerMetrics['customer_growth'], 1)) ?>%
+                                </p>
+                                <small class="text-muted">vs previous period</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Average Order Value Card -->
+                    <div class="col-md-3">
+                        <div class="card h-100 metric-card avg-order">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">Avg. Order Value</h6>
+                                <h3 class="card-title mb-3">
+                                    Ksh <?= number_format($financialMetrics['avg_order_value'], 2) ?>
+                                </h3>
+                                <p class="mb-0">
+                                    <?= number_format($financialMetrics['total_orders']) ?> orders
+                                </p>
+                                <small class="text-muted">in selected period</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="row g-4 mb-4">
+                    <!-- Revenue Chart -->
+                    <div class="col-md-8">
+                        <div class="card h-100">
+                            <div class="card-body chart-card">
+                                <h5 class="chart-title">Revenue Overview</h5>
+                                <div class="chart-container revenue-chart-container">
+                                    <canvas id="revenueChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Category Performance -->
                     <div class="col-md-4">
-                            <input type="text" class="form-control" name="date_range" 
-                                   placeholder="Select date range" id="date-range" 
-                                   value="<?= htmlspecialchars($date_range) ?>"
-                                   data-default-start="<?= $defaultStartDate ?>"
-                                   data-default-end="<?= $today ?>">
-                        </div>
-                        <div class="col-md-4 d-flex align-items-end">
-                            <button type="submit" class="btn btn-primary me-2">Apply Filter</button>
-                            <button type="button" id="resetDates" class="btn btn-secondary">Reset</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Metric Cards -->
-            <div class="row g-4 mb-4">
-                <!-- Revenue Card -->
-                <div class="col-md-3">
-                    <div class="card h-100 metric-card revenue">
-                        <div class="card-body">
-                            <h6 class="card-subtitle mb-2 text-muted">Total Revenue</h6>
-                            <h3 class="card-title mb-3">
-                                Ksh <?= number_format($financialMetrics['revenue'], 2) ?>
-                            </h3>
-                            <p class="mb-0 <?= $financialMetrics['revenue_growth'] >= 0 ? 'text-success' : 'text-danger' ?>">
-                                <i class="fas fa-<?= $financialMetrics['revenue_growth'] >= 0 ? 'arrow-up' : 'arrow-down' ?>"></i>
-                                <?= abs(round($financialMetrics['revenue_growth'], 1)) ?>%
-                            </p>
-                            <small class="text-muted">vs previous period</small>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Net Profit Card -->
-                <div class="col-md-3">
-                    <div class="card h-100 metric-card profit">
-                        <div class="card-body">
-                            <h6 class="card-subtitle mb-2 text-muted">Net Profit</h6>
-                            <h3 class="card-title mb-3">
-                                Ksh <?= number_format($financialMetrics['net_profit'], 2) ?>
-                            </h3>
-                            <p class="mb-0 <?= $financialMetrics['profit_margin'] >= 20 ? 'text-success' : 'text-warning' ?>">
-                                <?= round($financialMetrics['profit_margin'], 1) ?>% margin
-                            </p>
-                            <small class="text-muted">after expenses & refunds</small>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Customers Card -->
-                <div class="col-md-3">
-                    <div class="card h-100 metric-card customers">
-                        <div class="card-body">
-                            <h6 class="card-subtitle mb-2 text-muted">Active Customers</h6>
-                            <h3 class="card-title mb-3">
-                                <?= number_format($customerMetrics['active_customers']) ?>
-                            </h3>
-                            <p class="mb-0 <?= $customerMetrics['customer_growth'] >= 0 ? 'text-success' : 'text-danger' ?>">
-                                <i class="fas fa-<?= $customerMetrics['customer_growth'] >= 0 ? 'arrow-up' : 'arrow-down' ?>"></i>
-                                <?= abs(round($customerMetrics['customer_growth'], 1)) ?>%
-                            </p>
-                            <small class="text-muted">vs previous period</small>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Average Order Value Card -->
-                <div class="col-md-3">
-                    <div class="card h-100 metric-card avg-order">
-                        <div class="card-body">
-                            <h6 class="card-subtitle mb-2 text-muted">Avg. Order Value</h6>
-                            <h3 class="card-title mb-3">
-                                Ksh <?= number_format($financialMetrics['avg_order_value'], 2) ?>
-                            </h3>
-                            <p class="mb-0">
-                                <?= number_format($financialMetrics['total_orders']) ?> orders
-                            </p>
-                            <small class="text-muted">in selected period</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Charts Row -->
-            <div class="row g-4 mb-4">
-                <!-- Revenue Chart -->
-                <div class="col-md-8">
-                    <div class="card h-100">
-                        <div class="card-body chart-card">
-                            <h5 class="chart-title">Revenue Overview</h5>
-                            <div class="chart-container revenue-chart-container">
-                                <canvas id="revenueChart"></canvas>
+                        <div class="card h-100">
+                            <div class="card-body chart-card">
+                                <h5 class="chart-title">Sales by Category</h5>
+                                <div class="chart-container category-chart-container">
+                                    <canvas id="categoryChart"></canvas>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Category Performance -->
-                <div class="col-md-4">
-                    <div class="card h-100">
-                        <div class="card-body chart-card">
-                            <h5 class="chart-title">Sales by Category</h5>
-                            <div class="chart-container category-chart-container">
-                                <canvas id="categoryChart"></canvas>
+                <!-- Replace the Transactions Table section -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Recent Transactions</h5>
+                        <div class="d-flex gap-2">
+                            <!-- Add All Transactions button -->
+                            <a href="transactions.php" class="btn btn-sm btn-primary">
+                                <i class="fas fa-list me-1"></i> All Transactions
+                            </a>
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    onclick="exportData('csv')">
+                                    <i class="fas fa-file-csv me-1"></i> CSV
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    onclick="exportData('excel')">
+                                    <i class="fas fa-file-excel me-1"></i> Excel
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    onclick="exportData('pdf')">
+                                    <i class="fas fa-file-pdf me-1"></i> PDF
+                                </button>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- Replace the Transactions Table section -->
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Recent Transactions</h5>
-                    <div class="d-flex gap-2">
-                        <!-- Add All Transactions button -->
-                        <a href="transactions.php" class="btn btn-sm btn-primary">
-                            <i class="fas fa-list me-1"></i> All Transactions
-                        </a>
-                        <div class="btn-group">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportData('csv')">
-                                <i class="fas fa-file-csv me-1"></i> CSV
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportData('excel')">
-                                <i class="fas fa-file-excel me-1"></i> Excel
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportData('pdf')">
-                                <i class="fas fa-file-pdf me-1"></i> PDF
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0 transaction-list">
-                            <thead>
-                                <tr>
-                                    <th class="border-top-0">Date</th>
-                                    <th class="border-top-0">Type</th>
-                                    <th class="border-top-0">Reference</th>
-                                    <th class="border-top-0">Description</th>
-                                    <th class="border-top-0 text-start">Amount</th>
-                                    <th class="border-top-0 text-center">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (!empty($transactionHistory) && is_array($transactionHistory)): ?>
-                                    <?php foreach ($transactionHistory as $transaction): ?>
-                                        <tr>
-                                            <td class="align-middle">
-                                                <div class="transaction-date">
-                                                    <?= date('M d, Y', strtotime($transaction['transaction_date'])) ?>
-                                                    <div class="text-muted small">
-                                                        <?= date('h:i A', strtotime($transaction['transaction_date'])) ?>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td class="align-middle">
-                                                <span class="transaction-badge" data-type="<?= strtolower($transaction['transaction_type']) ?>">
-                                                    <?= htmlspecialchars($transaction['transaction_type']) ?>
-                                                </span>
-                                            </td>
-                                            <td class="align-middle">
-                                                <div class="transaction-reference">
-                                                    <?= htmlspecialchars($transaction['reference_id']) ?>
-                                                    <?php if (isset($transaction['order_id']) && $transaction['order_id']): ?>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0 transaction-list">
+                                <thead>
+                                    <tr>
+                                        <th class="border-top-0">Date</th>
+                                        <th class="border-top-0">Type</th>
+                                        <th class="border-top-0">Reference</th>
+                                        <th class="border-top-0">Description</th>
+                                        <th class="border-top-0 text-start">Amount</th>
+                                        <th class="border-top-0 text-center">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if (!empty($transactionHistory) && is_array($transactionHistory)): ?>
+                                        <?php foreach ($transactionHistory as $transaction): ?>
+                                            <tr>
+                                                <td class="align-middle">
+                                                    <div class="transaction-date">
+                                                        <?= date('M d, Y', strtotime($transaction['transaction_date'])) ?>
                                                         <div class="text-muted small">
-                                                            Order #<?= htmlspecialchars($transaction['order_id']) ?>
+                                                            <?= date('h:i A', strtotime($transaction['transaction_date'])) ?>
                                                         </div>
-                                                    <?php endif; ?>
-                                                </div>
-                                            </td>
-                                            <td class="align-middle">
-                                                <span class="transaction-details">
-                                                    <?= htmlspecialchars($transaction['description'] ?? '-') ?>
-                                                </span>
-                                            </td>
-                                            <td class="align-middle">
-                                                <div class="transaction-amount <?= strtolower($transaction['transaction_type']) ?>">
+                                                    </div>
+                                                </td>
+                                                <td class="align-middle">
+                                                    <span class="transaction-badge"
+                                                        data-type="<?= strtolower($transaction['transaction_type']) ?>">
+                                                        <?= htmlspecialchars($transaction['transaction_type']) ?>
+                                                    </span>
+                                                </td>
+                                                <td class="align-middle">
+                                                    <div class="transaction-reference">
+                                                        <?= htmlspecialchars($transaction['reference_id']) ?>
+                                                        <?php if (isset($transaction['order_id']) && $transaction['order_id']): ?>
+                                                            <div class="text-muted small">
+                                                                Order #<?= htmlspecialchars($transaction['order_id']) ?>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </td>
+                                                <td class="align-middle">
+                                                    <span class="transaction-details">
+                                                        <?= htmlspecialchars($transaction['description'] ?? '-') ?>
+                                                    </span>
+                                                </td>
+                                                <td class="align-middle">
+                                                    <div
+                                                        class="transaction-amount <?= strtolower($transaction['transaction_type']) ?>">
+                                                        <?php
+                                                        $amountColor = '';
+                                                        switch (strtolower($transaction['transaction_type'])) {
+                                                            case 'payment':
+                                                                $amountColor = 'text-success';
+                                                                break;
+                                                            case 'refund':
+                                                                $amountColor = 'text-danger';
+                                                                break;
+                                                            case 'discount':
+                                                                $amountColor = 'text-purple';
+                                                                break;
+                                                            default:
+                                                                $amountColor = '';
+                                                        }
+                                                        ?>
+                                                        <span class="<?= $amountColor ?>">
+                                                            <?= ($transaction['amount'] >= 0 ? '+' : '-') ?>Ksh
+                                                            <?= number_format(abs($transaction['amount']), 2) ?>
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td class="align-middle text-center small">
                                                     <?php
-                                                    $amountColor = '';
-                                                    switch(strtolower($transaction['transaction_type'])) {
+                                                    $status = '';
+                                                    switch (strtolower($transaction['transaction_type'])) {
                                                         case 'payment':
-                                                            $amountColor = 'text-success';
+                                                            $status = 'Paid';
                                                             break;
                                                         case 'refund':
-                                                            $amountColor = 'text-danger';
+                                                            $status = 'Refunded';
                                                             break;
                                                         case 'discount':
-                                                            $amountColor = 'text-purple';
+                                                            $status = 'Applied';
                                                             break;
                                                         default:
-                                                            $amountColor = '';
+                                                            $status = 'Completed';
+                                                    }
+
+                                                    $statusColor = '';
+                                                    switch (strtolower($transaction['transaction_type'])) {
+                                                        case 'payment':
+                                                            $statusColor = 'text-success';
+                                                            break;
+                                                        case 'refund':
+                                                            $statusColor = 'text-danger';
+                                                            break;
+                                                        case 'discount':
+                                                            $statusColor = 'text-purple';
+                                                            break;
+                                                        default:
+                                                            $statusColor = 'text-secondary';
                                                     }
                                                     ?>
-                                                    <span class="<?= $amountColor ?>">
-                                                        <?= ($transaction['amount'] >= 0 ? '+' : '-') ?>Ksh <?= number_format(abs($transaction['amount']), 2) ?>
+                                                    <span class="<?= $statusColor ?> fw-medium">
+                                                        <?= htmlspecialchars($status) ?>
                                                     </span>
-                                                </div>
-                                            </td>
-                                            <td class="align-middle text-center small">
-                                                <?php
-                                                $status = '';
-                                                switch(strtolower($transaction['transaction_type'])) {
-                                                    case 'payment':
-                                                        $status = 'Paid';
-                                                        break;
-                                                    case 'refund':
-                                                        $status = 'Refunded';
-                                                        break;
-                                                    case 'discount':
-                                                        $status = 'Applied';
-                                                        break;
-                                                    default:
-                                                        $status = 'Completed';
-                                                }
-
-                                                $statusColor = '';
-                                                switch(strtolower($transaction['transaction_type'])) {
-                                                    case 'payment':
-                                                        $statusColor = 'text-success';
-                                                        break;
-                                                    case 'refund':
-                                                        $statusColor = 'text-danger';
-                                                        break;
-                                                    case 'discount':
-                                                        $statusColor = 'text-purple';
-                                                        break;
-                                                    default:
-                                                        $statusColor = 'text-secondary';
-                                                }
-                                                ?>
-                                                <span class="<?= $statusColor ?> fw-medium">
-                                                    <?= htmlspecialchars($status) ?>
-                                                </span>
-                                            </td>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <tr>
+                                            <td colspan="6" class="text-center py-4">No transactions found</td>
                                         </tr>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
-                                    <tr>
-                                        <td colspan="6" class="text-center py-4">No transactions found</td>
-                                    </tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize Flatpickr
-    const dateRangePicker = flatpickr("#date-range", {
-        mode: "range",
-        dateFormat: "Y-m-d",
-        maxDate: "today",
-        defaultDate: [
-            "<?= $startDate ?>", 
-            "<?= $endDate ?>"
-        ],
-        onChange: function(selectedDates) {
-            if (selectedDates.length === 2) {
-                refreshData(selectedDates[0], selectedDates[1]);
-            }
-        }
-    });
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Initialize Flatpickr
+            const dateRangePicker = flatpickr("#date-range", {
+                mode: "range",
+                dateFormat: "Y-m-d",
+                maxDate: "today",
+                defaultDate: [
+                    "<?= $startDate ?>",
+                    "<?= $endDate ?>"
+                ],
+                onChange: function (selectedDates) {
+                    if (selectedDates.length === 2) {
+                        refreshData(selectedDates[0], selectedDates[1]);
+                    }
+                }
+            });
 
-    // Function to refresh all data
-    function refreshData(startDate = null, endDate = null) {
-        const params = new URLSearchParams();
-        
-        if (startDate && endDate) {
-            params.set('date_range', 
-                flatpickr.formatDate(startDate, "Y-m-d") + " - " + 
-                flatpickr.formatDate(endDate, "Y-m-d")
-            );
-        }
+            // Function to refresh all data
+            function refreshData(startDate = null, endDate = null) {
+                const params = new URLSearchParams();
 
-        // Add loading state to cards
-        document.querySelectorAll('.card').forEach(card => {
-            card.style.opacity = '0.6';
-            card.style.pointerEvents = 'none';
-        });
+                if (startDate && endDate) {
+                    params.set('date_range',
+                        flatpickr.formatDate(startDate, "Y-m-d") + " - " +
+                        flatpickr.formatDate(endDate, "Y-m-d")
+                    );
+                }
 
-        // Show loading spinner
-        const spinner = document.createElement('div');
-        spinner.className = 'position-fixed top-50 start-50 translate-middle';
-        spinner.innerHTML = `
+                // Add loading state to cards
+                document.querySelectorAll('.card').forEach(card => {
+                    card.style.opacity = '0.6';
+                    card.style.pointerEvents = 'none';
+                });
+
+                // Show loading spinner
+                const spinner = document.createElement('div');
+                spinner.className = 'position-fixed top-50 start-50 translate-middle';
+                spinner.innerHTML = `
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Loading...</span>
             </div>
         `;
-        document.body.appendChild(spinner);
+                document.body.appendChild(spinner);
 
-        // Reload the page with new parameters or clear parameters for reset
-        window.location.href = 'analytics.php' + (params.toString() ? '?' + params.toString() : '');
-    }
-
-    // Handle reset - now reloads entire page without parameters
-    document.getElementById('resetDates').addEventListener('click', function() {
-        refreshData(); // Call without parameters to reset everything
-    });
-
-    // Update form submission to use refreshData
-    document.getElementById('dateFilterForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const dateRange = document.querySelector('input[name="date_range"]').value;
-        if (dateRange) {
-            const [start, end] = dateRange.split(' - ');
-            refreshData(new Date(start), new Date(end));
-        }
-    });
-});
-
-// Add this to the existing export function
-function exportData(format) {
-    const currentParams = new URLSearchParams(window.location.search);
-    currentParams.append('export', format);
-    window.location.href = 'export_analytics.php?' + currentParams.toString();
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Revenue Chart
-    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
-    new Chart(revenueCtx, {
-        type: 'line',
-        data: {
-            labels: <?= json_encode(array_column($revenueData, 'period') ?: []) ?>,
-            datasets: [{
-                label: 'Revenue',
-                data: <?= json_encode(array_column($revenueData, 'revenue') ?: []) ?>,
-                borderColor: '#0d6efd',
-                backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                tension: 0.4,
-                fill: true
-            }, {
-                label: 'Expenses',
-                data: <?= json_encode(array_column($revenueData, 'expenses') ?: []) ?>,
-                borderColor: '#dc3545',
-                backgroundColor: 'rgba(220, 53, 69, 0.1)',
-                tension: 0.4,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'top',
-                    align: 'end'
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        borderDash: [2, 2]
-                    }
-                },
-                x: {
-                    grid: {
-                        display: false
-                    }
-                }
+                // Reload the page with new parameters or clear parameters for reset
+                window.location.href = 'analytics.php' + (params.toString() ? '?' + params.toString() : '');
             }
+
+            // Handle reset - now reloads entire page without parameters
+            document.getElementById('resetDates').addEventListener('click', function () {
+                refreshData(); // Call without parameters to reset everything
+            });
+
+            // Update form submission to use refreshData
+            document.getElementById('dateFilterForm').addEventListener('submit', function (e) {
+                e.preventDefault();
+                const dateRange = document.querySelector('input[name="date_range"]').value;
+                if (dateRange) {
+                    const [start, end] = dateRange.split(' - ');
+                    refreshData(new Date(start), new Date(end));
+                }
+            });
+        });
+
+        // Add this to the existing export function
+        function exportData(format) {
+            const currentParams = new URLSearchParams(window.location.search);
+            currentParams.append('export', format);
+            window.location.href = 'export_analytics.php?' + currentParams.toString();
         }
-    });
 
-    // Category Chart
-    const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-    const categoryData = <?= json_encode($categoryPerformance) ?>;
-
-    new Chart(categoryCtx, {
-        type: 'doughnut',
-        data: {
-            labels: categoryData.map(item => item.category),
-            datasets: [{
-                data: categoryData.map(item => item.total_sales),
-                backgroundColor: [
-                    '#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#dc3545',
-                    '#fd7e14', '#ffc107', '#198754', '#20c997', '#0dcaf0'
-                ],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: '70%',
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        boxWidth: 12,
-                        padding: 15,
-                        font: {
-                            size: 11
+        document.addEventListener('DOMContentLoaded', function () {
+            // Revenue Chart
+            const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+            new Chart(revenueCtx, {
+                type: 'line',
+                data: {
+                    labels: <?= json_encode(array_column($revenueData, 'period') ?: []) ?>,
+                    datasets: [{
+                        label: 'Revenue',
+                        data: <?= json_encode(array_column($revenueData, 'revenue') ?: []) ?>,
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        label: 'Expenses',
+                        data: <?= json_encode(array_column($revenueData, 'expenses') ?: []) ?>,
+                        borderColor: '#dc3545',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            align: 'end'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                borderDash: [2, 2]
+                            }
                         },
-                        generateLabels: function(chart) {
-                            const dataset = chart.data.datasets[0];
-                            const total = dataset.data.reduce((a, b) => a + b, 0);
-                            return chart.data.labels.map((label, i) => ({
-                                text: `${label} (${((dataset.data[i] / total) * 100).toFixed(1)}%)`,
-                                fillStyle: dataset.backgroundColor[i],
-                                hidden: false,
-                                index: i
-                            }));
-                        }
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const dataset = context.dataset;
-                            const total = dataset.data.reduce((a, b) => a + b, 0);
-                            const value = dataset.data[context.dataIndex];
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            return `Ksh ${value.toLocaleString()} (${percentage}%)`;
+                        x: {
+                            grid: {
+                                display: false
+                            }
                         }
                     }
                 }
-            }
-        }
-    });
-});
+            });
 
-// Date filter form handler
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize Flatpickr
-    const dateRangePicker = flatpickr("#date-range", {
-        mode: "range",
-        dateFormat: "Y-m-d",
-        maxDate: "today",
-        defaultDate: [
-            "<?= $startDate ?>", 
-            "<?= $endDate ?>"
-        ],
-        onChange: function(selectedDates) {
-            if (selectedDates.length === 2) {
-                const startDate = selectedDates[0];
-                const endDate = selectedDates[1];
-                
-                // Update form and submit
-                document.querySelector('input[name="date_range"]').value = 
-                    formatDateRange(startDate, endDate);
+            // Category Chart
+            const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+            const categoryData = <?= json_encode($categoryPerformance) ?>;
+
+            new Chart(categoryCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: categoryData.map(item => item.category),
+                    datasets: [{
+                        data: categoryData.map(item => item.total_sales),
+                        backgroundColor: [
+                            '#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#dc3545',
+                            '#fd7e14', '#ffc107', '#198754', '#20c997', '#0dcaf0'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                boxWidth: 12,
+                                padding: 15,
+                                font: {
+                                    size: 11
+                                },
+                                generateLabels: function (chart) {
+                                    const dataset = chart.data.datasets[0];
+                                    const total = dataset.data.reduce((a, b) => a + b, 0);
+                                    return chart.data.labels.map((label, i) => ({
+                                        text: `${label} (${((dataset.data[i] / total) * 100).toFixed(1)}%)`,
+                                        fillStyle: dataset.backgroundColor[i],
+                                        hidden: false,
+                                        index: i
+                                    }));
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    const dataset = context.dataset;
+                                    const total = dataset.data.reduce((a, b) => a + b, 0);
+                                    const value = dataset.data[context.dataIndex];
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `Ksh ${value.toLocaleString()} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+
+        // Date filter form handler
+        document.addEventListener('DOMContentLoaded', function () {
+            // Initialize Flatpickr
+            const dateRangePicker = flatpickr("#date-range", {
+                mode: "range",
+                dateFormat: "Y-m-d",
+                maxDate: "today",
+                defaultDate: [
+                    "<?= $startDate ?>",
+                    "<?= $endDate ?>"
+                ],
+                onChange: function (selectedDates) {
+                    if (selectedDates.length === 2) {
+                        const startDate = selectedDates[0];
+                        const endDate = selectedDates[1];
+
+                        // Update form and submit
+                        document.querySelector('input[name="date_range"]').value =
+                            formatDateRange(startDate, endDate);
+                        document.getElementById('dateFilterForm').submit();
+                    }
+                }
+            });
+
+            // Format date helper
+            function formatDateRange(start, end) {
+                return flatpickr.formatDate(start, "Y-m-d") + " - " +
+                    flatpickr.formatDate(end, "Y-m-d");
+            }
+
+            // Handle reset with proper date formatting
+            document.getElementById('resetDates').addEventListener('click', function () {
+                const input = document.getElementById('date-range');
+                const defaultStart = input.dataset.defaultStart;
+                const defaultEnd = input.dataset.defaultEnd;
+
+                dateRangePicker.setDate([defaultStart, defaultEnd]);
+                input.value = formatDateRange(defaultStart, defaultEnd);
                 document.getElementById('dateFilterForm').submit();
-            }
+            });
+
+            // Update charts when date range changes
+            document.getElementById('dateFilterForm').addEventListener('submit', function (e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                const params = new URLSearchParams(formData);
+                window.location.href = 'analytics.php?' + params.toString();
+            });
+        });
+
+        // Export function
+        function exportData(format) {
+            const params = new URLSearchParams(window.location.search);
+            params.append('export', format);
+            window.location.href = 'export_analytics.php?' + params.toString();
         }
-    });
+    </script>
 
-    // Format date helper
-    function formatDateRange(start, end) {
-        return flatpickr.formatDate(start, "Y-m-d") + " - " + 
-               flatpickr.formatDate(end, "Y-m-d");
-    }
-
-    // Handle reset with proper date formatting
-    document.getElementById('resetDates').addEventListener('click', function() {
-        const input = document.getElementById('date-range');
-        const defaultStart = input.dataset.defaultStart;
-        const defaultEnd = input.dataset.defaultEnd;
-        
-        dateRangePicker.setDate([defaultStart, defaultEnd]);
-        input.value = formatDateRange(defaultStart, defaultEnd);
-        document.getElementById('dateFilterForm').submit();
-    });
-
-    // Update charts when date range changes
-    document.getElementById('dateFilterForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const formData = new FormData(this);
-        const params = new URLSearchParams(formData);
-        window.location.href = 'analytics.php?' + params.toString();
-    });
-});
-
-// Export function
-function exportData(format) {
-    const params = new URLSearchParams(window.location.search);
-    params.append('export', format);
-    window.location.href = 'export_analytics.php?' + params.toString();
-}
-</script>
-
-<?php include 'includes/nav/footer.php'; ?>
+    <?php include 'includes/nav/footer.php'; ?>
 </body>
+
 </html>

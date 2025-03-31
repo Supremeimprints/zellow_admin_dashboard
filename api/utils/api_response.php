@@ -18,7 +18,6 @@ function send_json_response($success, $message, $data = null, $status_code = 200
 
 function send_error($message, $code = 400) {
     http_response_code($code);
-    header('Content-Type: application/json');
     echo json_encode([
         'status' => 'error',
         'message' => $message
@@ -27,11 +26,26 @@ function send_error($message, $code = 400) {
 }
 
 function send_success($message, $data = null) {
-    header('Content-Type: application/json');
-    echo json_encode([
+    $response = [
         'status' => 'success',
         'message' => $message,
-        'data' => $data
-    ]);
+    ];
+    
+    if ($data !== null) {
+        $response['data'] = $data;
+    }
+    
+    http_response_code(200);
+    echo json_encode($response);
     exit();
+}
+
+function validate_request_data($required_fields, $input) {
+    $errors = [];
+    foreach ($required_fields as $field) {
+        if (!isset($input[$field]) || empty(trim($input[$field]))) {
+            $errors[] = "Missing required field: {$field}";
+        }
+    }
+    return $errors;
 }

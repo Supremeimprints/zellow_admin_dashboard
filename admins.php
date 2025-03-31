@@ -50,49 +50,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $userId = $user['id'];
 
             // Generate employee number
-           // Generate employee number similar to Safaricom transaction codes
-$prefix = match ($role) {
-    'admin' => 'ADM',
-    'finance_manager' => 'FIN',
-    'supply_manager' => 'SUP',
-    'inventory_manager' => 'INV',
-    'dispatch_manager' => 'DIS',
-    'service_manager' => 'SER',
-    default => 'ADM',
-};
+            $prefix = '';
+            switch ($role) {
+                case 'admin':
+                    $prefix = 'ADM';
+                    break;
+                case 'finance_manager':
+                    $prefix = 'FIN';
+                    break;
+                case 'supply_manager':
+                    $prefix = 'SUP';
+                    break;
+                case 'inventory_manager':
+                    $prefix = 'INV';
+                    break;
+                case 'dispatch_manager':
+                    $prefix = 'DIS';
+                    break;
+                case 'service_manager':
+                    $prefix = 'SER';
+                    break;
+                default:
+                    $prefix = 'ADM';
+            }
 
-// Get the current timestamp in milliseconds
-//$timestamp = round(microtime(true) * 1000);
+            // Get the current timestamp in milliseconds
+            //$timestamp = round(microtime(true) * 1000);
 
-// Generate a random alphanumeric string (e.g., "5GB72PLK9")
-$characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-$randomString = '';
-// Fix the for loop syntax
-for ($i = 0; $i < 8; $i++) {  // Changed from i++ to $i++
-    $randomString .= $characters[random_int(0, strlen($characters) - 1)];
-}
+            // Generate a random alphanumeric string (e.g., "5GB72PLK9")
+            $characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            $randomString = '';
+            // Fix the for loop syntax
+            for ($i = 0; $i < 8; $i++) {  // Changed from i++ to $i++
+                $randomString .= $characters[random_int(0, strlen($characters) - 1)];
+            }
 
-// Combine the prefix, timestamp, and random string
-$newEmployeeNumber = "$prefix-$randomString";
+            // Combine the prefix, timestamp, and random string
+            $newEmployeeNumber = "$prefix-$randomString";
 
-// Update user record with generated employee number
-$updateQuery = "UPDATE users SET employee_number = ? WHERE id = ?";
-$stmt = $db->prepare($updateQuery);
-$stmt->execute([$newEmployeeNumber, $userId]);
+            // Update user record with generated employee number
+            $updateQuery = "UPDATE users SET employee_number = ? WHERE id = ?";
+            $stmt = $db->prepare($updateQuery);
+            $stmt->execute([$newEmployeeNumber, $userId]);
 
-echo "Employee numbers have been successfully updated for all admins and managers.";
+            echo "Employee numbers have been successfully updated for all admins and managers.";
 
-// Insert into both `users` and `admins` tables
-$insertQuery = "INSERT INTO users (username, email, password, role, is_active, employee_number)
-                VALUES (?, ?, ?, ?, ?, ?)";
-$stmt = $db->prepare($insertQuery);
-$stmt->execute([$username, $email, $hashedPassword, $role, $isActive, $newEmployeeNumber]);
+            // Insert into both `users` and `admins` tables
+            $insertQuery = "INSERT INTO users (username, email, password, role, is_active, employee_number)
+                            VALUES (?, ?, ?, ?, ?, ?)";
+            $stmt = $db->prepare($insertQuery);
+            $stmt->execute([$username, $email, $hashedPassword, $role, $isActive, $newEmployeeNumber]);
 
-header('Location: admins.php');
-exit();
-}
+            header('Location: admins.php');
+            exit();
+            }
+        }
     }
-}
 
 } // End of if ($action === 'add')
 
@@ -209,6 +222,49 @@ $driverQuery = "SELECT d.*,
 $driverStmt = $db->prepare($driverQuery);
 $driverStmt->execute();
 $drivers = $driverStmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Add the missing functions before the HTML
+function getBadgeClass($status) {
+    switch (strtolower($status)) {
+        case 'active':
+            return 'bg-success';
+        case 'inactive':
+            return 'bg-danger';
+        case 'pending':
+            return 'bg-warning';
+        case 'suspended':
+            return 'bg-secondary';
+        default:
+            return 'bg-secondary';
+    }
+}
+
+function generateStarRating($rating) {
+    $fullStars = floor($rating);
+    $halfStar = ($rating - $fullStars) >= 0.5;
+    $emptyStars = 5 - $fullStars - ($halfStar ? 1 : 0);
+    
+    $html = '';
+    
+    // Add full stars
+    for ($i = 0; $i < $fullStars; $i++) {
+        $html .= '<i class="fas fa-star text-warning"></i>';
+    }
+    
+    // Add half star if needed
+    if ($halfStar) {
+        $html .= '<i class="fas fa-star-half-alt text-warning"></i>';
+    }
+    
+    // Add empty stars
+    for ($i = 0; $i < $emptyStars; $i++) {
+        $html .= '<i class="far fa-star text-warning"></i>';
+    }
+    
+    $html .= ' <span class="text-muted">(' . number_format($rating, 1) . ')</span>';
+    
+    return $html;
+}
 ?>
 
 <!DOCTYPE html>
@@ -504,16 +560,19 @@ $drivers = $driverStmt->fetchAll(PDO::FETCH_ASSOC);
 </style>
 
         <?php 
-         function getVehicleStatusColor($status)
-         {
-             return match ($status) {
-                 'Available' => 'success',
-                 'In Use' => 'warning',
-                 'Under Maintenance' => 'danger',
-                 default => 'secondary'
-             };
-         }
-         ?>
+        function getVehicleStatusColor($status) {
+            switch ($status) {
+                case 'Available':
+                    return 'success';
+                case 'In Use':
+                    return 'warning';
+                case 'Under Maintenance':
+                    return 'danger';
+                default:
+                    return 'secondary';
+            }
+        }
+        ?>
 </body>
 <?php include 'includes/nav/footer.php'; ?>
 </html>

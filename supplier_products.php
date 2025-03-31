@@ -29,19 +29,20 @@ try {
         exit();
     }
 
-    // Update query to get products from products table
+    // Update query to exclude product price
     $stmt = $db->prepare("
         SELECT 
             p.product_id,
             p.product_name,
             p.description,
-            p.price as unit_price,
             p.moq,
             p.lead_time,
             p.is_active,
             p.main_image,
-            p.supplier_id
+            p.supplier_id,
+            COALESCE(sp.unit_price, 0) as supplier_price
         FROM products p
+        LEFT JOIN supplier_prices sp ON p.product_id = sp.product_id
         WHERE p.supplier_id = ?
         ORDER BY p.created_at DESC
     ");
@@ -82,6 +83,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (PDOException $e) {
             $error = "Error adding product: " . $e->getMessage();
         }
+    }
+}
+
+// Handle price update
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_price'])) {
+    try {
+        $db->beginTransaction();
+        
+        $product_id = $_POST['product_id'];
+        $new_price = $_POST['supplier_price'];
+        
+        // Update or insert supplier price
+        $stmt = $db->prepare("
+            INSERT INTO supplier_prices (product_id, supplier_id, unit_price, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON DUPLICATE KEY UPDATE 
+            unit_price = VALUES(unit_price),
+            updated_at = CURRENT_TIMESTAMP
+        ");
+        
+        $stmt->execute([$product_id, $supplier_id, $new_price]);
+        $db->commit();
+        
+        $_SESSION['success'] = "Price updated successfully";
+        header("Location: supplier_products.php?id=" . $supplier_id);
+        exit();
+    } catch (PDOException $e) {
+        $db->rollBack();
+        $error = "Error updating price: " . $e->getMessage();
     }
 }
 ?>
@@ -311,7 +341,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <tr data-product-id="<?= htmlspecialchars($product['product_id']) ?>">
                                     <td class="fw-medium"><?= htmlspecialchars($product['product_name']) ?></td>
                                     <td><?= htmlspecialchars($product['description']) ?></td>
-                                    <td class="price-column">KES <?= number_format($product['unit_price'], 2) ?></td>
+                                    <td class="price-column">
+                                        <form method="POST" class="d-inline">
+                                            <input type="hidden" name="product_id" value="<?= $product['product_id'] ?>">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">KES</span>
+                                                <input type="number" 
+                                                       name="supplier_price" 
+                                                       class="form-control form-control-sm" 
+                                                       value="<?= number_format($product['supplier_price'], 2) ?>"
+                                                       step="0.01" 
+                                                       min="0">
+                                                <button type="submit" 
+                                                        name="update_price" 
+                                                        class="btn btn-outline-primary btn-sm">
+                                                    <i class="fas fa-save"></i>
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </td>
                                     <td><?= htmlspecialchars($product['moq']) ?> units</td>
                                     <td><?= htmlspecialchars($product['lead_time']) ?> days</td>
                                     <td>

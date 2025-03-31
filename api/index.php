@@ -3,10 +3,14 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-header('Access-Control-Allow-Origin: *');
-header('Content-Type: application/json; charset=UTF-8');
-header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With');
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/utils/api_response.php';
+
+// Allow CORS
+header("Access-Control-Allow-Origin: *");
+header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Methods: POST, GET, PUT, DELETE, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
@@ -16,31 +20,120 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // Log the request for debugging
 error_log("API Request: " . $_SERVER['REQUEST_METHOD'] . " " . $_SERVER['REQUEST_URI']);
 
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/utils/api_response.php';
+// Get request path
+$request_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$base_path = '/zellow_admin/api';
+$path = str_replace($base_path, '', $request_uri);
+$method = $_SERVER['REQUEST_METHOD'];
 
-// Get the requested endpoint
-$request_uri = $_SERVER['REQUEST_URI'];
-$base_path = '/zellow_admin/api/';
-$endpoint = str_replace($base_path, '', $request_uri);
+// API Routes
+try {
+    switch ($path) {
+        // Admin Overview Endpoint
+        case '/dashboard/overview':
+            if ($method === 'GET') {
+                require __DIR__ . '/dashboard/overview.php';
+            } else {
+                send_error('Method not allowed', 405);
+            }
+            break;
 
-// Remove query string if present
-$endpoint = strtok($endpoint, '?');
+        // Orders endpoints
+        case '/orders':
+            switch ($method) {
+                case 'GET':
+                    require __DIR__ . '/orders/list.php';
+                    break;
+                case 'POST':
+                    require __DIR__ . '/orders/create.php';
+                    break;
+                default:
+                    send_error('Method not allowed', 405);
+            }
+            break;
 
-// Route to appropriate handler
-switch ($endpoint) {
-    case 'auth/customer_login':
-        require __DIR__ . '/auth/customer_login.php';
-        break;
-    
-    case 'auth/login':
-        require __DIR__ . '/auth/login.php';
-        break;
-        
-    case 'dashboard/overview':
-        require __DIR__ . '/dashboard/overview.php';
-        break;
-        
-    default:
-        send_error("Endpoint not found", 404);
+        case '/orders/get':
+            if ($method === 'GET') {
+                require __DIR__ . '/orders/get.php';
+            } else {
+                send_error('Method not allowed', 405);
+            }
+            break;
+
+        case '/orders/cancel':
+            if ($method === 'POST') {
+                require __DIR__ . '/orders/cancel.php';
+            } else {
+                send_error('Method not allowed', 405);
+            }
+            break;
+
+        case '/orders/status':
+            if ($method === 'PUT') {
+                require __DIR__ . '/orders/update_status.php';
+            } else {
+                send_error('Method not allowed', 405);
+            }
+            break;
+
+        // Authentication endpoints
+        case '/auth/login':
+            if ($method === 'POST') {
+                require __DIR__ . '/auth/login.php';
+            } else {
+                send_error('Method not allowed', 405);
+            }
+            break;
+
+        case '/auth/customer_login':
+            if ($method === 'POST') {
+                require __DIR__ . '/auth/customer_login.php';
+            } else {
+                send_error('Method not allowed', 405);
+            }
+            break;
+
+        // Payment Methods endpoints
+        case '/payments/methods':
+            switch ($method) {
+                case 'GET':
+                    require __DIR__ . '/payments/methods.php';
+                    break;
+                case 'POST':
+                    require __DIR__ . '/payments/methods.php';
+                    break;
+                case 'PUT':
+                    require __DIR__ . '/payments/methods.php';
+                    break;
+                case 'DELETE':
+                    require __DIR__ . '/payments/methods.php';
+                    break;
+                default:
+                    send_error('Method not allowed', 405);
+            }
+            break;
+
+        case '/payments/verify':
+            if ($method === 'POST') {
+                require __DIR__ . '/payments/verify.php';
+            } else {
+                send_error('Method not allowed', 405);
+            }
+            break;
+
+        // Add this case to handle product image requests
+        case '/products/image':
+            if ($method === 'GET') {
+                require __DIR__ . '/products/serve_image.php';
+            } else {
+                send_error('Method not allowed', 405);
+            }
+            break;
+
+        default:
+            send_error('Endpoint not found', 404);
+    }
+} catch (Exception $e) {
+    error_log($e->getMessage());
+    send_error('Server error', 500);
 }

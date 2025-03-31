@@ -65,7 +65,6 @@ class CouponValidator {
             if ($coupon['usage_limit_total'] > 0) {
                 $usageCount = $this->getTotalUsageCount($coupon['coupon_id']);
                 if ($usageCount >= $coupon['usage_limit_total']) {
-                    // Auto-update status if limit reached
                     $this->deactivateCoupon($coupon['coupon_id']);
                     return ['valid' => false, 'message' => 'Coupon has reached maximum usage limit'];
                 }
@@ -85,7 +84,10 @@ class CouponValidator {
                 'discount_type' => $coupon['discount_type'],
                 'discount_value' => $coupon['discount_type'] === 'percentage' ? 
                     $coupon['discount_percentage'] : $coupon['discount_value'],
-                'coupon_id' => $coupon['coupon_id']
+                'coupon_id' => $coupon['coupon_id'],
+                'min_order_amount' => $coupon['min_order_amount'],
+                'usage_limit_total' => $coupon['usage_limit_total'],
+                'usage_limit_per_user' => $coupon['usage_limit_per_user']
             ];
             
         } catch (PDOException $e) {

@@ -3,3 +3,4 @@ config/secrets.php
 vendor/
 logs/*
 !logs/.gitkeep
+.qodo

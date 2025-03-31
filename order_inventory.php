@@ -19,12 +19,12 @@ $error = $success = '';
 $suppliersQuery = "SELECT supplier_id, company_name, email, phone FROM suppliers WHERE status = 'active'";
 $suppliers = $db->query($suppliersQuery)->fetchAll(PDO::FETCH_ASSOC);
 
-// Update the products query to include supplier info
+// Update the products query to include supplier prices
 $productsQuery = "
     SELECT 
         p.product_id, 
         p.product_name, 
-        p.price as unit_price,
+        COALESCE(sp.unit_price, p.price) as unit_price,
         i.stock_quantity, 
         i.min_stock_level,
         s.supplier_id,
@@ -33,6 +33,7 @@ $productsQuery = "
     FROM products p 
     LEFT JOIN inventory i ON p.product_id = i.product_id 
     LEFT JOIN suppliers s ON p.supplier_id = s.supplier_id
+    LEFT JOIN supplier_prices sp ON (p.product_id = sp.product_id AND s.supplier_id = sp.supplier_id)
     WHERE i.stock_quantity <= i.min_stock_level
         AND s.status = 'Active'
         AND s.is_active = 1
@@ -361,6 +362,7 @@ function updateProductOptions() {
                     `${product.product_name} (Stock: ${product.stock_quantity})`,
                     product.product_id
                 );
+                // Now using the supplier-specific price from our joined query
                 option.dataset.price = product.unit_price;
                 option.dataset.stock = product.stock_quantity;
                 select.add(option);
