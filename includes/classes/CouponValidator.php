@@ -34,7 +34,13 @@ class CouponValidator {
      */
     public function validateCoupon($couponCode, $userId = null, $orderTotal = 0) {
         try {
-            // Check basic coupon validity
+            error_log("Validating coupon: $couponCode for user: $userId with total: $orderTotal");
+            
+            if (empty($couponCode)) {
+                return ['valid' => false, 'message' => 'Coupon code is required'];
+            }
+            
+            // Check basic coupon validity with detailed logging
             $stmt = $this->db->prepare("
                 SELECT * FROM coupons 
                 WHERE code = ? 
@@ -49,8 +55,10 @@ class CouponValidator {
             $stmt->execute([$couponCode]);
             $coupon = $stmt->fetch(PDO::FETCH_ASSOC);
             
+            error_log("Coupon query result: " . print_r($coupon, true));
+            
             if (!$coupon) {
-                return ['valid' => false, 'message' => 'Invalid or expired coupon'];
+                return ['valid' => false, 'message' => 'Invalid or expired coupon code'];
             }
             
             // Validate minimum order amount
@@ -61,29 +69,38 @@ class CouponValidator {
                 ];
             }
             
-            // Check total usage limit
-            if ($coupon['usage_limit_total'] > 0) {
-                $usageCount = $this->getTotalUsageCount($coupon['coupon_id']);
-                if ($usageCount >= $coupon['usage_limit_total']) {
-                    $this->deactivateCoupon($coupon['coupon_id']);
-                    return ['valid' => false, 'message' => 'Coupon has reached maximum usage limit'];
-                }
+            // Check usage limits
+            $totalUses = $this->getTotalUsageCount($coupon['coupon_id']);
+            $userUses = $userId ? $this->getUserUsageCount($coupon['coupon_id'], $userId) : 0;
+            
+            error_log("Coupon usage - Total: $totalUses, User: $userUses");
+            
+            if ($coupon['usage_limit_total'] > 0 && $totalUses >= $coupon['usage_limit_total']) {
+                $this->deactivateCoupon($coupon['coupon_id']);
+                return ['valid' => false, 'message' => 'Coupon has reached maximum usage limit'];
             }
             
-            // Check per-user usage limit
-            if ($userId && $coupon['usage_limit_per_user'] > 0) {
-                $userUsageCount = $this->getUserUsageCount($coupon['coupon_id'], $userId);
-                if ($userUsageCount >= $coupon['usage_limit_per_user']) {
-                    return ['valid' => false, 'message' => 'You have reached the usage limit for this coupon'];
-                }
+            if ($userId && $coupon['usage_limit_per_user'] > 0 && $userUses >= $coupon['usage_limit_per_user']) {
+                return ['valid' => false, 'message' => 'You have reached the usage limit for this coupon'];
+            }
+            
+            // Calculate discount
+            $discountValue = $coupon['discount_type'] === 'percentage' ? 
+                $coupon['discount_percentage'] : $coupon['discount_value'];
+            
+            $discountAmount = $coupon['discount_type'] === 'percentage' ? 
+                ($orderTotal * $discountValue / 100) : $discountValue;
+            
+            if ($coupon['max_discount'] > 0) {
+                $discountAmount = min($discountAmount, $coupon['max_discount']);
             }
             
             return [
                 'valid' => true,
-                'message' => 'Coupon is valid',
+                'message' => 'Coupon successfully applied',
                 'discount_type' => $coupon['discount_type'],
-                'discount_value' => $coupon['discount_type'] === 'percentage' ? 
-                    $coupon['discount_percentage'] : $coupon['discount_value'],
+                'discount_value' => $discountValue,
+                'discount_amount' => $discountAmount,
                 'coupon_id' => $coupon['coupon_id'],
                 'min_order_amount' => $coupon['min_order_amount'],
                 'usage_limit_total' => $coupon['usage_limit_total'],
@@ -91,7 +108,100 @@ class CouponValidator {
             ];
             
         } catch (PDOException $e) {
-            error_log("Error validating coupon: " . $e->getMessage());
+            error_log("Database error validating coupon: " . $e->getMessage());
+            return ['valid' => false, 'message' => 'Database error while validating coupon'];
+        } catch (Exception $e) {
+            error_log("General error validating coupon: " . $e->getMessage());
+            return ['valid' => false, 'message' => 'Error validating coupon'];
+        }
+    }
+    
+    /**
+     * Validate coupon for order creation
+     */
+    public function validateOrderCoupon($couponCode, $userId, $orderTotal, $items = []) {
+        $result = $this->validateCoupon($couponCode, $userId, $orderTotal);
+        
+        if (!$result['valid']) {
+            return $result;
+        }
+        
+        // Additional order-specific validations
+        try {
+            $stmt = $this->db->prepare("SELECT * FROM coupons WHERE code = ? AND status = 'active'");
+            $stmt->execute([$couponCode]);
+            $coupon = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            // Validate order minimum items if specified
+            if ($coupon['min_items'] > 0 && count($items) < $coupon['min_items']) {
+                return [
+                    'valid' => false,
+                    'message' => "This coupon requires a minimum of {$coupon['min_items']} items"
+                ];
+            }
+            
+            // Calculate final discount
+            if ($coupon['discount_type'] === 'percentage') {
+                $discountAmount = ($orderTotal * $coupon['discount_percentage']) / 100;
+                if ($coupon['max_discount'] > 0) {
+                    $discountAmount = min($discountAmount, $coupon['max_discount']);
+                }
+            } else {
+                $discountAmount = min($coupon['discount_value'], $orderTotal);
+            }
+            
+            return array_merge($result, [
+                'discount_amount' => $discountAmount,
+                'final_total' => $orderTotal - $discountAmount
+            ]);
+            
+        } catch (PDOException $e) {
+            error_log("Error in validateOrderCoupon: " . $e->getMessage());
+            return ['valid' => false, 'message' => 'Error validating coupon'];
+        }
+    }
+    
+    /**
+     * Pre-validate coupon without recording usage
+     */
+    public function preValidateCoupon($couponCode, $userId = null) {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT c.*, 
+                       COUNT(cu.usage_id) as current_uses,
+                       (
+                           SELECT COUNT(*) 
+                           FROM coupon_usage 
+                           WHERE coupon_id = c.coupon_id AND user_id = ?
+                       ) as user_uses
+                FROM coupons c
+                LEFT JOIN coupon_usage cu ON c.coupon_id = cu.coupon_id
+                WHERE c.code = ? AND c.status = 'active'
+                GROUP BY c.coupon_id
+            ");
+            $stmt->execute([$userId, $couponCode]);
+            $coupon = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$coupon) {
+                return ['valid' => false, 'message' => 'Invalid coupon code'];
+            }
+            
+            // Check usage limits
+            if ($coupon['usage_limit_total'] > 0 && $coupon['current_uses'] >= $coupon['usage_limit_total']) {
+                return ['valid' => false, 'message' => 'Coupon has reached maximum usage limit'];
+            }
+            
+            if ($userId && $coupon['usage_limit_per_user'] > 0 && $coupon['user_uses'] >= $coupon['usage_limit_per_user']) {
+                return ['valid' => false, 'message' => 'You have reached the usage limit for this coupon'];
+            }
+            
+            return [
+                'valid' => true,
+                'coupon' => $coupon
+            ];
+            
+        } catch (PDOException $e) {
+            error_log("Error in preValidateCoupon: " . $e->getMessage());
             return ['valid' => false, 'message' => 'Error validating coupon'];
         }
     }

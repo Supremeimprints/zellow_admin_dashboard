@@ -90,6 +90,27 @@ if (isset($_POST['action']) && $_POST['action'] === 'validate_coupon') {
     exit;
 }
 
+// Add this after database connection
+if (isset($_POST['action']) && $_POST['action'] === 'lookup_email') {
+    header('Content-Type: application/json');
+    $email = filter_var($_POST['email'], FILTER_VALIDATE_EMAIL);
+    
+    if ($email) {
+        $stmt = $db->prepare("SELECT username FROM users WHERE email = ?");
+        $stmt->execute([$email]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        echo json_encode([
+            'success' => true,
+            'found' => $result !== false,
+            'username' => $result ? $result['username'] : ''
+        ]);
+    } else {
+        echo json_encode(['success' => false, 'error' => 'Invalid email']);
+    }
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $db->beginTransaction();
@@ -459,7 +480,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
                     <?php endif; ?>
 
-                    <form method="POST" class="needs-validation" novalidate>
+                    <form method="POST" class="needs-validation" novalidate id="orderForm">
                         <div class="form-section">
                            
                             <div class="row g-3">
@@ -477,6 +498,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                             <div class="mb-3">
                                                 <label for="username" class="form-label">Username</label>
                                                 <input type="text" name="username" id="username" class="form-control" required>
+                                                <div id="username-feedback" class="form-text"></div>
                                             </div>
                                         </div>
                                     </div>
@@ -610,13 +632,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </div>
                                 <div class="col-md-6">
                                     <label for="coupon_code" class="form-label">Coupon Code</label>
-                                    <div class="input-group">
-                                        <input type="text" class="form-control" name="coupon_code" id="couponCode" placeholder="Enter coupon code">
-                                        <button class="btn btn-outline-secondary" type="button" onclick="validateCoupon()">Apply</button>
+                                    <div class="input-group has-validation">
+                                        <input type="text" 
+                                               class="form-control" 
+                                               name="coupon_code" 
+                                               id="couponCode" 
+                                               placeholder="Enter coupon code">
+                                        <button class="btn btn-outline-secondary" 
+                                                type="button" 
+                                                onclick="validateCoupon()">Apply</button>
+                                        <div class="invalid-feedback" id="couponError"></div>
+                                        <div class="valid-feedback" id="couponSuccess"></div>
                                     </div>
                                     <div id="couponFeedback" class="form-text"></div>
-                                    <div id="couponError" class="invalid-feedback"></div>
-                                    <div id="couponSuccess" class="valid-feedback"></div>
                                 </div>
                             </div>
                             <div class="mt-3">
@@ -722,9 +750,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </div>
                             </div>
                         </div>
-</form>
-                        <div class="d-flex justify-content-between">
-                            <button type="submit" class="btn btn-primary btn-lg">Create Order</button>
+                        <div class="d-flex justify-content-between mt-3">
+                            <button type="submit" class="btn btn-primary btn-lg" id="submitOrder">Create Order</button>
                             <a href="orders.php" class="btn btn-danger btn-lg">Cancel</a>
                         </div>
                     </form>
@@ -738,6 +765,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         let currentSubtotal = 0;
         let currentDiscount = 0;
         let shippingFee = 0;
+        let lastValidShippingFee = 0; // Add this line
 
         // Real-time price calculation
         function calculateTotal() {
@@ -917,98 +945,90 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         })()
 
         // Coupon handling
-        function validateCoupon() {
-            // Get required elements
-            const couponInput = document.getElementById('couponCode');
-            const feedback = document.getElementById('couponFeedback');
-            const discountRow = document.getElementById('discountRow');
-            const discountElement = document.getElementById('discount');
-            const errorElement = document.getElementById('couponError');
-            const successElement = document.getElementById('couponSuccess');
-
-            // Verify all required elements exist
-            if (!couponInput || !feedback || !discountRow || !discountElement) {
-                console.error('Required DOM elements for coupon validation not found');
-                return;
-            }
-
-            const couponCode = couponInput.value.trim();
-            const orderTotal = currentSubtotal;
-
+        async function validateCoupon() {
+            const couponCode = document.getElementById('couponCode')?.value.trim();
+            const couponFeedback = document.getElementById('couponFeedback');
+            const discountRow = document.getElementById('discount-row');
+            const discountAmount = document.getElementById('discount-amount');
+            
             if (!couponCode) {
-                feedback.className = 'text-danger';
-                feedback.textContent = 'Please enter a coupon code';
+                showCouponMessage('Please enter a coupon code', 'danger');
                 return;
             }
 
-            // Show loading state
-            feedback.className = 'text-muted';
-            feedback.textContent = 'Validating coupon...';
+            const totals = calculateTotal();
+            
+            try {
+                const response = await fetch('ajax/validate_order_coupon.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        couponCode: couponCode,
+                        orderTotal: totals.finalTotal,
+                        items: getOrderItems()
+                    })
+                });
 
-            const formData = new FormData();
-            formData.append('action', 'validate_coupon');
-            formData.append('coupon_code', couponCode);
-            formData.append('order_total', orderTotal);
-
-            fetch(window.location.href, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                return response.json();
-            })
-            .then(data => {
-                if (data.valid) {
-                    // Success case
-                    feedback.className = 'text-success';
-                    feedback.textContent = data.message;
-                    discountRow.style.display = 'flex';
-                    
-                    if (data.discount_type === 'percentage') {
-                        currentDiscount = (currentSubtotal * parseFloat(data.discount_value)) / 100;
-                    } else {
-                        currentDiscount = parseFloat(data.discount_value);
+
+                const result = await response.json();
+                
+                if (result.valid) {
+                    currentDiscount = result.discount_amount || 0;
+                    showCouponMessage(result.message, 'success');
+                    if (discountRow && discountAmount) {
+                        discountRow.style.display = 'flex';
+                        discountAmount.textContent = `-Ksh. ${currentDiscount.toFixed(2)}`;
                     }
                     
-                    couponInput.classList.add('is-valid');
-                    couponInput.classList.remove('is-invalid');
-                    
-                    if (successElement) {
-                        successElement.textContent = data.message;
+                    // Add success styling to coupon input
+                    const couponInput = document.getElementById('couponCode');
+                    if (couponInput) {
+                        couponInput.classList.add('is-valid');
+                        couponInput.classList.remove('is-invalid');
                     }
                 } else {
-                    // Error case
-                    feedback.className = 'text-danger';
-                    feedback.textContent = data.message || 'Invalid coupon';
-                    discountRow.style.display = 'none';
                     currentDiscount = 0;
+                    showCouponMessage(result.message || 'Invalid coupon', 'danger');
+                    if (discountRow) {
+                        discountRow.style.display = 'none';
+                    }
                     
-                    couponInput.classList.add('is-invalid');
-                    couponInput.classList.remove('is-valid');
-                    
-                    if (errorElement) {
-                        errorElement.textContent = data.message || 'Invalid coupon';
+                    // Add error styling to coupon input
+                    const couponInput = document.getElementById('couponCode');
+                    if (couponInput) {
+                        couponInput.classList.add('is-invalid');
+                        couponInput.classList.remove('is-valid');
                     }
                 }
                 
-                // Update the discount display
-                discountElement.textContent = currentDiscount > 0 ? 
-                    `-Ksh. ${currentDiscount.toFixed(2)}` : '-Ksh. 0.00';
+                calculateTotal();
                 
-                // Update final total
-                updateFinalTotal();
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error('Error:', error);
-                feedback.className = 'text-danger';
-                feedback.textContent = 'Error validating coupon. Please try again.';
-                
-                if (errorElement) {
-                    errorElement.textContent = error.message;
-                }
+                showCouponMessage('Error validating coupon: ' + error.message, 'danger');
+            }
+        }
+
+        function showCouponMessage(message, type) {
+            const feedback = document.getElementById('couponFeedback');
+            if (feedback) {
+                feedback.textContent = message;
+                feedback.className = `form-text text-${type}`;
+            }
+        }
+
+        function getOrderItems() {
+            return Array.from(document.querySelectorAll('.product-item')).map(item => {
+                return {
+                    product_id: item.querySelector('.product-select').value,
+                    quantity: parseInt(item.querySelector('.quantity-input').value) || 0,
+                    price: parseFloat(item.querySelector('.unit-price-input').value) || 0
+                };
             });
         }
 
@@ -1250,7 +1270,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             });
         }
 
-        // Replace the existing calculateTotal function with this updated version
+        // Replace the calculateTotal function with this updated version
         function calculateTotal() {
             let productsSubtotal = 0;
             let servicesSubtotal = 0;
@@ -1271,9 +1291,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             document.getElementById('products-subtotal').textContent = `Ksh. ${productsSubtotal.toFixed(2)}`;
             document.getElementById('services-subtotal').textContent = `Ksh. ${servicesSubtotal.toFixed(2)}`;
             
-            // Calculate totals
+            // Calculate base subtotal
             const subtotal = productsSubtotal + servicesSubtotal;
             currentSubtotal = subtotal; // Update global subtotal for coupon calculations
+            
+            // Update shipping fee if needed
+            if (document.getElementById('shipping_method').value) {
+                calculateShippingFee();
+            }
             
             // Show discount if applicable
             const discountRow = document.getElementById('discount-row');
@@ -1287,8 +1312,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             // Calculate final total
-            const finalTotal = subtotal + (shippingFee || 0) - (currentDiscount || 0);
+            const finalTotal = subtotal + lastValidShippingFee - currentDiscount;
             document.getElementById('final-total').textContent = `Ksh. ${finalTotal.toFixed(2)}`;
+            document.getElementById('shipping-fee').textContent = `Ksh. ${lastValidShippingFee.toFixed(2)}`;
 
             // Update hidden input for form submission
             const totalInput = document.querySelector('input[name="total_amount"]');
@@ -1299,8 +1325,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             return {
                 productsSubtotal,
                 servicesSubtotal,
-                shippingFee: shippingFee || 0,
-                discount: currentDiscount || 0,
+                shippingFee: lastValidShippingFee,
+                discount: currentDiscount,
                 finalTotal
             };
         }
@@ -1334,6 +1360,137 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         });
 
+        // Add email lookup functionality
+        document.getElementById('email').addEventListener('blur', async function() {
+            const email = this.value;
+            const usernameInput = document.getElementById('username');
+            const usernameFeedback = document.getElementById('username-feedback');
+            
+            if (!email) return;
+            
+            try {
+                const response = await fetch('create_order.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `action=lookup_email&email=${encodeURIComponent(email)}`
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.found) {
+                        usernameInput.value = data.username;
+                        usernameInput.readOnly = true;
+                        usernameFeedback.textContent = 'Existing customer found';
+                        usernameFeedback.className = 'form-text text-success';
+                    } else {
+                        usernameInput.value = '';
+                        usernameInput.readOnly = false;
+                        usernameFeedback.textContent = 'New customer - please enter username';
+                        usernameFeedback.className = 'form-text text-primary';
+                    }
+                }
+            } catch (error) {
+                console.error('Error looking up email:', error);
+            }
+        });
+
+        // Replace the calculateTotal function with this updated version
+        function calculateTotal() {
+            let productsSubtotal = 0;
+            let servicesSubtotal = 0;
+            
+            // Calculate products subtotal
+            document.querySelectorAll('.product-item').forEach(item => {
+                const quantity = parseInt(item.querySelector('.quantity-input').value) || 0;
+                const price = parseFloat(item.querySelector('.unit-price-input').value) || 0;
+                productsSubtotal += (quantity * price);
+            });
+            
+            // Calculate services subtotal
+            document.querySelectorAll('.service-checkbox:checked').forEach(checkbox => {
+                servicesSubtotal += parseFloat(checkbox.dataset.price) || 0;
+            });
+
+            // Update subtotal displays
+            document.getElementById('products-subtotal').textContent = `Ksh. ${productsSubtotal.toFixed(2)}`;
+            document.getElementById('services-subtotal').textContent = `Ksh. ${servicesSubtotal.toFixed(2)}`;
+            
+            // Calculate base subtotal
+            const subtotal = productsSubtotal + servicesSubtotal;
+            currentSubtotal = subtotal;
+            
+            // Update shipping fee if needed
+            if (document.getElementById('shipping_method').value) {
+                calculateShippingFee();
+            }
+            
+            // Show discount if applicable
+            const discountRow = document.getElementById('discount-row');
+            if (currentDiscount > 0) {
+                discountRow.style.display = 'flex';
+                document.getElementById('discount-amount').textContent = `-Ksh. ${currentDiscount.toFixed(2)}`;
+            } else {
+                discountRow.style.display = 'none';
+            }
+            
+            // Calculate final total
+            const finalTotal = subtotal + lastValidShippingFee - currentDiscount;
+            document.getElementById('final-total').textContent = `Ksh. ${finalTotal.toFixed(2)}`;
+            document.getElementById('shipping-fee').textContent = `Ksh. ${lastValidShippingFee.toFixed(2)}`;
+
+            return {
+                productsSubtotal,
+                servicesSubtotal,
+                shippingFee: lastValidShippingFee,
+                discount: currentDiscount,
+                finalTotal
+            };
+        }
+
+        // Update the calculateShippingFee function
+        async function calculateShippingFee() {
+            const methodId = document.getElementById('shipping_method').value;
+            const regionId = document.getElementById('region_id').value;
+            const totalItems = Array.from(document.querySelectorAll('.quantity-input'))
+                .reduce((sum, input) => sum + parseInt(input.value || 0), 0);
+
+            if (!methodId || !regionId) {
+                lastValidShippingFee = 0;
+                calculateTotal();
+                return;
+            }
+
+            try {
+                const response = await fetch('ajax/calculate_shipping.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        methodId: methodId,
+                        regionId: regionId,
+                        itemCount: totalItems,
+                        subtotal: currentSubtotal
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    lastValidShippingFee = parseFloat(data.fee) || 0;
+                } else {
+                    console.error('Shipping calculation failed:', data.error);
+                    lastValidShippingFee = 0;
+                }
+            } catch (error) {
+                console.error('Error calculating shipping:', error);
+                lastValidShippingFee = 0;
+            }
+            
+            calculateTotal();
+        }
     </script>
 </body>
 <?php include 'includes/nav/footer.php'; ?>
