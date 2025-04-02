@@ -1,55 +1,70 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+// Get image path from query parameter
+$imagePath = isset($_GET['path']) ? $_GET['path'] : null;
 
-if (!isset($_GET['path'])) {
+if (!$imagePath) {
+    header('Content-Type: application/json');
     http_response_code(400);
-    exit('Image path not specified');
+    echo json_encode(['error' => 'Image path is required']);
+    exit;
 }
 
-// Get the absolute path to the zellow_admin directory
-$adminRoot = realpath(__DIR__ . '/../../');
-$requestedPath = trim($_GET['path'], '/');
-
-// Combine paths and clean them
-$fullPath = $adminRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $requestedPath);
-$fullPath = realpath($fullPath);
-
-// Security check - ensure the file is within the uploads directory
-if (!$fullPath || strpos($fullPath, $adminRoot . DIRECTORY_SEPARATOR . 'uploads') !== 0) {
-    error_log("Invalid file path requested: " . $_GET['path']);
-    http_response_code(403);
-    exit('Access denied');
+// Ensure path starts with uploads/products
+if (!str_starts_with($imagePath, 'uploads/products/')) {
+    $imagePath = 'uploads/products/' . basename($imagePath);
 }
 
-if (!file_exists($fullPath)) {
-    error_log("File not found: " . $fullPath);
+// Clean up path to prevent directory traversal
+$imagePath = str_replace(['..', '//', '\\'], ['', '/', '/'], $imagePath);
+$imagePath = ltrim($imagePath, '/');
+
+// Construct full path
+$fullPath = __DIR__ . '/../../' . $imagePath;
+$realPath = realpath($fullPath);
+
+// Security checks
+if (!$realPath || !file_exists($realPath)) {
+    header('Content-Type: application/json');
     http_response_code(404);
-    exit('Image not found');
+    echo json_encode(['error' => 'Image not found', 'path' => $imagePath]);
+    exit;
 }
+
+// Verify it's within the uploads/products directory
+$uploadsDir = realpath(__DIR__ . '/../../uploads/products');
+if (strpos($realPath, $uploadsDir) !== 0) {
+    header('Content-Type: application/json');
+    http_response_code(403);
+    echo json_encode(['error' => 'Access denied']);
+    exit;
+}
+
+// Get file extension
+$extension = strtolower(pathinfo($realPath, PATHINFO_EXTENSION));
 
 // Validate file type
-$allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-$finfo = finfo_open(FILEINFO_MIME_TYPE);
-$mimeType = finfo_file($finfo, $fullPath);
-finfo_close($finfo);
-
-if (!in_array($mimeType, $allowedMimes)) {
-    error_log("Invalid file type: " . $mimeType);
+$allowedTypes = ['jpg', 'jpeg', 'png', 'gif'];
+if (!in_array($extension, $allowedTypes)) {
+    header('Content-Type: application/json');
     http_response_code(400);
-    exit('Invalid file type');
+    echo json_encode(['error' => 'Invalid file type']);
+    exit;
 }
 
-// Debug logging
-error_log("Serving image: " . $fullPath);
-error_log("Mime type: " . $mimeType);
+// Set proper content type
+$contentTypes = [
+    'jpg' => 'image/jpeg',
+    'jpeg' => 'image/jpeg',
+    'png' => 'image/png',
+    'gif' => 'image/gif'
+];
 
-// Set headers and serve the file
-header('Content-Type: ' . $mimeType);
-header('Content-Length: ' . filesize($fullPath));
-header('Cache-Control: public, max-age=31536000');
-header('Expires: ' . gmdate('D, d M Y H:i:s \G\M\T', time() + 31536000));
-header('Last-Modified: ' . gmdate('D, d M Y H:i:s \G\M\T', filemtime($fullPath)));
+// Set headers for image serving
+header('Content-Type: ' . $contentTypes[$extension]);
+header('Content-Length: ' . filesize($realPath));
+header('Cache-Control: public, max-age=86400'); // Cache for 24 hours
+header('Pragma: public');
 
-if (ob_get_level()) ob_end_clean();
-readfile($fullPath);
+// Output the file
+readfile($realPath);
+exit;

@@ -130,6 +130,19 @@ try {
             }
             break;
 
+        // Shipping endpoints
+        case '/shipping/regions':
+            require __DIR__ . '/shipping/regions.php';
+            break;
+
+        case '/shipping/methods':
+            require __DIR__ . '/shipping/methods.php';
+            break;
+
+        case '/shipping/rates':
+            require __DIR__ . '/shipping/rates.php';
+            break;
+
         default:
             send_error('Endpoint not found', 404);
     }

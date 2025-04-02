@@ -77,17 +77,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $variant_image_2_path = $product['variant_image_2']; // Default to existing variant 2
 
     if (isset($_FILES['main_image']) && $_FILES['main_image']['error'] === UPLOAD_ERR_OK) {
-        $main_image_path = 'uploads/' . basename($_FILES['main_image']['name']);
+        $main_image_path = 'uploads/products/' . basename($_FILES['main_image']['name']);
         move_uploaded_file($_FILES['main_image']['tmp_name'], $main_image_path);
     }
 
     if (isset($_FILES['variant_images']['name'][0]) && $_FILES['variant_images']['error'][0] === UPLOAD_ERR_OK) {
-        $variant_image_1_path = 'uploads/' . basename($_FILES['variant_images']['name'][0]);
+        $variant_image_1_path = 'uploads/products/' . basename($_FILES['variant_images']['name'][0]);
         move_uploaded_file($_FILES['variant_images']['tmp_name'][0], $variant_image_1_path);
     }
 
     if (isset($_FILES['variant_images']['name'][1]) && $_FILES['variant_images']['error'][1] === UPLOAD_ERR_OK) {
-        $variant_image_2_path = 'uploads/' . basename($_FILES['variant_images']['name'][1]);
+        $variant_image_2_path = 'uploads/products/' . basename($_FILES['variant_images']['name'][1]);
         move_uploaded_file($_FILES['variant_images']['tmp_name'][1], $variant_image_2_path);
     }
 

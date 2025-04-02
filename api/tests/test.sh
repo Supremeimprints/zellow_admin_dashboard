@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Base URL
-BASE_URL="http://localhost/zellow_admin/api"
+BASE_URL="http://192.168.0.101/zellow_admin/api"
 
 # Login and get token
 echo "Testing login..."

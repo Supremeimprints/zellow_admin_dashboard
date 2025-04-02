@@ -1,52 +1,27 @@
+# Disable directory listings
+Options -Indexes
+
 ErrorDocument 404 /zellow_admin/404.php
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /zellow_admin/
 
-    # Allow direct access to assets
-    RewriteCond %{REQUEST_URI} !^/zellow_admin/assets/
-    RewriteCond %{REQUEST_URI} !^/zellow_admin/public/
+    # Handle direct access to product images
+    RewriteCond %{REQUEST_URI} ^/zellow_admin/uploads/products/
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
 
-    # Allow direct access to uploads folder
-    RewriteRule ^uploads/(.*)$ uploads/$1 [L]
-
-    # Allow direct access to API endpoints
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^api/(.*)$ api/$1.php [QSA,L]
+    # Handle API image requests
+    RewriteRule ^api/products/image$ api/products/serve_image.php [L,QSA]
 
     # Handle API requests
-    RewriteCond %{REQUEST_URI} ^/api/
+    RewriteCond %{REQUEST_URI} ^/zellow_admin/api/
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^(.*)$ api/index.php [QSA,L]
+    RewriteRule ^api/(.*)$ api/index.php [QSA,L]
 
-    # Coupon API routes
-    RewriteRule ^api/coupons/apply$ api/coupons/apply.php [L]
-    RewriteRule ^api/coupons$ api/coupons/index.php [L]
-
-    # Feedback API routes
-    RewriteRule ^api/feedback$ api/feedback/index.php [L]
-
-    # Order API routes
-    RewriteRule ^api/orders/details$ api/orders/details.php [L]
-    RewriteRule ^api/orders/get$ api/orders/get.php [L]
-    RewriteRule ^api/orders/tracking$ api/orders/tracking.php [L]
-    RewriteRule ^api/orders/update-tracking$ api/orders/update_tracking.php [L]
-
-    # Image serving route
-    RewriteRule ^api/images/serve$ api/images/serve.php [L]
-
-    # Protect config and includes directories
-    RewriteRule ^(config|includes)/ - [F,L]
-
-    # Handle other routes
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^(.*)$ index.php [QSA,L]
-
-    # Set headers for API requests
+    # Set CORS headers for API requests
     <IfModule mod_headers.c>
         Header set Access-Control-Allow-Origin "*"
         Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
@@ -56,10 +31,12 @@ ErrorDocument 404 /zellow_admin/404.php
     # Handle CORS preflight requests
     RewriteCond %{REQUEST_METHOD} OPTIONS
     RewriteRule ^(.*)$ $1 [R=200,L]
-    
-    # General 404 rule (excluding API requests)
-    RewriteCond %{REQUEST_URI} !^/zellow_admin/api/
+
+    # Protect sensitive directories
+    RewriteRule ^(config|includes)/ - [F,L]
+
+    # Handle other routes
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule . /zellow_admin/404.php [L]
+    RewriteRule ^(.*)$ index.php [QSA,L]
 </IfModule>

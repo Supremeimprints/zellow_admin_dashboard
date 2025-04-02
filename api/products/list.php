@@ -88,7 +88,7 @@ try {
         $baseUrl = rtrim(BASE_URL, '/');
         foreach (['main_image', 'variant_image_1', 'variant_image_2'] as $imageField) {
             if (!empty($product[$imageField])) {
-                $product[$imageField] = $baseUrl . '/api/products/image?path=' . urlencode($product[$imageField]);
+                $product[$imageField] = $baseUrl . '/products/image?path=' . urlencode($product[$imageField]);
             }
         }
         return $product;

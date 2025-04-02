@@ -7,6 +7,21 @@ if (!isset($_SESSION['id'])) {
 }
 
 require_once 'config/database.php';
+
+// Set up uploads directory structure
+$base_upload_dir = __DIR__ . '/uploads';
+$products_upload_dir = $base_upload_dir . '/products';
+
+// Create directories if they don't exist
+if (!file_exists($base_upload_dir)) {
+    mkdir($base_upload_dir, 0777, true);
+    chmod($base_upload_dir, 0777);
+}
+if (!file_exists($products_upload_dir)) {
+    mkdir($products_upload_dir, 0777, true);
+    chmod($products_upload_dir, 0777);
+}
+
 $database = new Database();
 $db = $database->getConnection();
 
@@ -37,15 +52,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $category_id = $_POST['category_id'];
         $is_active = isset($_POST['is_active']) ? 1 : 0;
 
-        // Create uploads directory if it doesn't exist
-        $upload_dir = 'uploads/products/';
-        if (!file_exists($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
+        // Define upload paths
+        $products_upload_dir = __DIR__ . '/uploads/products/';
+        
+        // Ensure upload directory exists with correct permissions
+        if (!file_exists($products_upload_dir)) {
+            if (!mkdir($products_upload_dir, 0777, true)) {
+                error_log("Failed to create directory: " . $products_upload_dir);
+                throw new Exception("Failed to create upload directory");
+            }
+            chmod($products_upload_dir, 0777);
         }
 
-        // Function to handle image upload
-        function handleImageUpload($file) {
-            global $upload_dir;
+        // Function to handle image upload with improved path handling
+        function handleImageUpload($file, $upload_dir) {
             if ($file['error'] === UPLOAD_ERR_OK) {
                 $temp_name = $file['tmp_name'];
                 $name = basename($file['name']);
@@ -53,17 +73,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $new_name = uniqid() . '.' . $file_ext;
                 $destination = $upload_dir . $new_name;
                 
+                error_log("Attempting to upload file to: " . $destination);
+                
                 if (move_uploaded_file($temp_name, $destination)) {
-                    return $destination;
+                    error_log("File uploaded successfully to: " . $destination);
+                    return 'uploads/products/' . $new_name;
+                } else {
+                    error_log("Upload failed. Temp name: " . $temp_name);
+                    error_log("Destination: " . $destination);
+                    error_log("Upload error code: " . $file['error']);
+                    throw new Exception("Failed to move uploaded file");
                 }
             }
             return null;
         }
 
-        // Handle image uploads
-        $main_image = isset($_FILES['main_image']) ? handleImageUpload($_FILES['main_image']) : null;
-        $variant_image_1 = isset($_FILES['variant_image_1']) ? handleImageUpload($_FILES['variant_image_1']) : null;
-        $variant_image_2 = isset($_FILES['variant_image_2']) ? handleImageUpload($_FILES['variant_image_2']) : null;
+        // Handle image uploads with explicit directory
+        $main_image = isset($_FILES['main_image']) ? handleImageUpload($_FILES['main_image'], $products_upload_dir) : null;
+        $variant_image_1 = isset($_FILES['variant_image_1']) ? handleImageUpload($_FILES['variant_image_1'], $products_upload_dir) : null;
+        $variant_image_2 = isset($_FILES['variant_image_2']) ? handleImageUpload($_FILES['variant_image_2'], $products_upload_dir) : null;
 
         // Insert product into database
         $stmt = $db->prepare("
