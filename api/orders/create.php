@@ -1,223 +1,320 @@
 <?php
 require_once __DIR__ . '/../../config/database.php';
-require_once __DIR__ . '/../controllers/OrderController.php';
-require_once __DIR__ . '/../utils/auth.php';
-require_once __DIR__ . '/../../includes/functions/shipping_functions.php';
-require_once __DIR__ . '/../../includes/functions/auth_functions.php';
-require_once __DIR__ . '/../../includes/functions/order_functions.php';
+require_once __DIR__ . '/../utils/api_response.php';
 
-header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: POST");
-header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
+header("Access-Control-Allow-Headers: Content-Type, Authorization");
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit();
+// Verify token and get user
+$headers = getallheaders();
+$token = str_replace('Bearer ', '', $headers['Authorization'] ?? '');
+
+if (!$token) {
+    send_error("No authorization token provided", 401);
 }
 
 try {
-    // Get token from Authorization header
-    $headers = getallheaders();
-    $token = null;
-
-    if (isset($headers['Authorization'])) {
-        $token = str_replace('Bearer ', '', $headers['Authorization']);
-    } elseif (isset($headers['authorization'])) {
-        $token = str_replace('Bearer ', '', $headers['authorization']);
-    } elseif (isset($_SERVER['HTTP_AUTHORIZATION'])) {
-        $token = str_replace('Bearer ', '', $_SERVER['HTTP_AUTHORIZATION']);
-    }
-
-    if (!$token) {
-        send_error("No authorization token provided", 401);
-    }
-
-    // Verify token using the same method as list API
-    if (!verify_token($token)) {
-        send_error("Invalid or expired token", 401);
-    }
-
     $database = new Database();
     $db = $database->getConnection();
 
     // Get user from token
-    $stmt = $db->prepare("
-        SELECT id, username, email, role 
-        FROM users 
-        WHERE api_token = ? 
-        AND is_active = 1 
-        AND status = 'active'
-        AND token_expiry > NOW()
-    ");
+    $stmt = $db->prepare("SELECT id, email, username FROM users WHERE api_token = ? AND is_active = 1");
     $stmt->execute([$token]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$user) {
-        send_error('User not found or inactive', 401);
+        send_error("Invalid token", 401);
     }
 
-    // Get posted data
     $data = json_decode(file_get_contents("php://input"), true);
-    
+
     // Validate required fields
-    if (!isset($data['items']) || empty($data['items'])) {
-        send_error("Order must contain at least one item", 400);
+    if (empty($data['items']) || empty($data['shipping_address'])) {
+        send_error("Missing required fields", 400);
     }
-
-    // Calculate order totals
-    $subtotal = 0;
-    foreach ($data['items'] as $item) {
-        if (!isset($item['product_id'], $item['quantity'])) {
-            send_error("Each item must have product_id and quantity", 400);
-        }
-        // Get product price from database to prevent tampering
-        $stmt = $db->prepare("SELECT price FROM products WHERE product_id = ?");
-        $stmt->execute([$item['product_id']]);
-        $price = $stmt->fetchColumn();
-        if (!$price) {
-            send_error("Invalid product ID: " . $item['product_id'], 400);
-        }
-        $subtotal += $price * $item['quantity'];
-    }
-
-    // Calculate shipping fee if shipping method and region provided
-    $shipping_fee = 0.00; // Set default value
-    $shipping_method_id = null;
-    $shipping_region_id = null;
-
-    if (isset($data['shipping_method_id'], $data['shipping_region_id'])) {
-        // First validate that both shipping method and region exist and are active
-        $validateMethodRegionStmt = $db->prepare("
-            SELECT sm.id as method_id, sr.id as region_id
-            FROM shipping_methods sm 
-            CROSS JOIN shipping_regions sr
-            WHERE sm.id = ? AND sr.id = ?
-            AND sm.is_active = 1 AND sr.is_active = 1"
-        );
-        $validateMethodRegionStmt->execute([
-            $data['shipping_method_id'],
-            $data['shipping_region_id']
-        ]);
-        
-        if ($validateMethodRegionStmt->fetch()) {
-            // Now validate that there's an active rate for this combination
-            $validateShippingStmt = $db->prepare("
-                SELECT base_rate, per_item_fee
-                FROM region_shipping_rates 
-                WHERE shipping_method_id = ? 
-                AND region_id = ? 
-                AND is_active = 1"
-            );
-            $validateShippingStmt->execute([
-                $data['shipping_method_id'],
-                $data['shipping_region_id']
-            ]);
-            
-            $shippingRate = $validateShippingStmt->fetch(PDO::FETCH_ASSOC);
-
-            if ($shippingRate) {
-                $shipping_method_id = $data['shipping_method_id'];
-                $shipping_region_id = $data['shipping_region_id'];
-                
-                // Calculate shipping fee based on actual rates from database
-                $itemCount = array_sum(array_column($data['items'], 'quantity'));
-                $shipping_fee = $shippingRate['base_rate'] + ($shippingRate['per_item_fee'] * max(0, $itemCount - 1));
-            } else {
-                send_error("No active shipping rate found for this method and region combination", 400);
-            }
-        } else {
-            send_error("Invalid or inactive shipping method or region", 400);
-        }
-    }
-
-    $total_amount = $subtotal + $shipping_fee - ($data['discount_amount'] ?? 0);
 
     $db->beginTransaction();
 
     try {
-        // Generate tracking number
-        $tracking_number = generateTrackingNumber();
+        // Validate all products first
+        foreach ($data['items'] as $item) {
+            if (!isset($item['product_id']) || !isset($item['quantity'])) {
+                throw new Exception("Invalid item format - missing product_id or quantity");
+            }
+            
+            $stmt = $db->prepare("
+                SELECT product_id, price, stock_quantity 
+                FROM products 
+                WHERE product_id = ? AND active = 1
+            ");
+            $stmt->execute([$item['product_id']]);
+            $product = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$product) {
+                throw new Exception("Product not found: " . $item['product_id']);
+            }
+            
+            // Store validated product data for later use
+            $item['validated_price'] = $product['price'];
+            $validatedProducts[$item['product_id']] = $product;
+        }
 
-        // Insert main order with explicit default values and nullable shipping fields
+        // Calculate totals using validated products
+        $subtotal = 0;
+        foreach ($data['items'] as $item) {
+            $subtotal += $validatedProducts[$item['product_id']]['price'] * $item['quantity'];
+        }
+
+        // Validate shipping method and region first
+        if (!validateShippingDetails($db, $data['shipping_method'], $data['shipping_region_id'])) {
+            throw new Exception("Invalid shipping method or region");
+        }
+
+        // Validate occasion if gift order
+        if (isset($data['gift_details']) && isset($data['gift_details']['occasion_id'])) {
+            $stmt = $db->prepare("SELECT id, name FROM gift_occasions WHERE id = ?");
+            $stmt->execute([$data['gift_details']['occasion_id']]);
+            $occasion = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$occasion) {
+                throw new Exception("Invalid occasion selected");
+            }
+        }
+
+        // Calculate additional costs
+        $giftWrapCost = isset($data['gift_wrap_style']) ? calculateGiftWrapCost($data['gift_wrap_style']) : 0;
+        $customizationCost = isset($data['customization_type']) ? calculateCustomizationCost($data['customization_type']) : 0;
+        $shippingFee = calculateShippingFee($data['shipping_method'], $data['shipping_region_id']);
+        $discountAmount = isset($data['coupon_id']) ? calculateDiscount($data['coupon_id'], $subtotal) : 0;
+
+        $totalAmount = $subtotal + $giftWrapCost + $customizationCost + $shippingFee - $discountAmount;
+
+        // Generate unique tracking number
+        $tracking_number = generateTrackingNumber($db);
+
+        // Insert main order
         $stmt = $db->prepare("
             INSERT INTO orders (
-                id, email, username, total_amount,
-                status, shipping_address, payment_status,
-                payment_method, shipping_fee,
-                shipping_method_id, shipping_region_id,
-                tracking_number
+                id, email, username, total_amount, shipping_address,
+                shipping_method, shipping_region_id, shipping_fee,
+                payment_method, payment_method_id, coupon_id, discount_amount,
+                is_gift, customization_type, customization_details,
+                customization_cost, status, payment_status, tracking_number
             ) VALUES (
-                :id, :email, :username, :total_amount,
-                'Pending', :shipping_address, 'Pending',
-                :payment_method, :shipping_fee,
-                NULLIF(:shipping_method_id, ''), NULLIF(:shipping_region_id, ''),
-                :tracking_number
-            )");
-        
-        $stmt->execute([
-            ':id' => $user['id'],
-            ':email' => $user['email'],
-            ':username' => $user['username'],
-            ':total_amount' => $total_amount,
-            ':shipping_address' => $data['shipping_address'],
-            ':payment_method' => $data['payment_method'] ?? 'Mpesa',
-            ':shipping_fee' => $shipping_fee,
-            ':shipping_method_id' => $shipping_method_id,
-            ':shipping_region_id' => $shipping_region_id,
-            ':tracking_number' => $tracking_number
-        ]);
-        
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', 'Pending', ?
+            )
+        ");
+
+        $params = [
+            $user['id'],
+            $user['email'],
+            $user['username'],
+            $totalAmount,
+            $data['shipping_address'],
+            $data['shipping_method'],
+            $data['shipping_region_id'],
+            $shippingFee,
+            $data['payment_method'],
+            $data['payment_method_id'] ?? null,
+            $data['coupon_id'] ?? null,
+            $discountAmount,
+            isset($data['gift_details']) ? 1 : 0,
+            $data['customization_type'] ?? null,
+            $data['customization_details'] ?? null,
+            $customizationCost,
+            $tracking_number
+        ];
+
+        $stmt->execute($params);
+
         $orderId = $db->lastInsertId();
 
-        // Insert order items
+        // Insert order items using validated products
         $itemStmt = $db->prepare("
             INSERT INTO order_items (
-                order_id, product_id, quantity, 
-                unit_price, subtotal, status
+                order_id, product_id, quantity, unit_price,
+                subtotal, status
             ) VALUES (?, ?, ?, ?, ?, 'purchased')
         ");
 
         foreach ($data['items'] as $item) {
-            $stmt = $db->prepare("SELECT price FROM products WHERE product_id = ?");
-            $stmt->execute([$item['product_id']]);
-            $price = $stmt->fetchColumn();
+            $product = $validatedProducts[$item['product_id']];
+            $itemSubtotal = $product['price'] * $item['quantity'];
             
-            $itemSubtotal = $price * $item['quantity'];
             $itemStmt->execute([
                 $orderId,
                 $item['product_id'],
                 $item['quantity'],
-                $price,
+                $product['price'],
                 $itemSubtotal
             ]);
         }
 
-        // Update payment method usage if provided
-        if (isset($data['payment_method_id'])) {
-            $stmt = $db->prepare("
-                UPDATE payment_methods 
-                SET usage_count = usage_count + 1,
-                    last_used = NOW()
-                WHERE id = ?");
-            $stmt->execute([$data['payment_method_id']]);
+        // Insert gift details if applicable
+        if (isset($data['gift_details'])) {
+            // Validate required gift fields
+            $requiredGiftFields = ['recipient_name', 'recipient_email', 'gift_message'];
+            foreach ($requiredGiftFields as $field) {
+                if (empty($data['gift_details'][$field])) {
+                    throw new Exception("Missing required gift field: $field");
+                }
+            }
+
+            $giftStmt = $db->prepare("
+                INSERT INTO order_gifts (
+                    order_id, occasion_id, gift_wrap_style_id,
+                    gift_message, recipient_name, recipient_email,
+                    notify_recipient, gift_status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+            ");
+
+            $giftStmt->execute([
+                $orderId,
+                $data['gift_details']['occasion_id'] ?? null,
+                $data['gift_details']['gift_wrap_style_id'] ?? null,
+                $data['gift_details']['gift_message'],
+                $data['gift_details']['recipient_name'],
+                $data['gift_details']['recipient_email'],
+                $data['gift_details']['notify_recipient'] ?? 0
+            ]);
+
+            // Update main order with gift details (removed occasion_id)
+            $updateOrderStmt = $db->prepare("
+                UPDATE orders SET 
+                    is_gift = 1,
+                    recipient_name = ?,
+                    recipient_email = ?,
+                    gift_message = ?,
+                    notify_recipient = ?
+                WHERE order_id = ?
+            ");
+
+            $updateOrderStmt->execute([
+                $data['gift_details']['recipient_name'],
+                $data['gift_details']['recipient_email'],
+                $data['gift_details']['gift_message'],
+                $data['gift_details']['notify_recipient'] ?? 0,
+                $orderId
+            ]);
         }
 
         $db->commit();
+
+        // Return success response with enhanced gift details
         send_success("Order created successfully", [
             'order_id' => $orderId,
             'tracking_number' => $tracking_number,
-            'total_amount' => $total_amount,
-            'subtotal' => $subtotal,
-            'shipping_fee' => $shipping_fee
+            'total_amount' => $totalAmount,
+            'breakdown' => [
+                'subtotal' => $subtotal,
+                'gift_wrap_cost' => $giftWrapCost,
+                'customization_cost' => $customizationCost,
+                'shipping_fee' => $shippingFee,
+                'discount_amount' => $discountAmount
+            ],
+            'gift_details' => isset($data['gift_details']) ? [
+                'occasion' => $occasion['name'] ?? null,
+                'recipient_name' => $data['gift_details']['recipient_name'],
+                'recipient_email' => $data['gift_details']['recipient_email'],
+                'notify_recipient' => (bool)$data['gift_details']['notify_recipient']
+            ] : null
         ]);
-        
+
     } catch (Exception $e) {
         $db->rollBack();
         throw $e;
     }
-    
+
 } catch (Exception $e) {
     error_log("Order Creation Error: " . $e->getMessage());
-    send_error("Server error: " . $e->getMessage(), 500);
+    send_error("Error creating order: " . $e->getMessage(), 500);
+}
+
+function validateShippingDetails($db, $shippingMethod, $regionId) {
+    $stmt = $db->prepare("
+        SELECT sr.base_rate 
+        FROM shipping_methods sm
+        JOIN region_shipping_rates sr ON sm.id = sr.shipping_method_id
+        WHERE sm.name = ? AND sr.region_id = ? AND sm.is_active = 1
+    ");
+    $stmt->execute([$shippingMethod, $regionId]);
+    return $stmt->fetch(PDO::FETCH_ASSOC) !== false;
+}
+
+function calculateGiftWrapCost($style) {
+    // Implement gift wrap cost calculation based on style
+    $costs = [
+        'basic' => 5.00,
+        'premium' => 10.00,
+        'luxury' => 15.00
+    ];
+    return $costs[$style] ?? 5.00;
+}
+
+function calculateCustomizationCost($type) {
+    // Implement customization cost calculation
+    $costs = [
+        'engraving' => 15.00,
+        'printing' => 10.00
+    ];
+    return $costs[$type] ?? 0;
+}
+
+function calculateShippingFee($shippingMethod, $regionId) {
+    global $db;
+    // Get shipping rate from database using method name instead of ID
+    $stmt = $db->prepare("
+        SELECT sr.base_rate 
+        FROM shipping_methods sm
+        JOIN region_shipping_rates sr ON sm.id = sr.shipping_method_id
+        WHERE sm.name = ? AND sr.region_id = ? AND sm.is_active = 1
+    ");
+    $stmt->execute([$shippingMethod, $regionId]);
+    return $stmt->fetchColumn() ?: 0;
+}
+
+function calculateDiscount($couponId, $subtotal) {
+    global $db;
+    // Get coupon details and calculate discount
+    $stmt = $db->prepare("
+        SELECT discount_type, discount_percentage, discount_value 
+        FROM coupons 
+        WHERE coupon_id = ? 
+        AND status = 'active'
+        AND expiration_date > NOW()
+    ");
+    $stmt->execute([$couponId]);
+    $coupon = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$coupon) return 0;
+
+    return $coupon['discount_type'] === 'percentage' 
+        ? ($subtotal * $coupon['discount_percentage'] / 100)
+        : $coupon['discount_value'];
+}
+
+function generateTrackingNumber($db) {
+    $prefix = 'TRK-' . date('Ymd');
+    $uniqueId = '';
+    $isUnique = false;
+
+    while (!$isUnique) {
+        // Generate 4 random alphanumeric characters
+        $chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        $random = '';
+        for ($i = 0; $i < 4; $i++) {
+            $random .= $chars[rand(0, strlen($chars) - 1)];
+        }
+        $uniqueId = $prefix . '-' . $random;
+
+        // Check if this tracking number already exists
+        $stmt = $db->prepare("SELECT COUNT(*) FROM orders WHERE tracking_number = ?");
+        $stmt->execute([$uniqueId]);
+        if ($stmt->fetchColumn() == 0) {
+            $isUnique = true;
+        }
+    }
+
+    return $uniqueId;
 }
