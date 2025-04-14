@@ -27,6 +27,7 @@ function getGifteeEmailTemplate($orderId, $giftData) {
 }
 
 function getGifterEmailTemplate($orderId, $giftData) {
+    $giftWrapped = $giftData['is_gift_wrapped'] ? 'Yes' : 'No';
     return <<<HTML
     <html>
     <body>
@@ -43,7 +44,7 @@ function getGifterEmailTemplate($orderId, $giftData) {
         <ul>
             <li>Order ID: #{$orderId}</li>
             <li>Tracking Code: {$giftData['tracking_code']}</li>
-            <li>Gift Wrapping: {$giftData['is_gift_wrapped'] ? 'Yes' : 'No'}</li>
+            <li>Gift Wrapping: {$giftWrapped}</li>
         </ul>
         
         <p><a href="https://your-domain.com/orders/{$orderId}" 

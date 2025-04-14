@@ -43,15 +43,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
         // Set the prefix based on the role
-        $prefix = match ($role) {
-            'admin' => 'ADM',
-            'finance_manager' => 'FIN',
-            'supply_manager' => 'SUP',
-            'inventory_manager' => 'INV',
-            'dispatch_manager' => 'DIS',
-            'service_manager' => 'SER',
-            default => 'ADM',
-        };
+        switch ($role) {
+            case 'admin':
+                $prefix = 'ADM';
+                break;
+            case 'finance_manager':
+                $prefix = 'FIN';
+                break;
+            case 'supply_manager':
+                $prefix = 'SUP';
+                break;
+            case 'inventory_manager':
+                $prefix = 'INV';
+                break;
+            case 'dispatch_manager':
+                $prefix = 'DIS';
+                break;
+            case 'service_manager':
+                $prefix = 'SER';
+                break;
+            default:
+                $prefix = 'ADM';
+        }
 
         // Fetch the highest employee number for the given prefix
         $query = "SELECT MAX(CAST(SUBSTRING(employee_number, LENGTH(?) + 2) AS UNSIGNED)) AS max_employee_number

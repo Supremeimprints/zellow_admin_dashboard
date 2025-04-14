@@ -33,15 +33,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Generate employee number based on role
-        $prefix = match ($role) {
-            'admin' => 'ADM',
-            'finance_manager' => 'FIN',
-            'supply_manager' => 'SUP',
-            'inventory_manager' => 'INV',
-            'dispatch_manager' => 'DIS',
-            'service_manager' => 'SER',
-            default => 'EMP',
-        };
+        switch ($role) {
+            case 'admin':
+                $prefix = 'ADM';
+                break;
+            case 'finance_manager':
+                $prefix = 'FIN';
+                break;
+            case 'supply_manager':
+                $prefix = 'SUP';
+                break;
+            case 'inventory_manager':
+                $prefix = 'INV';
+                break;
+            case 'dispatch_manager':
+                $prefix = 'DIS';
+                break;
+            case 'service_manager':
+                $prefix = 'SER';
+                break;
+            default:
+                $prefix = 'EMP';
+        }
 
         $characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         $randomString = '';

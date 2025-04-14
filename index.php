@@ -173,14 +173,20 @@ function getPriorityColor($priority) {
 }
 
 function getProgressBarColor($status) {
-    return match (strtolower($status)) {
-        'pending' => 'bg-warning',
-        'processing' => 'bg-info',
-        'shipped' => 'bg-primary',
-        'delivered' => 'bg-success',
-        'cancelled' => 'bg-danger',
-        default => 'bg-secondary'
-    };
+    switch (strtolower($status)) {
+        case 'pending':
+            return 'bg-warning';
+        case 'processing':
+            return 'bg-info';
+        case 'shipped':
+            return 'bg-primary';
+        case 'delivered':
+            return 'bg-success';
+        case 'cancelled':
+            return 'bg-danger';
+        default:
+            return 'bg-secondary';
+    }
 }
 
 ?>
@@ -488,12 +494,22 @@ function getProgressBarColor($status) {
                                                     <div class="notifications-item">
                                                         <div class="d-flex justify-content-between align-items-start">
                                                             <div class="flex-grow-1">
-                                                                <span class="badge bg-<?= match ($notification['type'] ?? 'Message') {
-                                                                    'Task' => 'warning',
-                                                                    'Alert' => 'danger',
-                                                                    'Message' => 'info',
-                                                                    default => 'secondary'
-                                                                } ?> mb-2">
+                                                                <span class="badge bg-<?php 
+                                                                    $type = $notification['type'] ?? 'Message';
+                                                                    switch ($type) {
+                                                                        case 'Task':
+                                                                            echo 'warning';
+                                                                            break;
+                                                                        case 'Alert':
+                                                                            echo 'danger';
+                                                                            break;
+                                                                        case 'Message':
+                                                                            echo 'info';
+                                                                            break;
+                                                                        default:
+                                                                            echo 'secondary';
+                                                                    }
+                                                                ?> mb-2">
                                                                     <?= $notification['type'] ?? 'Message' ?>
                                                                 </span>
                                                                 <div class="sender-name">

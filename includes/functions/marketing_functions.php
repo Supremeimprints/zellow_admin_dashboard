@@ -4,12 +4,16 @@
  * Get status color for campaign badges
  */
 function getStatusColor($status) {
-    return match ($status) {
-        'active' => 'success',
-        'paused' => 'warning',
-        'completed' => 'secondary',
-        default => 'primary'
-    };
+    switch ($status) {
+        case 'active':
+            return 'success';
+        case 'paused':
+            return 'warning';
+        case 'completed':
+            return 'secondary';
+        default:
+            return 'primary';
+    }
 }
 
 /**

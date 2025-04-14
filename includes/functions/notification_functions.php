@@ -115,12 +115,16 @@ function getUnreadNotificationCount($db, $userId) {
  * Get notification priority class
  */
 function getNotificationPriorityClass($priority) {
-    return match($priority) {
-        'high' => 'bg-danger',
-        'medium' => 'bg-warning',
-        'low' => 'bg-info',
-        default => 'bg-secondary'
-    };
+    switch($priority) {
+        case 'high':
+            return 'bg-danger';
+        case 'medium':
+            return 'bg-warning';
+        case 'low':
+            return 'bg-info';
+        default:
+            return 'bg-secondary';
+    }
 }
 
 /**
