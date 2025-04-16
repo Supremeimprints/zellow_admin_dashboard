@@ -1,0 +1,40 @@
+.page-container {
+  margin: 0 auto;
+}
+
+.card {
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: none;
+  margin-bottom: 2rem;
+  overflow: hidden;
+}
+
+.card-header {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  padding: 1rem 1.5rem;
+}
+
+.action-btn {
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  transform: translateY(-2px);
+}
+
+.table th {
+  font-weight: 600;
+  color: #495057;
+}
+
+.empty-state {
+  padding: 3rem;
+  text-align: center;
+  color: #6c757d;
+}
+
+.page-title-wrapper {
+  margin-bottom: 1.5rem;
+}

@@ -390,11 +390,11 @@ function getProgressBarColor($status) {
                                                 </a>
                                             </div>
                                             <div class="col-6 col-md-2">
-                                                <a href="inventory.php"
+                                                <a href="giftbox_manager.php"
                                                     class="card quick-action-card bg-success text-white text-center py-2 clickable-card">
                                                     <div class="card-body">
                                                         <i class="fas fa-box-open fa-2x mb-2"></i>
-                                                        <div class="small">Inventory</div>
+                                                        <div class="small">Gift Boxes</div>
                                                     </div>
                                                 </a>
                                             </div>
